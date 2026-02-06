@@ -23,10 +23,11 @@ import {
   Edit2,
   Download
 } from 'lucide-react';
+// Importación del cliente de Supabase existente en tu proyecto
 import { supabase } from './lib/supabase';
 
 /**
- * TIPOS DE DATOS (Coincidentes con SQL)
+ * TIPOS DE DATOS
  */
 type PipelineStage = 'Prospecto' | 'Visitando' | 'Interés' | 'Cierre';
 type LeadSource = 'Web' | 'RRSS' | 'Idealista' | 'Buzoneo' | 'Referido' | 'Otros';
@@ -54,13 +55,6 @@ interface Event {
   completed: boolean;
 }
 
-interface Document {
-  id: string;
-  name: string;
-  category: string;
-  url: string;
-}
-
 interface InventoryUnit {
   id: number;
   number: string;
@@ -69,10 +63,7 @@ interface InventoryUnit {
   leadId?: string;
 }
 
-/**
- * DATOS ESTÁTICOS
- */
-const AVAILABLE_DOCS: Document[] = [
+const AVAILABLE_DOCS = [
   { id: 'd1', name: 'Plano General Mirapinos', category: 'General', url: '#' },
   { id: 'd2', name: 'Memoria de Calidades Olivo', category: 'Olivo', url: '#' },
   { id: 'd3', name: 'Plano Planta Baja Arce', category: 'Arce', url: '#' },
@@ -88,9 +79,6 @@ const generateInventory = (): InventoryUnit[] => {
   return units;
 };
 
-/**
- * COMPONENTE PRINCIPAL
- */
 export default function MirapinosCRM() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'leads' | 'pipeline' | 'inventory'>('dashboard');
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -104,30 +92,42 @@ export default function MirapinosCRM() {
   const [filterStage, setFilterStage] = useState<PipelineStage | 'All'>('All');
   const [filterRating, setFilterRating] = useState<number | 0>(0);
 
-  // Sincronización con Supabase
+  // EFECTO PARA CARGAR DATOS REALES AL INICIAR
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const { data: leadsData } = await supabase.from('leads').select('*').order('createdAt', { ascending: false });
-      const { data: eventsData } = await supabase.from('events').select('*').order('date', { ascending: false });
-      
-      if (leadsData) setLeads(leadsData);
-      if (eventsData) setEvents(eventsData);
-      setLoading(false);
-    };
     fetchData();
   }, []);
 
+  async function fetchData() {
+    setLoading(true);
+    try {
+      const { data: leadsData, error: lError } = await supabase.from('leads').select('*').order('createdAt', { ascending: false });
+      const { data: eventsData, error: eError } = await supabase.from('events').select('*').order('date', { ascending: false });
+      
+      if (lError) throw lError;
+      if (eError) throw eError;
+
+      if (leadsData) setLeads(leadsData);
+      if (eventsData) setEvents(eventsData);
+    } catch (error) {
+      console.error("Error cargando datos:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
-      const matchesSearch = (lead.firstName + ' ' + lead.lastName + lead.email + lead.phone).toLowerCase().includes(searchTerm.toLowerCase());
+      const fullName = (lead.firstName + ' ' + lead.lastName).toLowerCase();
+      const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || 
+                           lead.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           lead.phone.includes(searchTerm);
       const matchesStage = filterStage === 'All' || lead.stage === filterStage;
       const matchesRating = filterRating === 0 || lead.rating >= filterRating;
       return matchesSearch && matchesStage && matchesRating;
     });
   }, [leads, searchTerm, filterStage, filterRating]);
 
-  // FUNCIONES DE PERSISTENCIA
+  // FUNCIONES CON PERSISTENCIA REAL
   const addLead = async (newLead: Omit<Lead, 'id' | 'createdAt'>) => {
     const { data, error } = await supabase
       .from('leads')
@@ -170,7 +170,7 @@ export default function MirapinosCRM() {
     }
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-gray-50 text-slate-500 font-medium">Sincronizando base de datos...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-gray-50 text-slate-500 font-medium tracking-widest">SINCRONIZANDO CON SUPABASE...</div>;
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans text-slate-800">
@@ -201,7 +201,7 @@ export default function MirapinosCRM() {
         
         {/* HEADER */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shadow-sm z-10">
-          <h2 className="text-xl font-semibold text-slate-700 uppercase tracking-widest text-sm">
+          <h2 className="text-xl font-semibold text-slate-700 uppercase tracking-[0.2em] text-sm">
             {activeTab === 'dashboard' && 'Panel Principal'}
             {activeTab === 'leads' && 'Gestión de Clientes'}
             {activeTab === 'pipeline' && 'Túnel de Ventas'}
@@ -340,13 +340,13 @@ function LeadsListView({ leads, onSelectLead, searchTerm, setSearchTerm, filterS
           <input 
             type="text" 
             placeholder="Buscar por nombre, email o teléfono..." 
-            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:outline-none text-sm transition-all"
+            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-4 focus:ring-emerald-500/10 focus:outline-none text-sm transition-all shadow-inner"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         
-        <select className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-xs font-bold text-slate-600 focus:outline-none" value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
+        <select className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 focus:outline-none" value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
           <option value="All">TODAS LAS ETAPAS</option>
           <option value="Prospecto">PROSPECTO</option>
           <option value="Visitando">VISITANDO</option>
@@ -354,7 +354,7 @@ function LeadsListView({ leads, onSelectLead, searchTerm, setSearchTerm, filterS
           <option value="Cierre">CIERRE</option>
         </select>
 
-        <select className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-xs font-bold text-slate-600 focus:outline-none" value={filterRating} onChange={(e) => setFilterRating(Number(e.target.value))}>
+        <select className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 focus:outline-none" value={filterRating} onChange={(e) => setFilterRating(Number(e.target.value))}>
           <option value={0}>CUALQUIER RATING</option>
           <option value={3}>3+ ESTRELLAS</option>
           <option value={5}>5 ESTRELLAS</option>
@@ -363,7 +363,7 @@ function LeadsListView({ leads, onSelectLead, searchTerm, setSearchTerm, filterS
 
       <div className="overflow-auto flex-1">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-slate-400 font-bold uppercase text-[10px] tracking-widest sticky top-0 z-10">
+          <thead className="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-[0.2em] sticky top-0 z-10">
             <tr>
               <th className="px-6 py-4">Cliente</th>
               <th className="px-6 py-4">Contacto</th>
@@ -377,15 +377,15 @@ function LeadsListView({ leads, onSelectLead, searchTerm, setSearchTerm, filterS
             {leads.map((lead: Lead) => (
               <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors group cursor-pointer" onClick={() => onSelectLead(lead.id)}>
                 <td className="px-6 py-4">
-                  <div className="font-bold text-slate-800">{lead.firstName} {lead.lastName}</div>
-                  <div className="text-[10px] text-slate-400 font-bold uppercase">{new Date(lead.createdAt).toLocaleDateString()}</div>
+                  <div className="font-black text-slate-800 tracking-tighter">{lead.firstName} {lead.lastName}</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{new Date(lead.createdAt).toLocaleDateString()}</div>
                 </td>
                 <td className="px-6 py-4 text-slate-600">
                   <div className="flex items-center gap-2 text-xs font-medium"><Phone size={12} className="text-emerald-500"/> {lead.phone}</div>
                   <div className="flex items-center gap-2 mt-1 text-xs text-slate-400"><Mail size={12}/> {lead.email}</div>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold uppercase border border-slate-200">{lead.source}</span>
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-black uppercase tracking-widest border border-slate-200">{lead.source}</span>
                 </td>
                 <td className="px-6 py-4">
                    <StageBadge stage={lead.stage} />
@@ -398,7 +398,7 @@ function LeadsListView({ leads, onSelectLead, searchTerm, setSearchTerm, filterS
                   </div>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <button className="bg-white border border-slate-200 text-slate-600 px-3 py-1 rounded text-[10px] font-bold uppercase hover:bg-slate-900 hover:text-white transition-all">
+                  <button className="bg-white border border-slate-200 text-slate-600 px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-sm">
                     Ver Ficha
                   </button>
                 </td>
@@ -413,7 +413,7 @@ function LeadsListView({ leads, onSelectLead, searchTerm, setSearchTerm, filterS
 
 // --- DETALLE DE CLIENTE ---
 function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { lead: Lead, onBack: () => void, events: Event[], onAddEvent: any, onUpdateStage: (s: PipelineStage) => void }) {
-  const [activeTab, setActiveTab] = useState<'agenda' | 'docs'>('agenda');
+  const [activeSubTab, setActiveSubTab] = useState<'agenda' | 'docs'>('agenda');
   const [showDocModal, setShowDocModal] = useState(false);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
 
@@ -425,7 +425,7 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
       leadId: lead.id,
       type: 'Envio Documentacion',
       date: new Date().toISOString(),
-      description: `Enviado a ${lead.email}: ${docNames}`,
+      description: `Enviado: ${docNames}`,
       completed: true
     });
     
@@ -434,16 +434,16 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
   };
 
   return (
-    <div className="h-full flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in duration-300">
-      <div className="p-6 border-b border-gray-100 bg-slate-50 flex justify-between items-start">
+    <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in duration-300">
+      <div className="p-8 border-b border-gray-100 bg-slate-50 flex justify-between items-start">
         <div className="flex items-center gap-6">
-          <button onClick={onBack} className="p-2 hover:bg-white hover:shadow-md rounded-full transition-all group">
+          <button onClick={onBack} className="p-3 hover:bg-white hover:shadow-md rounded-2xl transition-all group">
             <ChevronRight className="rotate-180 text-slate-400 group-hover:text-slate-900" size={24} />
           </button>
           <div>
             <div className="flex items-center gap-3">
               <h2 className="text-3xl font-black text-slate-800 tracking-tighter">{lead.firstName} {lead.lastName}</h2>
-              <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest">{lead.id.slice(0, 5)}</span>
+              <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-[0.2em]">{lead.id.slice(0, 5)}</span>
             </div>
             <div className="flex items-center gap-4 text-sm text-slate-400 mt-2 font-medium">
               <span className="flex items-center gap-1.5"><Phone size={14} className="text-emerald-500"/> {lead.phone}</span>
@@ -461,7 +461,7 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
            <select 
               value={lead.stage}
               onChange={(e) => onUpdateStage(e.target.value as PipelineStage)}
-              className="bg-slate-900 text-white text-xs font-bold rounded-lg p-3 uppercase tracking-widest focus:ring-4 focus:ring-emerald-500/20 cursor-pointer"
+              className="bg-slate-900 text-white text-[10px] font-black rounded-xl p-4 uppercase tracking-[0.2em] focus:ring-4 focus:ring-emerald-500/20 cursor-pointer shadow-xl shadow-slate-900/20"
             >
               <option value="Prospecto">Prospecto</option>
               <option value="Visitando">Visitando</option>
@@ -473,90 +473,90 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
 
       <div className="flex flex-1 overflow-hidden">
         <div className="w-1/3 border-r border-gray-100 p-8 overflow-auto bg-white">
-          <h3 className="font-black text-slate-800 mb-6 uppercase text-xs tracking-[0.2em] border-l-4 border-emerald-500 pl-3">Perfil Cliente</h3>
+          <h3 className="font-black text-slate-800 mb-6 uppercase text-xs tracking-[0.2em] border-l-4 border-emerald-500 pl-4">Perfil Cliente</h3>
           <div className="space-y-6">
             <InfoRow label="Canal de Entrada" value={lead.source} />
             <InfoRow label="Registro en Sistema" value={new Date(lead.createdAt).toLocaleDateString()} />
-            <InfoRow label="Interés Principal" value="Modelo Olivo / Pareada" />
+            <InfoRow label="Interés Principal" value="Modelo Olivo / Adosada" />
             <div className="pt-6 border-t border-slate-50">
-               <label className="text-[10px] font-black text-slate-400 block mb-2 uppercase tracking-widest">Notas Internas</label>
-               <textarea className="w-full text-sm border-slate-100 rounded-xl bg-slate-50 p-4 h-40 focus:ring-2 focus:ring-emerald-500/10 focus:outline-none transition-all placeholder:text-slate-300" placeholder="Añade detalles sobre la visita, presupuesto o necesidades específicas..."></textarea>
+               <label className="text-[10px] font-black text-slate-400 block mb-3 uppercase tracking-widest">Notas Internas</label>
+               <textarea className="w-full text-sm border-none rounded-2xl bg-slate-50 p-4 h-40 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all placeholder:text-slate-300 shadow-inner" placeholder="Añade detalles sobre la visita o presupuesto..."></textarea>
             </div>
           </div>
         </div>
 
         <div className="flex-1 flex flex-col bg-slate-50/50">
           <div className="flex bg-white px-8 shadow-sm">
-            <button className={`py-4 mr-8 text-xs font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'agenda' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`} onClick={() => setActiveTab('agenda')}>Historial y Actividad</button>
-            <button className={`py-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'docs' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`} onClick={() => setActiveTab('docs')}>Documentación Enviada</button>
+            <button className={`py-5 mr-10 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 transition-all ${activeSubTab === 'agenda' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`} onClick={() => setActiveSubTab('agenda')}>Historial y Actividad</button>
+            <button className={`py-5 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 transition-all ${activeSubTab === 'docs' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`} onClick={() => setActiveSubTab('docs')}>Documentación Enviada</button>
           </div>
 
           <div className="flex-1 p-8 overflow-auto">
-             {activeTab === 'agenda' && (
+             {activeSubTab === 'agenda' && (
                 <div className="max-w-3xl">
-                   <div className="flex justify-between items-center mb-8">
-                      <h4 className="font-black text-slate-800 uppercase text-xs tracking-widest">Timeline</h4>
-                      <div className="flex gap-2">
-                        <button className="bg-white text-slate-600 border border-slate-200 px-4 py-2 rounded-lg text-[10px] font-bold uppercase hover:shadow-md transition-all">+ Nueva Llamada</button>
-                        <button className="bg-white text-slate-600 border border-slate-200 px-4 py-2 rounded-lg text-[10px] font-bold uppercase hover:shadow-md transition-all">+ Agendar Cita</button>
+                   <div className="flex justify-between items-center mb-10">
+                      <h4 className="font-black text-slate-800 uppercase text-xs tracking-[0.2em]">Timeline</h4>
+                      <div className="flex gap-3">
+                        <button className="bg-white text-slate-600 border border-slate-200 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all shadow-sm">+ Llamada</button>
+                        <button className="bg-white text-slate-600 border border-slate-200 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all shadow-sm">+ Cita</button>
                       </div>
                    </div>
                    
-                   <div className="relative border-l-2 border-slate-200 ml-3 space-y-10">
+                   <div className="relative border-l-2 border-slate-200 ml-3 space-y-12">
                       {events.map(event => (
-                        <div key={event.id} className="relative pl-10">
-                           <div className={`absolute -left-[11px] top-0 w-5 h-5 rounded-full border-4 border-white shadow-sm ${event.type === 'Envio Documentacion' ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
-                           <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow group">
-                              <div className="flex justify-between items-start mb-2">
-                                 <span className="font-black text-[10px] text-slate-800 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded">{event.type}</span>
-                                 <span className="text-[10px] text-slate-400 font-bold">{new Date(event.date).toLocaleString()}</span>
+                        <div key={event.id} className="relative pl-12">
+                           <div className={`absolute -left-[11px] top-0 w-5 h-5 rounded-full border-4 border-white shadow-md ${event.type === 'Envio Documentacion' ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
+                           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl transition-all group">
+                              <div className="flex justify-between items-start mb-3">
+                                 <span className="font-black text-[9px] text-slate-800 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-md">{event.type}</span>
+                                 <span className="text-[10px] text-slate-400 font-bold uppercase">{new Date(event.date).toLocaleString()}</span>
                               </div>
                               <p className="text-sm text-slate-600 leading-relaxed font-medium">{event.description}</p>
                            </div>
                         </div>
                       ))}
-                      {events.length === 0 && <p className="pl-10 text-slate-400 italic text-sm font-medium">No se han registrado eventos todavía...</p>}
+                      {events.length === 0 && <p className="pl-12 text-slate-400 italic text-sm font-medium">No se han registrado eventos todavía...</p>}
                    </div>
                 </div>
              )}
 
-             {activeTab === 'docs' && (
+             {activeSubTab === 'docs' && (
                 <div className="max-w-3xl">
-                   <div className="flex justify-between items-center mb-8 p-6 bg-blue-900 rounded-2xl shadow-xl shadow-blue-900/10">
+                   <div className="flex justify-between items-center mb-10 p-8 bg-gradient-to-br from-blue-900 to-blue-800 rounded-3xl shadow-2xl shadow-blue-900/20">
                       <div>
-                        <p className="text-blue-100 text-xs font-bold uppercase tracking-widest mb-1">Gestión Documental</p>
-                        <p className="text-white text-sm font-medium">Envía planos y memorias de calidades al instante.</p>
+                        <p className="text-blue-200 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Gestión Documental</p>
+                        <p className="text-white text-sm font-medium opacity-90">Envía planos y memorias al instante.</p>
                       </div>
                       <button 
                         onClick={() => setShowDocModal(true)}
-                        className="bg-white text-blue-900 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-400 hover:text-white transition-all shadow-lg"
+                        className="bg-white text-blue-900 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3 hover:bg-emerald-400 hover:text-white transition-all shadow-xl"
                       >
-                         <Send size={14} /> Enviar Dossier
+                         <Send size={16} /> Enviar Dossier
                       </button>
                    </div>
                    
                    <div className="grid grid-cols-1 gap-4">
                       {events.filter(e => e.type === 'Envio Documentacion').map(e => (
-                         <div key={e.id} className="flex items-center gap-6 p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                            <div className="bg-blue-50 p-3 rounded-xl text-blue-600 shadow-inner">
-                               <FileText size={24} />
+                         <div key={e.id} className="flex items-center gap-8 p-6 bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                            <div className="bg-blue-50 p-4 rounded-2xl text-blue-600 shadow-inner">
+                               <FileText size={28} />
                             </div>
                             <div className="flex-1">
                                <div className="flex justify-between items-center mb-1">
-                                  <p className="text-xs font-black text-slate-800 uppercase tracking-widest">Documentos Enviados</p>
+                                  <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Dossier Enviado</p>
                                   <p className="text-[10px] text-blue-500 font-black uppercase">{new Date(e.date).toLocaleDateString()}</p>
                                </div>
-                               <p className="text-sm text-slate-500 font-medium">{e.description}</p>
+                               <p className="text-sm text-slate-500 font-medium truncate max-w-md">{e.description}</p>
                             </div>
-                            <button className="text-slate-300 hover:text-slate-600"><Download size={20}/></button>
+                            <button className="text-slate-300 hover:text-slate-600 transition-colors"><Download size={22}/></button>
                          </div>
                       ))}
                       {events.filter(e => e.type === 'Envio Documentacion').length === 0 && (
-                         <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
-                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                               <FileText className="text-slate-200" size={32} />
+                         <div className="text-center py-24 bg-white rounded-[40px] border-2 border-dashed border-slate-200">
+                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                               <FileText className="text-slate-200" size={36} />
                             </div>
-                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Bandeja de envíos vacía</p>
+                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Bandeja de envíos vacía</p>
                          </div>
                       )}
                    </div>
@@ -568,22 +568,22 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
 
       {/* Modal Envío Docs */}
       {showDocModal && (
-        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-           <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden border border-white/20">
-              <div className="p-8 bg-slate-900 text-white flex justify-between items-center">
+        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-6 backdrop-blur-md">
+           <div className="bg-white rounded-[40px] shadow-2xl max-w-2xl w-full overflow-hidden border border-white/20">
+              <div className="p-10 bg-slate-900 text-white flex justify-between items-center">
                  <div>
-                    <h3 className="text-xl font-black uppercase tracking-widest">Dossier Digital</h3>
-                    <p className="text-slate-400 text-xs font-bold mt-1">Selecciona los archivos para {lead.firstName}</p>
+                    <h3 className="text-2xl font-black uppercase tracking-[0.1em]">Dossier Digital</h3>
+                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-2">Selección para {lead.firstName}</p>
                  </div>
-                 <button onClick={() => setShowDocModal(false)} className="text-slate-400 hover:text-white transition-colors"><X size={28}/></button>
+                 <button onClick={() => setShowDocModal(false)} className="text-slate-400 hover:text-white transition-all"><X size={32}/></button>
               </div>
-              <div className="p-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 max-h-[400px] overflow-auto pr-2">
+              <div className="p-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 max-h-[400px] overflow-auto pr-2">
                    {AVAILABLE_DOCS.map(doc => (
-                      <label key={doc.id} className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedDocs.includes(doc.id) ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-100 hover:border-slate-300'}`}>
+                      <label key={doc.id} className={`flex items-center gap-5 p-5 rounded-3xl border-2 cursor-pointer transition-all ${selectedDocs.includes(doc.id) ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-100 hover:border-slate-300'}`}>
                          <input 
                             type="checkbox" 
-                            className="w-5 h-5 text-emerald-600 rounded-md border-slate-300 focus:ring-emerald-500"
+                            className="w-6 h-6 text-emerald-600 rounded-lg border-slate-300 focus:ring-emerald-500"
                             checked={selectedDocs.includes(doc.id)}
                             onChange={(e) => {
                                if(e.target.checked) setSelectedDocs([...selectedDocs, doc.id]);
@@ -592,19 +592,19 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
                          />
                          <div>
                             <div className="text-sm font-black text-slate-800 uppercase tracking-tighter">{doc.name}</div>
-                            <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{doc.category}</div>
+                            <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{doc.category}</div>
                          </div>
                       </label>
                    ))}
                 </div>
-                <div className="flex gap-4">
-                   <button onClick={() => setShowDocModal(false)} className="flex-1 px-6 py-4 text-slate-400 hover:text-slate-800 font-black text-xs uppercase tracking-widest transition-colors">Cancelar</button>
+                <div className="flex gap-5">
+                   <button onClick={() => setShowDocModal(false)} className="flex-1 px-8 py-5 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-widest transition-colors">Cancelar</button>
                    <button 
                       onClick={handleSendDocs}
                       disabled={selectedDocs.length === 0}
-                      className="flex-[2] px-6 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl shadow-emerald-600/20"
+                      className="flex-[2] px-8 py-5 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-4 shadow-2xl shadow-emerald-600/20 active:scale-95 transition-all"
                    >
-                      <Send size={18} /> Procesar Envío ({selectedDocs.length})
+                      <Send size={18} /> Procesar Dossier ({selectedDocs.length})
                    </button>
                 </div>
               </div>
@@ -620,36 +620,34 @@ function PipelineView({ leads, onDragLead, onSelectLead }: any) {
   const stages: PipelineStage[] = ['Prospecto', 'Visitando', 'Interés', 'Cierre'];
 
   return (
-    <div className="flex h-full gap-6 overflow-x-auto pb-6">
+    <div className="flex h-full gap-8 overflow-x-auto pb-8">
       {stages.map(stage => (
-        <div key={stage} className="flex-1 min-w-[320px] bg-slate-100/50 rounded-3xl flex flex-col max-h-full border border-slate-200/50 shadow-inner">
-           <div className="p-5 flex justify-between items-center border-b border-slate-200 bg-white/50 rounded-t-3xl">
-              <span className="text-xs font-black text-slate-800 uppercase tracking-[0.2em]">{stage}</span>
-              <span className="bg-white px-3 py-1 rounded-full text-[10px] font-black text-slate-400 shadow-sm border border-slate-100">
+        <div key={stage} className="flex-1 min-w-[340px] bg-slate-100/50 rounded-[40px] flex flex-col max-h-full border border-slate-200/50 shadow-inner">
+           <div className="p-6 flex justify-between items-center border-b border-slate-200 bg-white/50 rounded-t-[40px]">
+              <span className="text-[10px] font-black text-slate-800 uppercase tracking-[0.3em]">{stage}</span>
+              <span className="bg-white px-4 py-1.5 rounded-full text-[10px] font-black text-slate-400 shadow-sm border border-slate-100">
                  {leads.filter((l: Lead) => l.stage === stage).length}
               </span>
            </div>
-           <div className="p-4 flex-1 overflow-auto space-y-4">
+           <div className="p-5 flex-1 overflow-auto space-y-5">
               {leads.filter((l: Lead) => l.stage === stage).map((lead: Lead) => (
-                 <div key={lead.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-emerald-300 cursor-pointer transition-all group relative" onClick={() => onSelectLead(lead.id)}>
-                    <div className="flex justify-between items-start mb-3">
-                       <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{lead.source}</span>
-                       <div className="flex text-amber-400">
-                          <Star size={10} fill="currentColor" />
-                          <span className="text-[10px] ml-1 font-black">{lead.rating}</span>
+                 <div key={lead.id} className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-200 hover:shadow-2xl hover:border-emerald-300 cursor-pointer transition-all group relative active:scale-95" onClick={() => onSelectLead(lead.id)}>
+                    <div className="flex justify-between items-start mb-4">
+                       <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">{lead.source}</span>
+                       <div className="flex text-amber-400 items-center">
+                          <Star size={12} fill="currentColor" />
+                          <span className="text-[10px] ml-1.5 font-black">{lead.rating}</span>
                        </div>
                     </div>
-                    <div className="font-black text-slate-800 tracking-tighter text-base mb-1">{lead.firstName} {lead.lastName}</div>
-                    <div className="text-xs text-slate-400 font-medium truncate mb-4">{lead.email}</div>
+                    <div className="font-black text-slate-800 tracking-tighter text-lg mb-1">{lead.firstName} {lead.lastName}</div>
+                    <div className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-6 opacity-70 truncate">{lead.email}</div>
                     
-                    <div className="flex justify-between items-center pt-3 border-t border-slate-50">
-                       <div className="flex -space-x-2">
-                          <div className="w-6 h-6 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center text-[8px] font-black text-emerald-700">MP</div>
-                       </div>
+                    <div className="flex justify-between items-center pt-5 border-t border-slate-50">
+                       <div className="w-8 h-8 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[9px] font-black text-emerald-700 shadow-sm">MP</div>
                        
-                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                          {stage !== 'Prospecto' && <button onClick={() => onDragLead(lead.id, stages[stages.indexOf(stage)-1])} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-800 transition-colors"><ChevronRight size={16} className="rotate-180"/></button>}
-                          {stage !== 'Cierre' && <button onClick={() => onDragLead(lead.id, stages[stages.indexOf(stage)+1])} className="p-1.5 bg-emerald-50 hover:bg-emerald-600 rounded-lg text-emerald-600 hover:text-white transition-all"><ChevronRight size={16} /></button>}
+                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                          {stage !== 'Prospecto' && <button onClick={() => onDragLead(lead.id, stages[stages.indexOf(stage)-1])} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-800 transition-colors shadow-sm bg-white border border-slate-100"><ChevronRight size={18} className="rotate-180"/></button>}
+                          {stage !== 'Cierre' && <button onClick={() => onDragLead(lead.id, stages[stages.indexOf(stage)+1])} className="p-2 bg-emerald-50 hover:bg-emerald-600 rounded-xl text-emerald-600 hover:text-white transition-all shadow-md"><ChevronRight size={18} /></button>}
                        </div>
                     </div>
                  </div>
@@ -666,30 +664,30 @@ function InventoryView({ inventory }: { inventory: InventoryUnit[] }) {
   const types: PropertyType[] = ['OLIVO', 'ARCE', 'PARCELA'];
 
   return (
-    <div className="space-y-12 max-w-6xl">
-      <div className="flex gap-8 p-6 bg-white rounded-3xl shadow-sm border border-slate-100">
-        <div className="flex items-center gap-3"><div className="w-4 h-4 bg-emerald-500 rounded-lg shadow-lg shadow-emerald-500/20"></div><span className="text-xs font-black uppercase tracking-widest text-slate-400">Disponible</span></div>
-        <div className="flex items-center gap-3"><div className="w-4 h-4 bg-amber-500 rounded-lg shadow-lg shadow-amber-500/20"></div><span className="text-xs font-black uppercase tracking-widest text-slate-400">Reservado</span></div>
-        <div className="flex items-center gap-3"><div className="w-4 h-4 bg-slate-200 rounded-lg"></div><span className="text-xs font-black uppercase tracking-widest text-slate-400">Vendido</span></div>
+    <div className="space-y-16 max-w-7xl">
+      <div className="flex gap-10 p-8 bg-white rounded-[40px] shadow-sm border border-slate-100">
+        <div className="flex items-center gap-4"><div className="w-5 h-5 bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/30"></div><span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Disponible</span></div>
+        <div className="flex items-center gap-4"><div className="w-5 h-5 bg-amber-500 rounded-xl shadow-lg shadow-amber-500/30"></div><span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Reservado</span></div>
+        <div className="flex items-center gap-4"><div className="w-5 h-5 bg-slate-200 rounded-xl"></div><span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Vendido</span></div>
       </div>
 
       {types.map(type => (
-        <section key={type} className="animate-in slide-in-from-bottom-4 duration-500">
-          <h3 className="text-sm font-black text-slate-800 uppercase tracking-[0.3em] mb-6 flex items-center gap-4">
+        <section key={type} className="animate-in slide-in-from-bottom-8 duration-700">
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-[0.4em] mb-8 flex items-center gap-6">
              {type === 'OLIVO' ? 'Modelos Olivo (Adosadas)' : type === 'ARCE' ? 'Modelos Arce (Pareadas)' : 'Parcelas Autopromoción'}
              <div className="h-[1px] flex-1 bg-slate-100"></div>
           </h3>
-          <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-11 gap-5">
             {inventory.filter(u => u.type === type).map(unit => (
               <div 
                 key={unit.id}
-                className={`aspect-square rounded-2xl flex flex-col items-center justify-center font-black text-sm shadow-sm transition-all border-2 group cursor-default ${
-                  unit.status === 'available' ? 'bg-white border-emerald-50 text-emerald-600 hover:scale-110 hover:border-emerald-400 hover:shadow-xl shadow-emerald-500/10' :
+                className={`aspect-square rounded-[28px] flex flex-col items-center justify-center font-black text-base shadow-sm transition-all border-2 group cursor-default active:scale-90 ${
+                  unit.status === 'available' ? 'bg-white border-emerald-50 text-emerald-600 hover:scale-110 hover:border-emerald-400 hover:shadow-2xl shadow-emerald-500/10' :
                   unit.status === 'reserved' ? 'bg-amber-50 border-amber-100 text-amber-600' : 
                   'bg-slate-50 border-slate-100 text-slate-300'
                 }`}
               >
-                <span className="text-[10px] opacity-40 mb-1 tracking-tighter font-bold uppercase">{unit.type[0]}</span>
+                <span className="text-[9px] opacity-40 mb-1 tracking-tighter font-black uppercase">{unit.type[0]}</span>
                 {unit.number}
               </div>
             ))}
@@ -713,47 +711,47 @@ function AddLeadForm({ onSubmit, onCancel }: any) {
   });
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }} className="space-y-5">
-      <div className="grid grid-cols-2 gap-4">
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }} className="space-y-6">
+      <div className="grid grid-cols-2 gap-5">
         <div>
-           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nombre</label>
-           <input required type="text" className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
+           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Nombre</label>
+           <input required type="text" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
         </div>
         <div>
-           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Apellidos</label>
-           <input required type="text" className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
+           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Apellidos</label>
+           <input required type="text" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
         </div>
       </div>
       
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-5">
         <div>
-           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Teléfono</label>
-           <input required type="tel" className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Teléfono</label>
+           <input required type="tel" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
         </div>
         <div>
-           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Email</label>
-           <input required type="email" className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email</label>
+           <input required type="email" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-5">
         <div>
-           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Canal de Origen</label>
-           <select className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 shadow-inner" value={formData.source} onChange={e => setFormData({...formData, source: e.target.value as LeadSource})}>
+           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Canal de Origen</label>
+           <select className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-black text-slate-700 focus:ring-4 focus:ring-emerald-500/10 shadow-inner appearance-none" value={formData.source} onChange={e => setFormData({...formData, source: e.target.value as LeadSource})}>
               {['Web', 'RRSS', 'Idealista', 'Buzoneo', 'Referido', 'Otros'].map(s => <option key={s} value={s}>{s}</option>)}
            </select>
         </div>
         <div>
-           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Calificación Inicial</label>
-           <select className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 shadow-inner" value={formData.rating} onChange={e => setFormData({...formData, rating: Number(e.target.value)})}>
+           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Calificación Inicial</label>
+           <select className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-black text-slate-700 focus:ring-4 focus:ring-emerald-500/10 shadow-inner appearance-none" value={formData.rating} onChange={e => setFormData({...formData, rating: Number(e.target.value)})}>
               {[1,2,3,4,5].map(v => <option key={v} value={v}>{v} Estrellas</option>)}
            </select>
         </div>
       </div>
 
-      <div className="flex gap-4 mt-8 pt-6 border-t border-slate-50">
-         <button type="button" onClick={onCancel} className="flex-1 px-4 py-3 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-widest transition-colors">Descartar</button>
-         <button type="submit" className="flex-[2] px-4 py-3 bg-emerald-600 text-white hover:bg-emerald-700 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-600/20 transition-all active:scale-95">Guardar en Base de Datos</button>
+      <div className="flex gap-5 mt-10 pt-8 border-t border-slate-50">
+         <button type="button" onClick={onCancel} className="flex-1 px-5 py-4 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-widest transition-colors">Descartar</button>
+         <button type="submit" className="flex-[2] px-5 py-4 bg-emerald-600 text-white hover:bg-emerald-700 rounded-3xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-emerald-600/30 transition-all active:scale-95">Guardar Cliente</button>
       </div>
     </form>
   );
@@ -764,7 +762,7 @@ function SidebarItem({ icon, label, active, onClick }: any) {
   return (
     <button 
       onClick={onClick}
-      className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${active ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/40' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+      className={`w-full flex items-center gap-5 px-5 py-5 rounded-[24px] text-[10px] font-black uppercase tracking-widest transition-all ${active ? 'bg-emerald-600 text-white shadow-2xl shadow-emerald-900/40' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
     >
       {icon}
       {label}
@@ -780,7 +778,7 @@ function StageBadge({ stage }: { stage: PipelineStage }) {
       'Cierre': 'bg-emerald-100 text-emerald-700'
    };
    return (
-      <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${colors[stage]}`}>
+      <span className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm ${colors[stage]}`}>
          {stage}
       </span>
    );
@@ -788,22 +786,22 @@ function StageBadge({ stage }: { stage: PipelineStage }) {
 
 function StatCard({ title, value, subtext, total, color }: any) {
    return (
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:scale-[1.02] transition-all">
-         <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-3 border-l-2 border-slate-100 pl-3">{title}</p>
+      <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-50 hover:shadow-2xl hover:scale-[1.02] transition-all group">
+         <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] mb-4 border-l-4 border-slate-100 pl-4 group-hover:border-emerald-500 transition-all">{title}</p>
          <div className="flex items-baseline gap-2">
-            <span className={`text-4xl font-black tracking-tighter ${color}`}>{value}</span>
-            {total && <span className="text-sm text-slate-300 font-bold">/ {total}</span>}
+            <span className={`text-5xl font-black tracking-tighter ${color}`}>{value}</span>
+            {total && <span className="text-base text-slate-300 font-bold">/ {total}</span>}
          </div>
-         {subtext && <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase tracking-tighter">{subtext}</p>}
+         {subtext && <p className="text-[10px] text-slate-400 font-bold mt-3 uppercase tracking-tighter opacity-70">{subtext}</p>}
       </div>
    );
 }
 
 function InfoRow({ label, value }: { label: string, value: string }) {
    return (
-      <div className="flex flex-col py-1">
-         <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">{label}</span>
-         <span className="text-sm font-bold text-slate-700">{value}</span>
+      <div className="flex flex-col py-2">
+         <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1.5">{label}</span>
+         <span className="text-sm font-bold text-slate-700 tracking-tight">{value}</span>
       </div>
    );
 }
