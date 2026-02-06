@@ -1,106 +1,81 @@
 // src/pages/Leads.tsx
-import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { Search, Phone, Mail, Plus, X } from 'lucide-react';
+import React from 'react';
 import { StageBadge } from '../components/Shared';
+import { Search, Filter, Plus, MoreHorizontal } from 'lucide-react';
 
 export default function Leads() {
-  const [leads, setLeads] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [newLead, setNewLead] = useState({ firstName: '', lastName: '', phone: '', email: '', source: 'Web', stage: 'Prospecto' });
-
-  useEffect(() => {
-    fetchLeads();
-  }, []);
-
-  async function fetchLeads() {
-    const { data } = await supabase.from('leads').select('*').order('createdAt', { ascending: false });
-    if (data) setLeads(data);
-  }
-
-  async function handleAddLead(e: React.FormEvent) {
-    e.preventDefault();
-    const { error } = await supabase.from('leads').insert([newLead]);
-    if (!error) {
-      setIsAddOpen(false);
-      fetchLeads();
-      setNewLead({ firstName: '', lastName: '', phone: '', email: '', source: 'Web', stage: 'Prospecto' });
-    } else {
-        alert("Error: " + error.message);
-    }
-  }
-
-  const filtered = useMemo(() => leads.filter(l => 
-    (l.firstName + ' ' + l.lastName).toLowerCase().includes(searchTerm.toLowerCase()) || 
-    l.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  ), [leads, searchTerm]);
+  const leads = [
+    { id: 1, name: 'Juan Pérez', email: 'juan@email.com', stage: 'Prospecto', date: '2024-03-20' },
+    { id: 2, name: 'María García', email: 'maria@email.com', stage: 'Visitando', date: '2024-03-19' },
+    { id: 3, name: 'Carlos López', email: 'carlos@email.com', stage: 'Interés', date: '2024-03-18' },
+    { id: 4, name: 'Ana Martínez', email: 'ana@email.com', stage: 'Cierre', date: '2024-03-17' },
+  ];
 
   return (
-    <div className="p-8 h-full flex flex-col animate-in fade-in">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-slate-700 uppercase tracking-widest text-sm">Gestión de Clientes</h2>
-        <button onClick={() => setIsAddOpen(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium hover:bg-emerald-700 transition-colors">
-           <Plus size={18} /> Nuevo Cliente
+    <div className="space-y-8">
+      <header className="flex justify-between items-center">
+        <div>
+          <p className="text-pine-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">CRM Gestión</p>
+          <h1 className="text-4xl font-poppins font-bold text-slate-900 tracking-tight">Clientes</h1>
+        </div>
+        <button className="px-8 py-4 bg-pine-600 text-white font-bold rounded-2xl shadow-lg shadow-pine-600/20 hover:bg-emerald-500 transition-all text-sm flex items-center gap-2">
+          <Plus size={20} /> Crear Cliente
         </button>
-      </div>
+      </header>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col flex-1 overflow-hidden">
-        <div className="p-5 border-b border-slate-50 flex gap-4 bg-slate-50/50">
-           <div className="relative flex-1">
-             <Search className="absolute left-4 top-3 text-slate-400" size={18} />
-             <input className="w-full pl-12 pr-4 py-2.5 bg-white rounded-2xl text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-100" placeholder="Buscar por nombre o email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-           </div>
+      <div className="bg-white rounded-4xl shadow-sm border border-pine-100 overflow-hidden">
+        <div className="p-6 border-b border-pine-50 flex justify-between items-center bg-white">
+          <div className="flex gap-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-2.5 text-slate-400" size={18} />
+              <input className="pl-12 pr-4 py-2.5 bg-pine-50 border-none rounded-xl text-sm w-80 outline-none" placeholder="Buscar por nombre o correo..." />
+            </div>
+            <button className="px-4 py-2.5 bg-white border border-pine-100 rounded-xl text-sm font-bold text-slate-600 flex items-center gap-2 hover:bg-pine-50 transition-all">
+              <Filter size={18} /> Filtros
+            </button>
+          </div>
+          <p className="text-xs font-bold text-slate-400">Mostrando {leads.length} clientes</p>
         </div>
-        <div className="overflow-auto flex-1">
-           <table className="w-full text-left text-sm">
-             <thead className="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-[0.2em] sticky top-0">
-               <tr>
-                 <th className="px-8 py-5">Cliente</th>
-                 <th className="px-6 py-5">Contacto</th>
-                 <th className="px-6 py-5">Etapa</th>
-                 <th className="px-6 py-5 text-right">Acciones</th>
-               </tr>
-             </thead>
-             <tbody className="divide-y divide-slate-50">
-               {filtered.map(lead => (
-                 <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
-                   <td className="px-8 py-5 font-bold text-slate-800">{lead.firstName} {lead.lastName}</td>
-                   <td className="px-6 py-5 text-slate-600">
-                      <div className="flex gap-2 items-center"><Phone size={14}/> {lead.phone}</div>
-                      <div className="flex gap-2 items-center text-xs mt-1 text-slate-400"><Mail size={14}/> {lead.email}</div>
-                   </td>
-                   <td className="px-6 py-5"><StageBadge stage={lead.stage} /></td>
-                   <td className="px-6 py-5 text-right">
-                      <Link to={`/leads/${lead.id}`} className="text-emerald-600 font-bold text-xs uppercase hover:underline">Ver Ficha</Link>
-                   </td>
-                 </tr>
-               ))}
-             </tbody>
-           </table>
-        </div>
-      </div>
 
-      {isAddOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-           <div className="bg-white p-8 rounded-2xl w-[500px] shadow-2xl">
-              <div className="flex justify-between mb-6">
-                  <h3 className="text-lg font-bold">Nuevo Cliente</h3>
-                  <button onClick={() => setIsAddOpen(false)}><X/></button>
-              </div>
-              <form onSubmit={handleAddLead} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                      <input required placeholder="Nombre" className="p-3 bg-slate-50 rounded-xl w-full" value={newLead.firstName} onChange={e => setNewLead({...newLead, firstName: e.target.value})} />
-                      <input required placeholder="Apellidos" className="p-3 bg-slate-50 rounded-xl w-full" value={newLead.lastName} onChange={e => setNewLead({...newLead, lastName: e.target.value})} />
+        <table className="w-full">
+          <thead>
+            <tr className="bg-pine-50/50">
+              <th className="px-8 py-5 text-left text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Cliente</th>
+              <th className="px-8 py-5 text-left text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Estado</th>
+              <th className="px-8 py-5 text-left text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Última Actividad</th>
+              <th className="px-8 py-5 text-right text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-pine-50">
+            {leads.map((lead) => (
+              <tr key={lead.id} className="hover:bg-pine-50/30 transition-colors group">
+                <td className="px-8 py-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-pine-100 rounded-xl flex items-center justify-center text-pine-600 font-bold text-xs">
+                      {lead.name.split(' ').map(n => n[0]).join('')}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">{lead.name}</p>
+                      <p className="text-xs text-slate-400">{lead.email}</p>
+                    </div>
                   </div>
-                  <input required placeholder="Email" className="p-3 bg-slate-50 rounded-xl w-full" value={newLead.email} onChange={e => setNewLead({...newLead, email: e.target.value})} />
-                  <input required placeholder="Teléfono" className="p-3 bg-slate-50 rounded-xl w-full" value={newLead.phone} onChange={e => setNewLead({...newLead, phone: e.target.value})} />
-                  <button type="submit" className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold mt-4">Guardar</button>
-              </form>
-           </div>
-        </div>
-      )}
+                </td>
+                <td className="px-8 py-6">
+                  <StageBadge stage={lead.stage} />
+                </td>
+                <td className="px-8 py-6 text-sm font-medium text-slate-500">
+                  {lead.date}
+                </td>
+                <td className="px-8 py-6 text-right">
+                  <button className="p-2 text-slate-300 hover:text-pine-600 transition-colors">
+                    <MoreHorizontal size={20} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
