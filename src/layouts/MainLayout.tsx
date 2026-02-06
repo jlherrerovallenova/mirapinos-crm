@@ -1,3 +1,4 @@
+// src/layouts/MainLayout.tsx
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, Calendar, Map, Settings, Search } from 'lucide-react';
 
@@ -6,7 +7,7 @@ export default function MainLayout() {
 
   return (
     <div className="flex h-screen bg-pine-50 font-lato text-slate-700">
-      {/* SIDEBAR MODERNO */}
+      {/* SIDEBAR FLOTANTE */}
       <aside className="w-72 bg-pine-900 text-white flex flex-col m-4 rounded-4xl shadow-2xl shadow-pine-900/20">
         <div className="p-8">
           <h1 className="text-2xl font-poppins font-bold tracking-tight text-pine-100 flex items-center gap-2">
@@ -28,7 +29,7 @@ export default function MainLayout() {
         </div>
       </aside>
 
-      {/* CONTENIDO */}
+      {/* ÁREA DE CONTENIDO */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <header className="h-24 flex items-center justify-between px-10">
           <div className="relative w-96">
