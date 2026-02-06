@@ -12,18 +12,15 @@ import {
   Star, 
   Phone, 
   Mail, 
-  MapPin, 
   Clock, 
   ChevronRight, 
-  CheckCircle, 
-  X,
-  Send,
-  MoreVertical,
-  Trash2,
-  Edit2,
-  Download
+  X, 
+  Send, 
+  Trash2, 
+  Download,
+  UploadCloud,
+  File
 } from 'lucide-react';
-// Importamos el cliente de Supabase
 import { supabase } from './lib/supabase';
 
 /**
@@ -63,15 +60,15 @@ interface InventoryUnit {
   leadId?: string;
 }
 
-const AVAILABLE_DOCS = [
-  { id: 'd1', name: 'Plano General Mirapinos', category: 'General', url: '#' },
-  { id: 'd2', name: 'Memoria de Calidades Olivo', category: 'Olivo', url: '#' },
-  { id: 'd3', name: 'Plano Planta Baja Arce', category: 'Arce', url: '#' },
-  { id: 'd4', name: 'Plano Planta Alta Arce', category: 'Arce', url: '#' },
-  { id: 'd5', name: 'Forma de Pago Estándar', category: 'Financiero', url: '#' },
-];
+interface Document {
+  id: string;
+  name: string;
+  category: string;
+  url: string;
+  created_at?: string;
+}
 
-// Generador local por si la BD de inventario está vacía
+// Generador local por si la BD de inventario está vacía (fallback)
 const generateInventory = (): InventoryUnit[] => {
   const units: InventoryUnit[] = [];
   for (let i = 1; i <= 13; i++) units.push({ id: i, number: `${i}`, type: 'OLIVO', status: i === 2 ? 'reserved' : 'available' });
@@ -84,12 +81,13 @@ const generateInventory = (): InventoryUnit[] => {
  * COMPONENTE PRINCIPAL
  */
 export default function MirapinosCRM() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'leads' | 'pipeline' | 'inventory'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'leads' | 'pipeline' | 'inventory' | 'settings'>('dashboard');
   
   // ESTADOS DE DATOS
   const [leads, setLeads] = useState<Lead[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [inventory, setInventory] = useState<InventoryUnit[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,29 +107,19 @@ export default function MirapinosCRM() {
     setLoading(true);
     try {
       // 1. Cargar Clientes
-      const { data: leadsData, error: lError } = await supabase
-        .from('leads')
-        .select('*')
-        .order('createdAt', { ascending: false });
-
-      if (lError) throw lError;
+      const { data: leadsData } = await supabase.from('leads').select('*').order('createdAt', { ascending: false });
       if (leadsData) setLeads(leadsData);
 
       // 2. Cargar Eventos
-      const { data: eventsData, error: eError } = await supabase
-        .from('events')
-        .select('*')
-        .order('date', { ascending: false });
-
-      if (eError) throw eError;
+      const { data: eventsData } = await supabase.from('events').select('*').order('date', { ascending: false });
       if (eventsData) setEvents(eventsData);
 
-      // 3. Cargar Inventario (o usar local si falla/está vacío)
-      const { data: invData, error: iError } = await supabase
-        .from('inventory')
-        .select('*')
-        .order('id', { ascending: true });
+      // 3. Cargar Documentos (NUEVO)
+      const { data: docsData } = await supabase.from('documents').select('*').order('created_at', { ascending: false });
+      if (docsData) setDocuments(docsData);
 
+      // 4. Cargar Inventario
+      const { data: invData } = await supabase.from('inventory').select('*').order('id', { ascending: true });
       if (invData && invData.length > 0) {
         setInventory(invData);
       } else {
@@ -157,71 +145,81 @@ export default function MirapinosCRM() {
     });
   }, [leads, searchTerm, filterStage, filterRating]);
 
-  // --- FUNCIONES DE PERSISTENCIA (SUPABASE) ---
+  // --- FUNCIONES DE PERSISTENCIA ---
 
   const addLead = async (newLead: Omit<Lead, 'id' | 'createdAt'>) => {
     try {
-      const { data, error } = await supabase
-        .from('leads')
-        .insert([newLead])
-        .select();
-
+      const { data, error } = await supabase.from('leads').insert([newLead]).select();
       if (error) throw error;
-
       if (data) {
         setLeads([data[0], ...leads]);
         setIsAddLeadOpen(false);
-        // Opcional: mostrar notificación de éxito
       }
     } catch (error: any) {
-      console.error("Error guardando cliente:", error);
       alert("Error al guardar cliente: " + error.message);
     }
   };
 
   const updateLeadStage = async (leadId: string, newStage: PipelineStage) => {
-    try {
-      // Optimistic update (actualizar UI antes de confirmar)
-      const oldLeads = [...leads];
-      setLeads(leads.map(l => l.id === leadId ? { ...l, stage: newStage } : l));
-
-      const { error } = await supabase
-        .from('leads')
-        .update({ stage: newStage })
-        .eq('id', leadId);
-
-      if (error) {
-        setLeads(oldLeads); // Revertir si falla
-        throw error;
-      }
-    } catch (error: any) {
-      alert("Error actualizando etapa: " + error.message);
-    }
+    const oldLeads = [...leads];
+    setLeads(leads.map(l => l.id === leadId ? { ...l, stage: newStage } : l));
+    const { error } = await supabase.from('leads').update({ stage: newStage }).eq('id', leadId);
+    if (error) setLeads(oldLeads); // Revertir si falla
   };
 
   const addEvent = async (newEvent: Omit<Event, 'id'>) => {
+    const { data, error } = await supabase.from('events').insert([newEvent]).select();
+    if (!error && data) setEvents([data[0], ...events]);
+  };
+
+  // --- FUNCIÓN DE SUBIDA DE ARCHIVOS ---
+  const uploadDocument = async (file: File, category: string, name: string) => {
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .insert([newEvent])
+      // 1. Preparar nombre único para el archivo
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${category}/${fileName}`;
+
+      // 2. Subir al Bucket 'crm-docs'
+      const { error: uploadError } = await supabase.storage.from('crm-docs').upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      // 3. Obtener URL pública
+      const { data: { publicUrl } } = supabase.storage.from('crm-docs').getPublicUrl(filePath);
+
+      // 4. Guardar referencia en Base de Datos
+      const { data: docData, error: dbError } = await supabase
+        .from('documents')
+        .insert([{ name, category, url: publicUrl }])
         .select();
 
-      if (error) throw error;
-
-      if (data) {
-        setEvents([data[0], ...events]);
-      }
+      if (dbError) throw dbError;
+      
+      // 5. Actualizar estado local
+      if (docData) setDocuments([docData[0], ...documents]);
+      
+      return true;
     } catch (error: any) {
-      console.error("Error guardando evento:", error);
-      alert("Error al guardar evento: " + error.message);
+      console.error("Error subiendo documento:", error);
+      alert("Error en la subida: " + error.message);
+      return false;
     }
+  };
+
+  const deleteDocument = async (id: string) => {
+    if(!confirm("¿Seguro que quieres borrar este documento?")) return;
+    
+    // Solo borramos el registro de la BD por simplicidad (el archivo queda en storage)
+    // Para borrar de storage necesitaríamos guardar el path también.
+    const { error } = await supabase.from('documents').delete().eq('id', id);
+    if (!error) setDocuments(documents.filter(d => d.id !== id));
   };
 
   if (loading) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
-        <p className="text-slate-500 font-bold uppercase text-xs tracking-widest">Cargando datos del CRM...</p>
+        <p className="text-slate-500 font-bold uppercase text-xs tracking-widest">Cargando CRM...</p>
       </div>
     );
   }
@@ -244,7 +242,10 @@ export default function MirapinosCRM() {
         </nav>
 
         <div className="p-4 border-t border-slate-700">
-          <button className="flex items-center gap-3 text-sm text-slate-400 hover:text-white transition-colors w-full px-2">
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={`flex items-center gap-3 text-sm transition-colors w-full px-2 py-2 rounded-lg ${activeTab === 'settings' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}
+          >
             <Settings size={18} /> Configuración
           </button>
         </div>
@@ -260,14 +261,17 @@ export default function MirapinosCRM() {
             {activeTab === 'leads' && 'Gestión de Clientes'}
             {activeTab === 'pipeline' && 'Túnel de Ventas'}
             {activeTab === 'inventory' && 'Inventario de Promoción'}
+            {activeTab === 'settings' && 'Gestión Documental'}
           </h2>
           
           <div className="flex items-center gap-4">
-             <button 
-                onClick={() => setIsAddLeadOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-sm active:scale-95">
-                <Plus size={18} /> Nuevo Cliente
-             </button>
+             {activeTab === 'leads' && (
+               <button 
+                  onClick={() => setIsAddLeadOpen(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-sm active:scale-95">
+                  <Plus size={18} /> Nuevo Cliente
+               </button>
+             )}
           </div>
         </header>
 
@@ -296,6 +300,7 @@ export default function MirapinosCRM() {
               events={events.filter(e => e.leadId === selectedLeadId)}
               onAddEvent={addEvent}
               onUpdateStage={(stage) => updateLeadStage(selectedLeadId, stage)}
+              documents={documents}
             />
           )}
 
@@ -305,6 +310,10 @@ export default function MirapinosCRM() {
 
           {activeTab === 'inventory' && (
             <InventoryView inventory={inventory} />
+          )}
+
+          {activeTab === 'settings' && (
+            <SettingsView documents={documents} onUpload={uploadDocument} onDelete={deleteDocument} />
           )}
 
         </div>
@@ -326,67 +335,115 @@ export default function MirapinosCRM() {
   );
 }
 
-// --- SUBCOMPONENTES ---
+// --- VISTA DE CONFIGURACIÓN / GESTIÓN DOCUMENTAL ---
+function SettingsView({ documents, onUpload, onDelete }: { documents: Document[], onUpload: any, onDelete: any }) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [newFile, setNewFile] = useState<File | null>(null);
+  const [newName, setNewName] = useState('');
+  const [newCategory, setNewCategory] = useState('General');
 
-function SidebarItem({ icon, label, active, onClick }: any) {
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFile || !newName) return;
+    setIsUploading(true);
+    const success = await onUpload(newFile, newCategory, newName);
+    setIsUploading(false);
+    if (success) {
+      setNewFile(null);
+      setNewName('');
+      alert("Documento subido correctamente");
+    }
+  };
+
   return (
-    <button 
-      onClick={onClick}
-      className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${active ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/40' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-function DashboardView({ leads, inventory, events }: { leads: Lead[], inventory: InventoryUnit[], events: Event[] }) {
-  const sold = inventory.filter(i => i.status === 'sold').length;
-  const reserved = inventory.filter(i => i.status === 'reserved').length;
-  const available = inventory.length - sold - reserved;
-  const pendingEvents = events.filter(e => !e.completed).length;
-
-  return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Viviendas Disponibles" value={available} total={inventory.length} color="text-emerald-600" />
-        <StatCard title="Reservas Activas" value={reserved} subtext="En proceso de firma" color="text-amber-500" />
-        <StatCard title="Ventas Cerradas" value={sold} subtext="Contratos firmados" color="text-blue-600" />
-        <StatCard title="Agenda Pendiente" value={pendingEvents} subtext="Eventos activos" color="text-rose-500" />
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Formulario de Subida */}
+      <div className="lg:col-span-1">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100">
+          <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <UploadCloud className="text-emerald-600" /> Subir Nuevo Documento
+          </h3>
+          <form onSubmit={handleUpload} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Archivo (PDF, IMG...)</label>
+              <input 
+                type="file" 
+                onChange={e => setNewFile(e.target.files ? e.target.files[0] : null)}
+                className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Nombre Visible</label>
+              <input 
+                type="text" 
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                placeholder="Ej: Plano Planta Baja"
+                className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500/20"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Categoría</label>
+              <select 
+                value={newCategory}
+                onChange={e => setNewCategory(e.target.value)}
+                className="w-full p-3 bg-slate-50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500/20"
+              >
+                <option value="General">General</option>
+                <option value="Olivo">Olivo (Adosado)</option>
+                <option value="Arce">Arce (Pareado)</option>
+                <option value="Financiero">Financiero</option>
+              </select>
+            </div>
+            <button 
+              type="submit" 
+              disabled={isUploading}
+              className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+            >
+              {isUploading ? 'Subiendo...' : 'Guardar en la Nube'}
+            </button>
+          </form>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-8 border-b border-slate-50 pb-4">Estado del Embudo</h3>
-          <div className="space-y-6">
-            {['Prospecto', 'Visitando', 'Interés', 'Cierre'].map((stage) => {
-              const count = leads.filter(l => l.stage === stage).length;
-              const pct = (count / (leads.length || 1)) * 100;
-              return (
-                <div key={stage}>
-                  <div className="flex justify-between text-xs mb-2">
-                    <span className="font-bold text-slate-600 uppercase tracking-widest">{stage}</span>
-                    <span className="text-slate-400 font-bold">{count} clientes</span>
+      {/* Lista de Documentos */}
+      <div className="lg:col-span-2">
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="p-6 border-b border-slate-50 bg-slate-50/50">
+            <h3 className="font-bold text-slate-700">Documentos Disponibles para Envíos ({documents.length})</h3>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {documents.length === 0 && <p className="p-8 text-center text-slate-400">No hay documentos subidos aún.</p>}
+            {documents.map(doc => (
+              <div key={doc.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors group">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                    <FileText size={24} />
                   </div>
-                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden shadow-inner">
-                    <div className="h-full bg-emerald-500 rounded-full transition-all duration-1000" style={{ width: `${pct}%` }}></div>
+                  <div>
+                    <p className="font-bold text-slate-800">{doc.name}</p>
+                    <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">{doc.category}</p>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-          <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-8 border-b border-slate-50 pb-4">Actividad Reciente</h3>
-          <div className="space-y-4">
-            {events.slice(0, 5).map(event => (
-              <div key={event.id} className="flex gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-colors border border-transparent hover:border-slate-100 group">
-                <div className="text-slate-300 mt-1 group-hover:text-emerald-500 transition-colors"><Clock size={18}/></div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{event.type}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{event.description}</p>
-                  <p className="text-[9px] text-slate-300 font-black mt-2 uppercase tracking-widest">{new Date(event.date).toLocaleDateString()}</p>
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <a 
+                    href={doc.url} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                    title="Ver/Descargar"
+                  >
+                    <Download size={18} />
+                  </a>
+                  <button 
+                    onClick={() => onDelete(doc.id)}
+                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    title="Eliminar"
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -397,94 +454,15 @@ function DashboardView({ leads, inventory, events }: { leads: Lead[], inventory:
   );
 }
 
-function LeadsListView({ leads, onSelectLead, searchTerm, setSearchTerm, filterStage, setFilterStage, filterRating, setFilterRating }: any) {
-  return (
-    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col h-full overflow-hidden">
-      <div className="p-5 border-b border-slate-50 flex gap-4 flex-wrap bg-slate-50/50 items-center">
-        <div className="relative flex-1 min-w-[250px]">
-          <Search className="absolute left-4 top-3 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Buscar por nombre, email o teléfono..." 
-            className="w-full pl-12 pr-4 py-2.5 bg-white border-none rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:outline-none text-sm transition-all shadow-sm font-medium"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
-        <select className="px-4 py-2.5 border-none shadow-sm rounded-2xl bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 focus:outline-none cursor-pointer" value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
-          <option value="All">TODAS LAS ETAPAS</option>
-          <option value="Prospecto">PROSPECTO</option>
-          <option value="Visitando">VISITANDO</option>
-          <option value="Interés">INTERÉS</option>
-          <option value="Cierre">CIERRE</option>
-        </select>
-
-        <select className="px-4 py-2.5 border-none shadow-sm rounded-2xl bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 focus:outline-none cursor-pointer" value={filterRating} onChange={(e) => setFilterRating(Number(e.target.value))}>
-          <option value={0}>CUALQUIER RATING</option>
-          <option value={3}>3+ ESTRELLAS</option>
-          <option value={5}>5 ESTRELLAS</option>
-        </select>
-      </div>
-
-      <div className="overflow-auto flex-1">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-[0.2em] sticky top-0 z-10">
-            <tr>
-              <th className="px-8 py-5">Cliente</th>
-              <th className="px-6 py-5">Contacto</th>
-              <th className="px-6 py-5">Origen</th>
-              <th className="px-6 py-5">Etapa</th>
-              <th className="px-6 py-5">Rating</th>
-              <th className="px-6 py-5 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {leads.map((lead: Lead) => (
-              <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors group cursor-pointer" onClick={() => onSelectLead(lead.id)}>
-                <td className="px-8 py-5">
-                  <div className="font-black text-slate-800 tracking-tight text-base">{lead.firstName} {lead.lastName}</div>
-                  <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">{new Date(lead.createdAt).toLocaleDateString()}</div>
-                </td>
-                <td className="px-6 py-5 text-slate-600">
-                  <div className="flex items-center gap-2 text-xs font-bold mb-1"><Phone size={14} className="text-emerald-500"/> {lead.phone}</div>
-                  <div className="flex items-center gap-2 text-xs text-slate-400 font-medium"><Mail size={14} className="text-slate-300"/> {lead.email}</div>
-                </td>
-                <td className="px-6 py-5">
-                  <span className="px-3 py-1 bg-white text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-100 shadow-sm">{lead.source}</span>
-                </td>
-                <td className="px-6 py-5">
-                   <StageBadge stage={lead.stage} />
-                </td>
-                <td className="px-6 py-5">
-                  <div className="flex text-amber-400 gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={14} fill={i < lead.rating ? "currentColor" : "none"} className={i < lead.rating ? "" : "text-slate-100"} />
-                    ))}
-                  </div>
-                </td>
-                <td className="px-6 py-5 text-right">
-                  <button className="bg-white border border-slate-100 text-slate-400 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm group-hover:shadow-lg">
-                    Ver Ficha
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { lead: Lead, onBack: () => void, events: Event[], onAddEvent: any, onUpdateStage: (s: PipelineStage) => void }) {
+// --- DETALLE DE CLIENTE CON GESTIÓN DOCUMENTAL ---
+function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage, documents }: any) {
   const [activeSubTab, setActiveSubTab] = useState<'agenda' | 'docs'>('agenda');
   const [showDocModal, setShowDocModal] = useState(false);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
 
   const handleSendDocs = () => {
     if (selectedDocs.length === 0) return;
-    const docNames = AVAILABLE_DOCS.filter(d => selectedDocs.includes(d.id)).map(d => d.name).join(', ');
+    const docNames = documents.filter((d:any) => selectedDocs.includes(d.id)).map((d:any) => d.name).join(', ');
     
     onAddEvent({
       leadId: lead.id,
@@ -517,13 +495,6 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
           </div>
         </div>
         <div className="flex items-center gap-6">
-           <div className="text-right">
-              <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1.5">Cualificación</p>
-              <div className="flex text-amber-400 gap-1">
-                  {[...Array(5)].map((_, i) => <Star key={i} size={16} fill={i < lead.rating ? "currentColor" : "none"} className={i < lead.rating ? "" : "text-slate-200"} />)}
-              </div>
-           </div>
-           <div className="h-10 w-[1px] bg-slate-200"></div>
            <select 
               value={lead.stage}
               onChange={(e) => onUpdateStage(e.target.value as PipelineStage)}
@@ -546,7 +517,7 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
             <InfoRow label="Interés Principal" value="Modelo Olivo / Adosada" />
             <div className="pt-8 border-t border-slate-50">
                <label className="text-[9px] font-black text-slate-400 block mb-3 uppercase tracking-widest">Notas Internas</label>
-               <textarea className="w-full text-sm border-none rounded-2xl bg-slate-50 p-5 h-48 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all placeholder:text-slate-300 shadow-inner font-medium text-slate-600" placeholder="Añade detalles sobre la visita, presupuesto o necesidades específicas..."></textarea>
+               <textarea className="w-full text-sm border-none rounded-2xl bg-slate-50 p-5 h-48 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all placeholder:text-slate-300 shadow-inner font-medium text-slate-600" placeholder="Añade detalles sobre la visita..."></textarea>
             </div>
           </div>
         </div>
@@ -560,16 +531,8 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
           <div className="flex-1 p-10 overflow-auto">
              {activeSubTab === 'agenda' && (
                 <div className="max-w-3xl">
-                   <div className="flex justify-between items-center mb-10">
-                      <h4 className="font-black text-slate-800 uppercase text-[10px] tracking-[0.2em]">Timeline</h4>
-                      <div className="flex gap-3">
-                        <button className="bg-white text-slate-600 border border-slate-200 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all shadow-sm active:scale-95">+ Llamada</button>
-                        <button className="bg-white text-slate-600 border border-slate-200 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all shadow-sm active:scale-95">+ Cita</button>
-                      </div>
-                   </div>
-                   
                    <div className="relative border-l-2 border-slate-200 ml-3 space-y-12 pb-10">
-                      {events.map(event => (
+                      {events.map((event:any) => (
                         <div key={event.id} className="relative pl-12">
                            <div className={`absolute -left-[11px] top-0 w-5 h-5 rounded-full border-4 border-white shadow-md ${event.type === 'Envio Documentacion' ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
                            <div className="bg-white p-6 rounded-[24px] shadow-sm border border-slate-100 hover:shadow-xl transition-all group">
@@ -589,10 +552,9 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
              {activeSubTab === 'docs' && (
                 <div className="max-w-3xl">
                    <div className="flex justify-between items-center mb-10 p-8 bg-gradient-to-br from-blue-900 to-slate-900 rounded-[32px] shadow-2xl shadow-blue-900/20 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
                       <div className="relative z-10">
                         <p className="text-blue-200 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Gestión Documental</p>
-                        <p className="text-white text-sm font-bold opacity-90 max-w-xs leading-relaxed">Envía planos y memorias de calidades al instante.</p>
+                        <p className="text-white text-sm font-bold opacity-90 max-w-xs leading-relaxed">Envía planos y memorias al instante.</p>
                       </div>
                       <button 
                         onClick={() => setShowDocModal(true)}
@@ -601,9 +563,8 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
                          <Send size={16} /> Enviar Dossier
                       </button>
                    </div>
-                   
                    <div className="grid grid-cols-1 gap-5">
-                      {events.filter(e => e.type === 'Envio Documentacion').map(e => (
+                      {events.filter((e:any) => e.type === 'Envio Documentacion').map((e:any) => (
                          <div key={e.id} className="flex items-center gap-8 p-6 bg-white rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-all group">
                             <div className="bg-blue-50 p-4 rounded-2xl text-blue-600 shadow-inner group-hover:scale-110 transition-transform">
                                <FileText size={28} />
@@ -615,17 +576,8 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
                                </div>
                                <p className="text-sm text-slate-500 font-medium truncate max-w-md">{e.description}</p>
                             </div>
-                            <button className="text-slate-300 hover:text-emerald-600 transition-colors"><Download size={22}/></button>
                          </div>
                       ))}
-                      {events.filter(e => e.type === 'Envio Documentacion').length === 0 && (
-                         <div className="text-center py-24 bg-white rounded-[40px] border-2 border-dashed border-slate-200">
-                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                               <FileText className="text-slate-200" size={36} />
-                            </div>
-                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Bandeja de envíos vacía</p>
-                         </div>
-                      )}
                    </div>
                 </div>
              )}
@@ -633,20 +585,20 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
         </div>
       </div>
 
-      {/* Modal Envío Docs */}
       {showDocModal && (
         <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-6 backdrop-blur-md">
            <div className="bg-white rounded-[40px] shadow-2xl max-w-2xl w-full overflow-hidden border border-white/20 animate-in zoom-in-95 duration-200">
               <div className="p-10 bg-slate-900 text-white flex justify-between items-center">
                  <div>
                     <h3 className="text-2xl font-black uppercase tracking-[0.1em]">Dossier Digital</h3>
-                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-2">Selección para {lead.firstName}</p>
+                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-2">Selecciona para {lead.firstName}</p>
                  </div>
                  <button onClick={() => setShowDocModal(false)} className="text-slate-400 hover:text-white transition-all"><X size={32}/></button>
               </div>
               <div className="p-10">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 max-h-[400px] overflow-auto pr-2">
-                   {AVAILABLE_DOCS.map(doc => (
+                   {documents.length === 0 && <p className="col-span-2 text-slate-400 text-center">No hay documentos disponibles. Ve a Configuración para subir uno.</p>}
+                   {documents.map((doc: any) => (
                       <label key={doc.id} className={`flex items-center gap-5 p-5 rounded-3xl border-2 cursor-pointer transition-all ${selectedDocs.includes(doc.id) ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50'}`}>
                          <input 
                             type="checkbox" 
@@ -657,10 +609,11 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
                                else setSelectedDocs(selectedDocs.filter(id => id !== doc.id));
                             }}
                          />
-                         <div>
-                            <div className="text-sm font-black text-slate-800 uppercase tracking-tighter">{doc.name}</div>
+                         <div className="flex-1">
+                            <div className="text-sm font-black text-slate-800 uppercase tracking-tighter truncate">{doc.name}</div>
                             <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">{doc.category}</div>
                          </div>
+                         <a href={doc.url} target="_blank" rel="noreferrer" className="text-slate-300 hover:text-emerald-500" onClick={(e) => e.stopPropagation()}><File size={16}/></a>
                       </label>
                    ))}
                 </div>
@@ -671,7 +624,7 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
                       disabled={selectedDocs.length === 0}
                       className="flex-[2] px-8 py-5 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-4 shadow-2xl shadow-emerald-600/20 active:scale-95 transition-all"
                    >
-                      <Send size={18} /> Procesar Dossier ({selectedDocs.length})
+                      <Send size={18} /> Procesar ({selectedDocs.length})
                    </button>
                 </div>
               </div>
@@ -682,9 +635,104 @@ function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { l
   );
 }
 
-function PipelineView({ leads, onDragLead, onSelectLead }: { leads: Lead[], onDragLead: any, onSelectLead: any }) {
-  const stages: PipelineStage[] = ['Prospecto', 'Visitando', 'Interés', 'Cierre'];
+// --- SUBCOMPONENTES GENÉRICOS ---
+function SidebarItem({ icon, label, active, onClick }: any) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${active ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-900/40' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
 
+function DashboardView({ leads, inventory, events }: { leads: Lead[], inventory: InventoryUnit[], events: Event[] }) {
+  const sold = inventory.filter(i => i.status === 'sold').length;
+  const reserved = inventory.filter(i => i.status === 'reserved').length;
+  const available = inventory.length - sold - reserved;
+  const pendingEvents = events.filter(e => !e.completed).length;
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Viviendas Disponibles" value={available} total={inventory.length} color="text-emerald-600" />
+        <StatCard title="Reservas Activas" value={reserved} subtext="En proceso de firma" color="text-amber-500" />
+        <StatCard title="Ventas Cerradas" value={sold} subtext="Contratos firmados" color="text-blue-600" />
+        <StatCard title="Agenda Pendiente" value={pendingEvents} subtext="Eventos activos" color="text-rose-500" />
+      </div>
+    </div>
+  );
+}
+
+function LeadsListView({ leads, onSelectLead, searchTerm, setSearchTerm, filterStage, setFilterStage }: any) {
+  return (
+    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col h-full overflow-hidden">
+      <div className="p-5 border-b border-slate-50 flex gap-4 flex-wrap bg-slate-50/50 items-center">
+        <div className="relative flex-1 min-w-[250px]">
+          <Search className="absolute left-4 top-3 text-slate-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="Buscar por nombre, email o teléfono..." 
+            className="w-full pl-12 pr-4 py-2.5 bg-white border-none rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:outline-none text-sm transition-all shadow-sm font-medium"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <select className="px-4 py-2.5 border-none shadow-sm rounded-2xl bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 focus:outline-none cursor-pointer" value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
+          <option value="All">TODAS LAS ETAPAS</option>
+          <option value="Prospecto">PROSPECTO</option>
+          <option value="Visitando">VISITANDO</option>
+          <option value="Interés">INTERÉS</option>
+          <option value="Cierre">CIERRE</option>
+        </select>
+      </div>
+      <div className="overflow-auto flex-1">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-[0.2em] sticky top-0 z-10">
+            <tr>
+              <th className="px-8 py-5">Cliente</th>
+              <th className="px-6 py-5">Contacto</th>
+              <th className="px-6 py-5">Etapa</th>
+              <th className="px-6 py-5">Rating</th>
+              <th className="px-6 py-5 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {leads.map((lead: Lead) => (
+              <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors group cursor-pointer" onClick={() => onSelectLead(lead.id)}>
+                <td className="px-8 py-5">
+                  <div className="font-black text-slate-800 tracking-tight text-base">{lead.firstName} {lead.lastName}</div>
+                </td>
+                <td className="px-6 py-5 text-slate-600">
+                  <div className="flex items-center gap-2 text-xs font-bold mb-1"><Phone size={14} className="text-emerald-500"/> {lead.phone}</div>
+                  <div className="flex items-center gap-2 text-xs text-slate-400 font-medium"><Mail size={14} className="text-slate-300"/> {lead.email}</div>
+                </td>
+                <td className="px-6 py-5">
+                   <StageBadge stage={lead.stage} />
+                </td>
+                <td className="px-6 py-5">
+                  <div className="flex text-amber-400 gap-0.5">
+                    {[...Array(5)].map((_, i) => <Star key={i} size={14} fill={i < lead.rating ? "currentColor" : "none"} className={i < lead.rating ? "" : "text-slate-100"} />)}
+                  </div>
+                </td>
+                <td className="px-6 py-5 text-right">
+                  <button className="bg-white border border-slate-100 text-slate-400 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm group-hover:shadow-lg">
+                    Ver Ficha
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function PipelineView({ leads, onDragLead, onSelectLead }: any) {
+  const stages: PipelineStage[] = ['Prospecto', 'Visitando', 'Interés', 'Cierre'];
   return (
     <div className="flex h-full gap-8 overflow-x-auto pb-8">
       {stages.map(stage => (
@@ -692,30 +740,14 @@ function PipelineView({ leads, onDragLead, onSelectLead }: { leads: Lead[], onDr
            <div className="p-6 flex justify-between items-center border-b border-slate-200 bg-white/50 rounded-t-[40px] backdrop-blur-sm sticky top-0 z-10">
               <span className="text-[10px] font-black text-slate-800 uppercase tracking-[0.3em]">{stage}</span>
               <span className="bg-white px-4 py-1.5 rounded-full text-[10px] font-black text-slate-400 shadow-sm border border-slate-100">
-                 {leads.filter((l: Lead) => l.stage === stage).length}
+                 {leads.filter((l: any) => l.stage === stage).length}
               </span>
            </div>
            <div className="p-5 flex-1 overflow-auto space-y-5">
-              {leads.filter((l: Lead) => l.stage === stage).map((lead: Lead) => (
+              {leads.filter((l: any) => l.stage === stage).map((lead: any) => (
                  <div key={lead.id} className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-200 hover:shadow-2xl hover:border-emerald-300 cursor-pointer transition-all group relative active:scale-95" onClick={() => onSelectLead(lead.id)}>
-                    <div className="flex justify-between items-start mb-4">
-                       <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">{lead.source}</span>
-                       <div className="flex text-amber-400 items-center gap-1">
-                          <Star size={12} fill="currentColor" />
-                          <span className="text-[10px] font-black text-slate-600">{lead.rating}</span>
-                       </div>
-                    </div>
                     <div className="font-black text-slate-800 tracking-tighter text-lg mb-1">{lead.firstName} {lead.lastName}</div>
                     <div className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-6 opacity-70 truncate">{lead.email}</div>
-                    
-                    <div className="flex justify-between items-center pt-5 border-t border-slate-50">
-                       <div className="w-8 h-8 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[9px] font-black text-emerald-700 shadow-sm">MP</div>
-                       
-                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                          {stage !== 'Prospecto' && <button onClick={() => onDragLead(lead.id, stages[stages.indexOf(stage)-1])} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-800 transition-colors shadow-sm bg-white border border-slate-100"><ChevronRight size={18} className="rotate-180"/></button>}
-                          {stage !== 'Cierre' && <button onClick={() => onDragLead(lead.id, stages[stages.indexOf(stage)+1])} className="p-2 bg-emerald-50 hover:bg-emerald-600 rounded-xl text-emerald-600 hover:text-white transition-all shadow-md"><ChevronRight size={18} /></button>}
-                       </div>
-                    </div>
                  </div>
               ))}
            </div>
@@ -727,7 +759,6 @@ function PipelineView({ leads, onDragLead, onSelectLead }: { leads: Lead[], onDr
 
 function InventoryView({ inventory }: { inventory: InventoryUnit[] }) {
   const types: PropertyType[] = ['OLIVO', 'ARCE', 'PARCELA'];
-
   return (
     <div className="space-y-16 max-w-7xl pb-10">
       <div className="flex gap-10 p-8 bg-white rounded-[40px] shadow-sm border border-slate-100 inline-flex">
@@ -735,7 +766,6 @@ function InventoryView({ inventory }: { inventory: InventoryUnit[] }) {
         <div className="flex items-center gap-4"><div className="w-5 h-5 bg-amber-500 rounded-xl shadow-lg shadow-amber-500/30"></div><span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Reservado</span></div>
         <div className="flex items-center gap-4"><div className="w-5 h-5 bg-slate-200 rounded-xl"></div><span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Vendido</span></div>
       </div>
-
       {types.map(type => (
         <section key={type} className="animate-in slide-in-from-bottom-8 duration-700">
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-[0.4em] mb-8 flex items-center gap-6">
@@ -744,14 +774,7 @@ function InventoryView({ inventory }: { inventory: InventoryUnit[] }) {
           </h3>
           <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-11 gap-5">
             {inventory.filter(u => u.type === type).map(unit => (
-              <div 
-                key={unit.id}
-                className={`aspect-square rounded-[28px] flex flex-col items-center justify-center font-black text-base shadow-sm transition-all border-2 group cursor-default active:scale-90 ${
-                  unit.status === 'available' ? 'bg-white border-emerald-50 text-emerald-600 hover:scale-110 hover:border-emerald-400 hover:shadow-2xl shadow-emerald-500/10' :
-                  unit.status === 'reserved' ? 'bg-amber-50 border-amber-100 text-amber-600' : 
-                  'bg-slate-50 border-slate-100 text-slate-300'
-                }`}
-              >
+              <div key={unit.id} className={`aspect-square rounded-[28px] flex flex-col items-center justify-center font-black text-base shadow-sm transition-all border-2 group cursor-default active:scale-90 ${unit.status === 'available' ? 'bg-white border-emerald-50 text-emerald-600 hover:border-emerald-400 hover:shadow-2xl shadow-emerald-500/10' : unit.status === 'reserved' ? 'bg-amber-50 border-amber-100 text-amber-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
                 <span className="text-[9px] opacity-40 mb-1 tracking-tighter font-black uppercase">{unit.type[0]}</span>
                 {unit.number}
               </div>
@@ -764,77 +787,25 @@ function InventoryView({ inventory }: { inventory: InventoryUnit[] }) {
 }
 
 function AddLeadForm({ onSubmit, onCancel }: any) {
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
-    email: '',
-    source: 'Web' as LeadSource,
-    stage: 'Prospecto' as PipelineStage,
-    rating: 3
-  });
-
+  const [formData, setFormData] = useState({ firstName: '', lastName: '', phone: '', email: '', source: 'Web' as LeadSource, stage: 'Prospecto' as PipelineStage, rating: 3 });
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }} className="space-y-6">
       <div className="grid grid-cols-2 gap-5">
-        <div>
-           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Nombre</label>
-           <input required type="text" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
-        </div>
-        <div>
-           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Apellidos</label>
-           <input required type="text" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
-        </div>
+        <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Nombre</label><input required type="text" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} /></div>
+        <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Apellidos</label><input required type="text" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} /></div>
       </div>
-      
-      <div className="grid grid-cols-2 gap-5">
-        <div>
-           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Teléfono</label>
-           <input required type="tel" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-        </div>
-        <div>
-           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email</label>
-           <input required type="email" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-inner" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-5">
-        <div>
-           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Canal de Origen</label>
-           <select className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-black text-slate-700 focus:ring-4 focus:ring-emerald-500/10 shadow-inner appearance-none cursor-pointer" value={formData.source} onChange={e => setFormData({...formData, source: e.target.value as LeadSource})}>
-              {['Web', 'RRSS', 'Idealista', 'Buzoneo', 'Referido', 'Otros'].map(s => <option key={s} value={s}>{s}</option>)}
-           </select>
-        </div>
-        <div>
-           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Calificación Inicial</label>
-           <select className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-black text-slate-700 focus:ring-4 focus:ring-emerald-500/10 shadow-inner appearance-none cursor-pointer" value={formData.rating} onChange={e => setFormData({...formData, rating: Number(e.target.value)})}>
-              {[1,2,3,4,5].map(v => <option key={v} value={v}>{v} Estrellas</option>)}
-           </select>
-        </div>
-      </div>
-
+      <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email</label><input required type="email" className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-medium" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
       <div className="flex gap-5 mt-10 pt-8 border-t border-slate-50">
-         <button type="button" onClick={onCancel} className="flex-1 px-5 py-4 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-widest transition-colors">Descartar</button>
-         <button type="submit" className="flex-[2] px-5 py-4 bg-emerald-600 text-white hover:bg-emerald-700 rounded-3xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-emerald-600/30 transition-all active:scale-95">Guardar Cliente</button>
+         <button type="button" onClick={onCancel} className="flex-1 px-5 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest">Descartar</button>
+         <button type="submit" className="flex-[2] px-5 py-4 bg-emerald-600 text-white rounded-3xl font-black text-[10px] uppercase tracking-widest shadow-2xl">Guardar Cliente</button>
       </div>
     </form>
   );
 }
 
-// --- UI HELPERS ---
-
 function StageBadge({ stage }: { stage: PipelineStage }) {
-   const colors = {
-      'Prospecto': 'bg-slate-100 text-slate-500',
-      'Visitando': 'bg-blue-100 text-blue-700',
-      'Interés': 'bg-amber-100 text-amber-700',
-      'Cierre': 'bg-emerald-100 text-emerald-700'
-   };
-   return (
-      <span className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm ${colors[stage]}`}>
-         {stage}
-      </span>
-   );
+   const colors = { 'Prospecto': 'bg-slate-100 text-slate-500', 'Visitando': 'bg-blue-100 text-blue-700', 'Interés': 'bg-amber-100 text-amber-700', 'Cierre': 'bg-emerald-100 text-emerald-700' };
+   return <span className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm ${colors[stage]}`}>{stage}</span>;
 }
 
 function StatCard({ title, value, subtext, total, color }: any) {
