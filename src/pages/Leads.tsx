@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StageBadge } from '../components/Shared';
 import { supabase } from '../lib/supabase';
-import { Search, Filter, Plus, Eye, X, Loader2 } from 'lucide-react';
+import { Search, Filter, Plus, Eye, X, Loader2, Globe } from 'lucide-react';
 
 export default function Leads() {
   const navigate = useNavigate();
@@ -12,13 +12,14 @@ export default function Leads() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  // Estado para el nuevo lead
+  // Estado para el nuevo lead incluyendo el origen
   const [newLead, setNewLead] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
-    stage: 'Prospecto'
+    stage: 'Prospecto',
+    source: 'Web' // Valor por defecto
   });
 
   useEffect(() => {
@@ -27,7 +28,10 @@ export default function Leads() {
 
   async function fetchLeads() {
     setLoading(true);
-    const { data, error } = await supabase.from('leads').select('*').order('createdAt', { ascending: false });
+    const { data, error } = await supabase
+      .from('leads')
+      .select('*')
+      .order('createdAt', { ascending: false });
     if (!error && data) setLeads(data);
     setLoading(false);
   }
@@ -38,7 +42,14 @@ export default function Leads() {
     
     if (!error) {
       setIsModalOpen(false);
-      setNewLead({ firstName: '', lastName: '', email: '', phone: '', stage: 'Prospecto' });
+      setNewLead({ 
+        firstName: '', 
+        lastName: '', 
+        email: '', 
+        phone: '', 
+        stage: 'Prospecto',
+        source: 'Web' 
+      });
       fetchLeads();
       alert('Cliente creado con éxito');
     } else {
@@ -69,35 +80,54 @@ export default function Leads() {
       {/* MODAL DE CREACIÓN */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-4xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in duration-200">
-            <div className="p-8 border-b border-pine-50 flex justify-between items-center">
+          <div className="bg-white rounded-4xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in duration-200 border border-pine-100">
+            <div className="p-8 border-b border-pine-50 flex justify-between items-center bg-white">
               <h2 className="text-xl font-bold text-slate-900 font-poppins">Nuevo Cliente</h2>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-pine-50 rounded-xl transition-colors"><X size={20}/></button>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-pine-50 rounded-xl transition-colors text-slate-400"><X size={20}/></button>
             </div>
-            <form onSubmit={handleCreateLead} className="p-8 space-y-4">
+            <form onSubmit={handleCreateLead} className="p-8 space-y-4 bg-white">
               <div className="grid grid-cols-2 gap-4">
                 <input 
                   placeholder="Nombre" required
-                  className="w-full p-4 bg-pine-50 rounded-2xl outline-none focus:ring-2 focus:ring-pine-600/20"
+                  className="w-full p-4 bg-pine-50 rounded-2xl outline-none focus:ring-2 focus:ring-pine-600/20 text-sm font-medium"
                   value={newLead.firstName} onChange={e => setNewLead({...newLead, firstName: e.target.value})}
                 />
                 <input 
                   placeholder="Apellidos" required
-                  className="w-full p-4 bg-pine-50 rounded-2xl outline-none focus:ring-2 focus:ring-pine-600/20"
+                  className="w-full p-4 bg-pine-50 rounded-2xl outline-none focus:ring-2 focus:ring-pine-600/20 text-sm font-medium"
                   value={newLead.lastName} onChange={e => setNewLead({...newLead, lastName: e.target.value})}
                 />
               </div>
               <input 
                 placeholder="Email" type="email" required
-                className="w-full p-4 bg-pine-50 rounded-2xl outline-none focus:ring-2 focus:ring-pine-600/20"
+                className="w-full p-4 bg-pine-50 rounded-2xl outline-none focus:ring-2 focus:ring-pine-600/20 text-sm font-medium"
                 value={newLead.email} onChange={e => setNewLead({...newLead, email: e.target.value})}
               />
               <input 
                 placeholder="Teléfono" required
-                className="w-full p-4 bg-pine-50 rounded-2xl outline-none focus:ring-2 focus:ring-pine-600/20"
+                className="w-full p-4 bg-pine-50 rounded-2xl outline-none focus:ring-2 focus:ring-pine-600/20 text-sm font-medium"
                 value={newLead.phone} onChange={e => setNewLead({...newLead, phone: e.target.value})}
               />
-              <button className="w-full py-4 bg-pine-900 text-white font-bold rounded-2xl hover:bg-pine-800 transition-all mt-4">
+              
+              {/* CAMPO: ORIGEN DEL CONTACTO */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-pine-900/40 uppercase tracking-widest ml-1">Origen del Contacto</label>
+                <select 
+                  className="w-full p-4 bg-pine-50 rounded-2xl outline-none focus:ring-2 focus:ring-pine-600/20 text-sm font-medium appearance-none cursor-pointer"
+                  value={newLead.source} 
+                  onChange={e => setNewLead({...newLead, source: e.target.value})}
+                >
+                  <option value="Web">Página Web</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="Facebook">Facebook</option>
+                  <option value="Referido">Referido</option>
+                  <option value="Llamada Directa">Llamada Directa</option>
+                  <option value="Idealista">Idealista / Portales</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+
+              <button className="w-full py-4 bg-pine-900 text-white font-bold rounded-2xl hover:bg-pine-800 transition-all mt-4 shadow-lg shadow-pine-900/20">
                 Guardar Cliente
               </button>
             </form>
@@ -130,7 +160,7 @@ export default function Leads() {
               <tr className="bg-pine-50/50">
                 <th className="px-8 py-5 text-left text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Cliente</th>
                 <th className="px-8 py-5 text-left text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Estado</th>
-                <th className="px-8 py-5 text-left text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Teléfono</th>
+                <th className="px-8 py-5 text-left text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Origen</th>
                 <th className="px-8 py-5 text-right text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Acciones</th>
               </tr>
             </thead>
@@ -143,8 +173,8 @@ export default function Leads() {
                 >
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-pine-100 rounded-xl flex items-center justify-center text-pine-600 font-bold text-xs">
-                        {lead.firstName[0]}{lead.lastName[0]}
+                      <div className="w-10 h-10 bg-pine-100 rounded-xl flex items-center justify-center text-pine-600 font-bold text-xs uppercase">
+                        {lead.firstName?.[0] || ''}{lead.lastName?.[0] || ''}
                       </div>
                       <div>
                         <p className="text-sm font-bold text-slate-900">{lead.firstName} {lead.lastName}</p>
@@ -155,8 +185,11 @@ export default function Leads() {
                   <td className="px-8 py-6">
                     <StageBadge stage={lead.stage} />
                   </td>
-                  <td className="px-8 py-6 text-sm font-medium text-slate-500">
-                    {lead.phone}
+                  <td className="px-8 py-6">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full w-fit">
+                      <Globe size={12} className="text-pine-600" />
+                      {lead.source || 'Sin origen'}
+                    </div>
                   </td>
                   <td className="px-8 py-6 text-right">
                     <button className="p-2 text-slate-300 hover:text-pine-600 transition-colors">
