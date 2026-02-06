@@ -20,12 +20,13 @@ import {
   Send,
   MoreVertical,
   Trash2,
-  Edit2
+  Edit2,
+  Download,
+  ExternalLink
 } from 'lucide-react';
+import { supabase } from './lib/supabase';
 
-/**
- * TIPOS DE DATOS (Coincidentes con SQL)
- */
+// --- TIPOS DE DATOS ---
 type PipelineStage = 'Prospecto' | 'Visitando' | 'Interés' | 'Cierre';
 type LeadSource = 'Web' | 'RRSS' | 'Idealista' | 'Buzoneo' | 'Referido' | 'Otros';
 type EventType = 'Contacto' | 'Llamada' | 'Cita Oficina' | 'Cita Obra' | 'Reserva' | 'Envio Documentacion' | 'Otros';
@@ -39,7 +40,7 @@ interface Lead {
   email: string;
   source: LeadSource;
   stage: PipelineStage;
-  rating: number; // 1-5
+  rating: number;
   createdAt: string;
 }
 
@@ -47,16 +48,9 @@ interface Event {
   id: string;
   leadId: string;
   type: EventType;
-  date: string; // ISO String
+  date: string;
   description: string;
   completed: boolean;
-}
-
-interface Document {
-  id: string;
-  name: string;
-  category: string;
-  url: string;
 }
 
 interface InventoryUnit {
@@ -64,25 +58,11 @@ interface InventoryUnit {
   number: string;
   type: PropertyType;
   status: 'available' | 'reserved' | 'sold';
-  leadId?: string; // Si está reservado, quién lo reservó
+  leadId?: string;
 }
 
-/**
- * DATOS DE EJEMPLO (MOCK DATA)
- */
-const INITIAL_LEADS: Lead[] = [
-  { id: '1', firstName: 'Carlos', lastName: 'Ruiz', phone: '600123456', email: 'carlos@email.com', source: 'Idealista', stage: 'Prospecto', rating: 3, createdAt: '2023-10-01' },
-  { id: '2', firstName: 'Ana', lastName: 'García', phone: '611223344', email: 'ana.garcia@email.com', source: 'Web', stage: 'Visitando', rating: 4, createdAt: '2023-10-05' },
-  { id: '3', firstName: 'Pedro', lastName: 'Martínez', phone: '622334455', email: 'pedro@email.com', source: 'Referido', stage: 'Interés', rating: 5, createdAt: '2023-10-10' },
-  { id: '4', firstName: 'Lucía', lastName: 'Fernández', phone: '633445566', email: 'lucia@email.com', source: 'RRSS', stage: 'Cierre', rating: 5, createdAt: '2023-09-20' },
-];
-
-const INITIAL_EVENTS: Event[] = [
-  { id: '101', leadId: '2', type: 'Cita Obra', date: '2023-10-28T10:00:00', description: 'Visita piloto Olivo', completed: true },
-  { id: '102', leadId: '3', type: 'Llamada', date: '2023-10-29T16:30:00', description: 'Confirmar financiación', completed: false },
-];
-
-const AVAILABLE_DOCS: Document[] = [
+// --- DATOS ESTÁTICOS (INVENTARIO Y DOCS) ---
+const AVAILABLE_DOCS = [
   { id: 'd1', name: 'Plano General Mirapinos', category: 'General', url: '#' },
   { id: 'd2', name: 'Memoria de Calidades Olivo', category: 'Olivo', url: '#' },
   { id: 'd3', name: 'Plano Planta Baja Arce', category: 'Arce', url: '#' },
@@ -90,117 +70,158 @@ const AVAILABLE_DOCS: Document[] = [
   { id: 'd5', name: 'Forma de Pago Estándar', category: 'Financiero', url: '#' },
 ];
 
-// Generar inventario basado en la descripción
 const generateInventory = (): InventoryUnit[] => {
   const units: InventoryUnit[] = [];
-  // Olivo 1-13
   for (let i = 1; i <= 13; i++) units.push({ id: i, number: `${i}`, type: 'OLIVO', status: i === 2 ? 'reserved' : 'available' });
-  // Arce 14-35
   for (let i = 14; i <= 35; i++) units.push({ id: i, number: `${i}`, type: 'ARCE', status: i === 20 ? 'sold' : 'available' });
-  // Parcelas 11
   for (let i = 1; i <= 11; i++) units.push({ id: 100+i, number: `P-${i}`, type: 'PARCELA', status: 'available' });
   return units;
 };
 
-/**
- * COMPONENTE PRINCIPAL
- */
+// --- COMPONENTE PRINCIPAL ---
 export default function MirapinosCRM() {
-  // ESTADOS GLOBALES
   const [activeTab, setActiveTab] = useState<'dashboard' | 'leads' | 'pipeline' | 'inventory'>('dashboard');
-  const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
-  const [events, setEvents] = useState<Event[]>(INITIAL_EVENTS);
-  const [inventory, setInventory] = useState<InventoryUnit[]>(generateInventory());
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [inventory] = useState<InventoryUnit[]>(generateInventory());
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   
-  // ESTADOS DE UI (Modales, Filtros)
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStage, setFilterStage] = useState<PipelineStage | 'All'>('All');
-  const [filterRating, setFilterRating] = useState<number | 0>(0); // 0 es todos
+  const [filterRating, setFilterRating] = useState<number | 0>(0);
 
-  // DATOS COMPUTADOS
+  // Carga inicial de datos desde Supabase
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  async function fetchInitialData() {
+    try {
+      setLoading(true);
+      const { data: leadsData, error: leadsError } = await supabase
+        .from('leads')
+        .select('*')
+        .order('createdAt', { ascending: false });
+      
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (leadsError) throw leadsError;
+      if (eventsError) throw eventsError;
+
+      setLeads(leadsData || []);
+      setEvents(eventsData || []);
+    } catch (error) {
+      console.error("Error cargando datos:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
-      const matchesSearch = (lead.firstName + ' ' + lead.lastName + lead.email + lead.phone).toLowerCase().includes(searchTerm.toLowerCase());
+      const fullName = `${lead.firstName} ${lead.lastName}`.toLowerCase();
+      const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || 
+                           lead.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           lead.phone.includes(searchTerm);
       const matchesStage = filterStage === 'All' || lead.stage === filterStage;
       const matchesRating = filterRating === 0 || lead.rating >= filterRating;
       return matchesSearch && matchesStage && matchesRating;
     });
   }, [leads, searchTerm, filterStage, filterRating]);
 
-  // FUNCIONES DE ACCIÓN
-  const addLead = (newLead: Omit<Lead, 'id' | 'createdAt'>) => {
-    const lead: Lead = {
-      ...newLead,
-      id: Math.random().toString(36).substr(2, 9),
-      createdAt: new Date().toISOString()
-    };
-    setLeads([...leads, lead]);
-    setIsAddLeadOpen(false);
+  // --- ACCIONES DE BASE DE DATOS ---
+  const handleAddLead = async (newLead: Omit<Lead, 'id' | 'createdAt'>) => {
+    const { data, error } = await supabase
+      .from('leads')
+      .insert([newLead])
+      .select();
+
+    if (error) {
+      console.error("Error al añadir cliente:", error);
+      return;
+    }
+    if (data) {
+      setLeads([data[0], ...leads]);
+      setIsAddLeadOpen(false);
+    }
   };
 
-  const updateLeadStage = (leadId: string, newStage: PipelineStage) => {
+  const handleUpdateLeadStage = async (leadId: string, newStage: PipelineStage) => {
+    const { error } = await supabase
+      .from('leads')
+      .update({ stage: newStage })
+      .eq('id', leadId);
+
+    if (error) {
+      console.error("Error al actualizar estado:", error);
+      return;
+    }
     setLeads(leads.map(l => l.id === leadId ? { ...l, stage: newStage } : l));
   };
 
-  const addEvent = (newEvent: Omit<Event, 'id'>) => {
-    const event: Event = {
-      ...newEvent,
-      id: Math.random().toString(36).substr(2, 9)
-    };
-    setEvents([...events, event]);
-  };
+  const handleAddEvent = async (newEvent: Omit<Event, 'id'>) => {
+    const { data, error } = await supabase
+      .from('events')
+      .insert([newEvent])
+      .select();
 
-  // RENDERIZADO
+    if (error) {
+      console.error("Error al añadir evento:", error);
+      return;
+    }
+    if (data) {
+      setEvents([data[0], ...events]);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
+        <p className="text-slate-600 font-medium">Conectando con la base de datos...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-gray-50 font-sans text-slate-800">
-      
-      {/* SIDEBAR */}
+      {/* Barra Lateral */}
       <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-xl">
         <div className="p-6 border-b border-slate-700">
           <h1 className="text-2xl font-bold tracking-tight text-emerald-400">Mirapinos</h1>
           <p className="text-xs text-slate-400 mt-1">CRM Inmobiliario</p>
         </div>
-        
         <nav className="flex-1 p-4 space-y-2">
           <SidebarItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
           <SidebarItem icon={<Users size={20} />} label="Clientes" active={activeTab === 'leads'} onClick={() => { setActiveTab('leads'); setSelectedLeadId(null); }} />
           <SidebarItem icon={<Calendar size={20} />} label="Túnel de Ventas" active={activeTab === 'pipeline'} onClick={() => setActiveTab('pipeline')} />
           <SidebarItem icon={<Map size={20} />} label="Inventario" active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} />
         </nav>
-
-        <div className="p-4 border-t border-slate-700">
-          <button className="flex items-center gap-3 text-sm text-slate-400 hover:text-white transition-colors">
-            <Settings size={18} /> Configuración
-          </button>
-        </div>
       </aside>
 
-      {/* MAIN CONTENT */}
+      {/* Contenido Principal */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        
-        {/* HEADER */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shadow-sm z-10">
-          <h2 className="text-xl font-semibold text-slate-700">
+          <h2 className="text-xl font-semibold text-slate-700 uppercase tracking-wide text-sm">
             {activeTab === 'dashboard' && 'Panel Principal'}
             {activeTab === 'leads' && 'Gestión de Clientes'}
             {activeTab === 'pipeline' && 'Túnel de Ventas'}
             {activeTab === 'inventory' && 'Inventario de Promoción'}
           </h2>
-          
-          <div className="flex items-center gap-4">
-             <button 
-                onClick={() => setIsAddLeadOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-sm">
-                <Plus size={18} /> Nuevo Cliente
-             </button>
-          </div>
+          <button 
+            onClick={() => setIsAddLeadOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
+          >
+            <Plus size={18} /> Nuevo Cliente
+          </button>
         </header>
 
-        {/* CONTENT AREA */}
         <div className="flex-1 overflow-auto p-8">
-          
           {activeTab === 'dashboard' && <DashboardView leads={leads} inventory={inventory} events={events} />}
           
           {activeTab === 'leads' && !selectedLeadId && (
@@ -221,31 +242,34 @@ export default function MirapinosCRM() {
               lead={leads.find(l => l.id === selectedLeadId)!} 
               onBack={() => setSelectedLeadId(null)}
               events={events.filter(e => e.leadId === selectedLeadId)}
-              onAddEvent={addEvent}
-              onUpdateStage={(stage) => updateLeadStage(selectedLeadId, stage)}
+              onAddEvent={handleAddEvent}
+              onUpdateStage={(stage) => handleUpdateLeadStage(selectedLeadId, stage)}
             />
           )}
 
           {activeTab === 'pipeline' && (
-            <PipelineView leads={leads} onDragLead={updateLeadStage} onSelectLead={(id) => { setActiveTab('leads'); setSelectedLeadId(id); }} />
+            <PipelineView 
+              leads={leads} 
+              onDragLead={handleUpdateLeadStage} 
+              onSelectLead={(id) => { setActiveTab('leads'); setSelectedLeadId(id); }}
+            />
           )}
 
-          {activeTab === 'inventory' && (
-            <InventoryView inventory={inventory} />
-          )}
-
+          {activeTab === 'inventory' && <InventoryView inventory={inventory} />}
         </div>
       </main>
 
-      {/* MODAL ADD LEAD */}
+      {/* Modal de Nuevo Cliente */}
       {isAddLeadOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl p-6 w-[500px]">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-slate-800">Registrar Nuevo Cliente</h3>
-              <button onClick={() => setIsAddLeadOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+              <button onClick={() => setIsAddLeadOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={24} />
+              </button>
             </div>
-            <AddLeadForm onSubmit={addLead} onCancel={() => setIsAddLeadOpen(false)} />
+            <AddLeadForm onSubmit={handleAddLead} onCancel={() => setIsAddLeadOpen(false)} />
           </div>
         </div>
       )}
@@ -253,578 +277,464 @@ export default function MirapinosCRM() {
   );
 }
 
-/**
- * SUB-COMPONENTES
- */
+// --- SUBCOMPONENTES ---
 
-// --- DASHBOARD ---
+function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+        active ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+      }`}
+    >
+      {icon}
+      <span className="font-medium">{label}</span>
+    </button>
+  );
+}
+
 function DashboardView({ leads, inventory, events }: { leads: Lead[], inventory: InventoryUnit[], events: Event[] }) {
-  const sold = inventory.filter(i => i.status === 'sold').length;
-  const reserved = inventory.filter(i => i.status === 'reserved').length;
-  const available = inventory.length - sold - reserved;
-  const pendingEvents = events.filter(e => !e.completed).length;
+  const stats = [
+    { label: 'Clientes Totales', value: leads.length, icon: <Users className="text-blue-600" />, color: 'bg-blue-50' },
+    { label: 'Unidades Disponibles', value: inventory.filter(u => u.status === 'available').length, icon: <Map className="text-emerald-600" />, color: 'bg-emerald-50' },
+    { label: 'Ventas/Reservas', value: inventory.filter(u => u.status !== 'available').length, icon: <CheckCircle className="text-amber-600" />, color: 'bg-amber-50' },
+    { label: 'Tareas Pendientes', value: events.filter(e => !e.completed).length, icon: <Clock className="text-rose-600" />, color: 'bg-rose-50' },
+  ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <StatCard title="Viviendas Disponibles" value={available} total={inventory.length} color="text-emerald-600" />
-      <StatCard title="Reservas Activas" value={reserved} subtext="En proceso de firma" color="text-amber-500" />
-      <StatCard title="Ventas Cerradas" value={sold} subtext="Contratos firmados" color="text-blue-600" />
-      <StatCard title="Agenda Pendiente" value={pendingEvents} subtext="Eventos para hoy" color="text-rose-500" />
-      
-      {/* Gráfico simple de Pipeline */}
-      <div className="col-span-1 lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold mb-4 text-slate-700">Estado del Embudo</h3>
-        <div className="space-y-4">
-          {['Prospecto', 'Visitando', 'Interés', 'Cierre'].map((stage) => {
-            const count = leads.filter(l => l.stage === stage).length;
-            const pct = (count / leads.length) * 100 || 0;
-            return (
-              <div key={stage}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium text-slate-600">{stage}</span>
-                  <span className="text-slate-400">{count} clientes</span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-slate-800 rounded-full" style={{ width: `${pct}%` }}></div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, i) => (
+          <div key={i} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
+            <div className={`p-3 rounded-lg ${stat.color}`}>{stat.icon}</div>
+            <div>
+              <p className="text-sm text-slate-500 font-medium">{stat.label}</p>
+              <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
-       <div className="col-span-1 lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold mb-4 text-slate-700">Resumen de Tipologías</h3>
-          <div className="grid grid-cols-3 gap-4 text-center">
-             <div className="p-4 bg-emerald-50 rounded-lg">
-                <div className="text-2xl font-bold text-emerald-800">13</div>
-                <div className="text-sm text-emerald-600 font-medium">Olivo (Adosadas)</div>
-             </div>
-             <div className="p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-800">22</div>
-                <div className="text-sm text-blue-600 font-medium">Arce (Pareadas)</div>
-             </div>
-             <div className="p-4 bg-amber-50 rounded-lg">
-                <div className="text-2xl font-bold text-amber-800">11</div>
-                <div className="text-sm text-amber-600 font-medium">Parcelas</div>
-             </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+          <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg">
+            <Clock size={20} className="text-emerald-600" /> Actividad Reciente
+          </h3>
+          <div className="space-y-4">
+            {events.slice(0, 5).map(event => (
+              <div key={event.id} className="flex gap-4 p-3 hover:bg-slate-50 rounded-lg transition-colors border-l-4 border-emerald-500">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-slate-800">{event.type}</p>
+                  <p className="text-xs text-slate-500 mt-1">{event.description}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-medium text-slate-400">{new Date(event.date).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ))}
           </div>
-       </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+          <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-lg">
+            <Star size={20} className="text-amber-500" /> Clientes VIP (Rating 5)
+          </h3>
+          <div className="space-y-3">
+            {leads.filter(l => l.rating === 5).slice(0, 5).map(lead => (
+              <div key={lead.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold text-xs uppercase">
+                    {lead.firstName[0]}{lead.lastName[0]}
+                  </div>
+                  <span className="text-sm font-medium">{lead.firstName} {lead.lastName}</span>
+                </div>
+                <span className="text-xs px-2 py-1 bg-white rounded border border-gray-200 font-bold text-slate-600">{lead.stage}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-// --- LISTA DE CLIENTES ---
 function LeadsListView({ leads, onSelectLead, searchTerm, setSearchTerm, filterStage, setFilterStage, filterRating, setFilterRating }: any) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
-      {/* Filters Toolbar */}
-      <div className="p-4 border-b border-gray-100 flex gap-4 flex-wrap bg-gray-50 rounded-t-xl">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="p-6 border-b border-gray-100 bg-slate-50/50 flex flex-wrap gap-4 items-center justify-between">
+        <div className="relative flex-1 min-w-[300px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text" 
             placeholder="Buscar por nombre, email o teléfono..." 
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        
-        <select 
-          className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-          value={filterStage}
-          onChange={(e) => setFilterStage(e.target.value)}
-        >
-          <option value="All">Todas las etapas</option>
-          <option value="Prospecto">Prospecto</option>
-          <option value="Visitando">Visitando</option>
-          <option value="Interés">Interés</option>
-          <option value="Cierre">Cierre</option>
-        </select>
-
-        <select 
-          className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-          value={filterRating}
-          onChange={(e) => setFilterRating(Number(e.target.value))}
-        >
-          <option value={0}>Cualificación (Todas)</option>
-          <option value={1}>1+ Estrellas</option>
-          <option value={3}>3+ Estrellas</option>
-          <option value={5}>5 Estrellas</option>
-        </select>
+        <div className="flex gap-3">
+          <select 
+            className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            value={filterStage}
+            onChange={(e) => setFilterStage(e.target.value)}
+          >
+            <option value="All">Todos los estados</option>
+            <option value="Prospecto">Prospecto</option>
+            <option value="Visitando">Visitando</option>
+            <option value="Interés">Interés</option>
+            <option value="Cierre">Cierre</option>
+          </select>
+          <select 
+            className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            value={filterRating}
+            onChange={(e) => setFilterRating(Number(e.target.value))}
+          >
+            <option value={0}>Cualquier Rating</option>
+            <option value={5}>⭐⭐⭐⭐⭐</option>
+            <option value={4}>4+ estrellas</option>
+            <option value={3}>3+ estrellas</option>
+          </select>
+        </div>
       </div>
-
-      {/* Table */}
-      <div className="overflow-auto flex-1">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 text-gray-500 font-medium sticky top-0">
-            <tr>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-slate-50 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
               <th className="px-6 py-4">Cliente</th>
               <th className="px-6 py-4">Contacto</th>
+              <th className="px-6 py-4">Estado</th>
+              <th className="px-6 py-4">Rating</th>
               <th className="px-6 py-4">Origen</th>
-              <th className="px-6 py-4">Etapa</th>
-              <th className="px-6 py-4">Cualificación</th>
-              <th className="px-6 py-4 text-right">Acciones</th>
+              <th className="px-6 py-4">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {leads.map((lead: Lead) => (
-              <tr key={lead.id} className="hover:bg-emerald-50/30 transition-colors group cursor-pointer" onClick={() => onSelectLead(lead.id)}>
+            {leads.map(lead => (
+              <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors group">
                 <td className="px-6 py-4">
-                  <div className="font-semibold text-slate-800">{lead.firstName} {lead.lastName}</div>
-                  <div className="text-xs text-gray-400">Creado: {new Date(lead.createdAt).toLocaleDateString()}</div>
-                </td>
-                <td className="px-6 py-4 text-gray-600">
-                  <div className="flex items-center gap-2"><Phone size={14}/> {lead.phone}</div>
-                  <div className="flex items-center gap-2 mt-1"><Mail size={14}/> {lead.email}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-lg flex items-center justify-center font-bold shadow-sm">
+                      {lead.firstName[0]}{lead.lastName[0]}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">{lead.firstName} {lead.lastName}</p>
+                      <p className="text-xs text-slate-400">ID: {lead.id.slice(0,8)}</p>
+                    </div>
+                  </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs border border-gray-200">{lead.source}</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-xs text-slate-600"><Phone size={12}/> {lead.phone}</div>
+                    <div className="flex items-center gap-2 text-xs text-slate-600"><Mail size={12}/> {lead.email}</div>
+                  </div>
                 </td>
                 <td className="px-6 py-4">
-                   <StageBadge stage={lead.stage} />
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                    lead.stage === 'Cierre' ? 'bg-emerald-100 text-emerald-700' :
+                    lead.stage === 'Interés' ? 'bg-blue-100 text-blue-700' :
+                    lead.stage === 'Visitando' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {lead.stage}
+                  </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex text-amber-400">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={14} fill={i < lead.rating ? "currentColor" : "none"} className={i < lead.rating ? "" : "text-gray-300"} />
+                      <Star key={i} size={14} fill={i < lead.rating ? "currentColor" : "none"} />
                     ))}
                   </div>
                 </td>
-                <td className="px-6 py-4 text-right">
-                  <button className="text-emerald-600 font-medium hover:text-emerald-800 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Ver Ficha
+                <td className="px-6 py-4 text-xs font-medium text-slate-500">{lead.source}</td>
+                <td className="px-6 py-4">
+                  <button 
+                    onClick={() => onSelectLead(lead.id)}
+                    className="text-emerald-600 hover:text-emerald-800 font-bold text-xs uppercase tracking-tighter flex items-center gap-1 group-hover:gap-2 transition-all"
+                  >
+                    Ver detalle <ChevronRight size={14} />
                   </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {leads.length === 0 && (
-          <div className="p-12 text-center text-gray-400">
-            No se encontraron clientes con estos filtros.
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
-// --- DETALLE DE CLIENTE ---
-function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { lead: Lead, onBack: () => void, events: Event[], onAddEvent: any, onUpdateStage: (s: PipelineStage) => void }) {
-  const [activeTab, setActiveTab] = useState<'agenda' | 'docs'>('agenda');
-  const [showDocModal, setShowDocModal] = useState(false);
-  
-  // Doc selection state
-  const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
-
-  const handleSendDocs = () => {
-    if (selectedDocs.length === 0) return;
-    const docNames = AVAILABLE_DOCS.filter(d => selectedDocs.includes(d.id)).map(d => d.name).join(', ');
-    
-    // Add event to agenda
-    onAddEvent({
-      leadId: lead.id,
-      type: 'Envio Documentacion',
-      date: new Date().toISOString(),
-      description: `Documentos enviados: ${docNames}`,
-      completed: true
-    });
-    
-    setShowDocModal(false);
-    setSelectedDocs([]);
-  };
+function LeadDetailView({ lead, onBack, events, onAddEvent, onUpdateStage }: { lead: Lead, onBack: () => void, events: Event[], onAddEvent: any, onUpdateStage: any }) {
+  const [activeSubTab, setActiveSubTab] = useState<'timeline' | 'docs'>('timeline');
 
   return (
-    <div className="h-full flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      {/* Header Ficha */}
-      <div className="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-start">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-            <ChevronRight className="rotate-180 text-gray-500" />
-          </button>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">{lead.firstName} {lead.lastName}</h2>
-            <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
-              <span className="flex items-center gap-1"><Phone size={14}/> {lead.phone}</span>
-              <span className="flex items-center gap-1"><Mail size={14}/> {lead.email}</span>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-medium">
+        <ChevronRight className="rotate-180" size={18} /> Volver a la lista
+      </button>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Ficha de Perfil */}
+        <div className="xl:col-span-1 space-y-6">
+          <div className="bg-white p-8 rounded-xl border border-gray-100 shadow-sm text-center">
+            <div className="w-24 h-24 bg-emerald-600 text-white rounded-2xl flex items-center justify-center font-bold text-3xl mx-auto shadow-lg mb-4">
+              {lead.firstName[0]}{lead.lastName[0]}
+            </div>
+            <h3 className="text-2xl font-bold text-slate-800">{lead.firstName} {lead.lastName}</h3>
+            <p className="text-slate-400 text-sm mt-1">Cliente desde {new Date(lead.createdAt).toLocaleDateString()}</p>
+            
+            <div className="flex justify-center mt-4 text-amber-400">
+              {[...Array(5)].map((_, i) => <Star key={i} size={18} fill={i < lead.rating ? "currentColor" : "none"} />)}
+            </div>
+
+            <div className="mt-8 space-y-3">
+              <div className="p-3 bg-slate-50 rounded-lg flex items-center gap-3 text-left border border-gray-100">
+                <div className="p-2 bg-white rounded-md shadow-sm text-emerald-600"><Phone size={16}/></div>
+                <div><p className="text-[10px] text-slate-400 font-bold uppercase">Móvil</p><p className="text-sm font-medium">{lead.phone}</p></div>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-lg flex items-center gap-3 text-left border border-gray-100">
+                <div className="p-2 bg-white rounded-md shadow-sm text-emerald-600"><Mail size={16}/></div>
+                <div><p className="text-[10px] text-slate-400 font-bold uppercase">Email</p><p className="text-sm font-medium truncate w-40">{lead.email}</p></div>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-           <div className="flex flex-col items-end mr-4">
-              <span className="text-xs text-gray-500 mb-1">Cualificación</span>
-              <div className="flex text-amber-400">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={16} fill={i < lead.rating ? "currentColor" : "none"} className={i < lead.rating ? "" : "text-gray-300"} />
-                  ))}
-              </div>
-           </div>
-           <select 
-              value={lead.stage}
-              onChange={(e) => onUpdateStage(e.target.value as PipelineStage)}
-              className="bg-white border border-gray-300 text-slate-700 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2.5"
-            >
-              <option value="Prospecto">Prospecto</option>
-              <option value="Visitando">Visitando</option>
-              <option value="Interés">Interés</option>
-              <option value="Cierre">Cierre</option>
-            </select>
-        </div>
-      </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Info Column */}
-        <div className="w-1/3 border-r border-gray-100 p-6 overflow-auto">
-          <h3 className="font-semibold text-gray-700 mb-4 uppercase text-xs tracking-wider">Datos del Cliente</h3>
-          <div className="space-y-4">
-            <InfoRow label="Origen" value={lead.source} />
-            <InfoRow label="Fecha Alta" value={new Date(lead.createdAt).toLocaleDateString()} />
-            <InfoRow label="Interés Principal" value="Adosado Olivo (Est.)" />
-            <div className="pt-4 border-t border-gray-100">
-               <label className="text-xs text-gray-500 block mb-1">Notas</label>
-               <textarea className="w-full text-sm border-gray-200 rounded-lg bg-gray-50 p-3 h-32" placeholder="Escribe notas sobre el cliente..."></textarea>
-            </div>
-          </div>
-        </div>
-
-        {/* Activity Column */}
-        <div className="flex-1 flex flex-col bg-slate-50">
-          <div className="flex border-b border-gray-200 bg-white px-6">
-            <button 
-              className={`py-4 mr-6 text-sm font-medium border-b-2 ${activeTab === 'agenda' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500'}`}
-              onClick={() => setActiveTab('agenda')}
-            >
-              Agenda y Actividad
-            </button>
-            <button 
-               className={`py-4 mr-6 text-sm font-medium border-b-2 ${activeTab === 'docs' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500'}`}
-               onClick={() => setActiveTab('docs')}
-            >
-              Documentación Enviada
-            </button>
-          </div>
-
-          <div className="flex-1 p-6 overflow-auto">
-             {activeTab === 'agenda' && (
-                <div className="space-y-6">
-                   <div className="flex justify-between items-center mb-4">
-                      <h4 className="font-medium text-slate-700">Historial de Eventos</h4>
-                      <div className="flex gap-2">
-                        <button className="text-xs bg-white border border-gray-200 px-3 py-1.5 rounded hover:bg-gray-50">+ Llamada</button>
-                        <button className="text-xs bg-white border border-gray-200 px-3 py-1.5 rounded hover:bg-gray-50">+ Cita</button>
-                      </div>
-                   </div>
-                   
-                   {/* Timeline */}
-                   <div className="relative border-l-2 border-gray-200 ml-3 space-y-8">
-                      {events.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(event => (
-                        <div key={event.id} className="relative pl-8">
-                           <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 border-white ${event.type === 'Envio Documentacion' ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
-                           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                              <div className="flex justify-between items-start mb-1">
-                                 <span className="font-semibold text-sm text-slate-800">{event.type}</span>
-                                 <span className="text-xs text-gray-400">{new Date(event.date).toLocaleString()}</span>
-                              </div>
-                              <p className="text-sm text-gray-600">{event.description}</p>
-                           </div>
-                        </div>
-                      ))}
-                      {events.length === 0 && <p className="pl-8 text-gray-400 italic text-sm">No hay eventos registrados.</p>}
-                   </div>
-                </div>
-             )}
-
-             {activeTab === 'docs' && (
-                <div>
-                   <div className="flex justify-between items-center mb-6">
-                      <p className="text-sm text-gray-600">Documentos enviados previamente a este cliente.</p>
-                      <button 
-                        onClick={() => setShowDocModal(true)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 hover:bg-blue-700 transition"
-                      >
-                         <Send size={16} /> Enviar Documentación
-                      </button>
-                   </div>
-                   
-                   {/* Lista filtrada de eventos tipo doc */}
-                   <div className="space-y-3">
-                      {events.filter(e => e.type === 'Envio Documentacion').map(e => (
-                         <div key={e.id} className="flex items-start gap-4 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
-                            <div className="bg-blue-100 p-2 rounded text-blue-600">
-                               <FileText size={20} />
-                            </div>
-                            <div>
-                               <p className="text-sm font-medium text-slate-800">Envío realizado</p>
-                               <p className="text-xs text-blue-600 mb-1">{new Date(e.date).toLocaleString()}</p>
-                               <p className="text-sm text-gray-600">{e.description}</p>
-                            </div>
-                         </div>
-                      ))}
-                      {events.filter(e => e.type === 'Envio Documentacion').length === 0 && (
-                         <div className="text-center py-10 bg-white rounded border border-dashed border-gray-300">
-                            <FileText className="mx-auto text-gray-300 mb-2" size={32} />
-                            <p className="text-gray-400 text-sm">Aún no se ha enviado documentación</p>
-                         </div>
-                      )}
-                   </div>
-                </div>
-             )}
-          </div>
-        </div>
-      </div>
-
-      {/* Modal Envío Docs */}
-      {showDocModal && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6">
-              <h3 className="text-lg font-bold mb-4">Seleccionar Documentación para enviar</h3>
-              <div className="grid grid-cols-2 gap-3 mb-6 max-h-[400px] overflow-auto">
-                 {AVAILABLE_DOCS.map(doc => (
-                    <label key={doc.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedDocs.includes(doc.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                       <input 
-                          type="checkbox" 
-                          className="w-4 h-4 text-blue-600 rounded"
-                          checked={selectedDocs.includes(doc.id)}
-                          onChange={(e) => {
-                             if(e.target.checked) setSelectedDocs([...selectedDocs, doc.id]);
-                             else setSelectedDocs(selectedDocs.filter(id => id !== doc.id));
-                          }}
-                       />
-                       <div>
-                          <div className="text-sm font-medium text-slate-800">{doc.name}</div>
-                          <div className="text-xs text-gray-500 uppercase">{doc.category}</div>
-                       </div>
-                    </label>
-                 ))}
-              </div>
-              <div className="flex justify-end gap-3">
-                 <button onClick={() => setShowDocModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Cancelar</button>
-                 <button 
-                    onClick={handleSendDocs}
-                    disabled={selectedDocs.length === 0}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                 >
-                    <Send size={16} /> Enviar Selección ({selectedDocs.length})
-                 </button>
-              </div>
-           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// --- PIPELINE KANBAN ---
-function PipelineView({ leads, onDragLead, onSelectLead }: any) {
-  const stages: PipelineStage[] = ['Prospecto', 'Visitando', 'Interés', 'Cierre'];
-
-  return (
-    <div className="flex h-full gap-4 overflow-x-auto pb-4">
-      {stages.map(stage => (
-        <div key={stage} className="flex-1 min-w-[280px] bg-gray-100 rounded-xl flex flex-col max-h-full">
-           <div className="p-3 border-b border-gray-200 font-semibold text-slate-700 flex justify-between">
-              {stage}
-              <span className="bg-white px-2 py-0.5 rounded text-xs text-gray-500 border border-gray-200">
-                 {leads.filter((l: Lead) => l.stage === stage).length}
-              </span>
-           </div>
-           <div className="p-3 flex-1 overflow-auto space-y-3">
-              {leads.filter((l: Lead) => l.stage === stage).map((lead: Lead) => (
-                 <div key={lead.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md cursor-pointer transition-shadow group relative" onClick={() => onSelectLead(lead.id)}>
-                    <div className="font-medium text-slate-800 mb-1">{lead.firstName} {lead.lastName}</div>
-                    <div className="text-xs text-gray-500 mb-3">{lead.source}</div>
-                    
-                    <div className="flex justify-between items-center">
-                       <div className="flex text-amber-400">
-                          <Star size={12} fill={lead.rating >= 1 ? "currentColor" : "none"} />
-                          <span className="text-xs text-gray-400 ml-1 font-medium">{lead.rating}/5</span>
-                       </div>
-                       
-                       {/* Botones simples para mover (simula Drag&Drop) */}
-                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                          {stage !== 'Prospecto' && <button onClick={() => onDragLead(lead.id, stages[stages.indexOf(stage)-1])} className="p-1 hover:bg-gray-100 rounded text-gray-500" title="Mover atrás"><ChevronRight size={14} className="rotate-180"/></button>}
-                          {stage !== 'Cierre' && <button onClick={() => onDragLead(lead.id, stages[stages.indexOf(stage)+1])} className="p-1 hover:bg-emerald-50 rounded text-emerald-600" title="Avanzar"><ChevronRight size={14} /></button>}
-                       </div>
-                    </div>
-                 </div>
+          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+            <h4 className="font-bold text-slate-800 mb-4 text-sm uppercase">Actualizar Proceso</h4>
+            <div className="grid grid-cols-2 gap-2">
+              {(['Prospecto', 'Visitando', 'Interés', 'Cierre'] as PipelineStage[]).map(stage => (
+                <button 
+                  key={stage}
+                  onClick={() => onUpdateStage(stage)}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                    lead.stage === stage ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-100' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  {stage}
+                </button>
               ))}
-           </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tablero de Actividad/Docs */}
+        <div className="xl:col-span-2 space-y-6">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col h-full overflow-hidden">
+            <div className="flex border-b border-gray-100">
+              <button 
+                onClick={() => setActiveSubTab('timeline')}
+                className={`px-8 py-4 text-sm font-bold uppercase tracking-widest transition-all ${activeSubTab === 'timeline' ? 'text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/30' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Historial / Tareas
+              </button>
+              <button 
+                onClick={() => setActiveSubTab('docs')}
+                className={`px-8 py-4 text-sm font-bold uppercase tracking-widest transition-all ${activeSubTab === 'docs' ? 'text-emerald-600 border-b-2 border-emerald-600 bg-emerald-50/30' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Documentación
+              </button>
+            </div>
+
+            <div className="p-6 flex-1">
+              {activeSubTab === 'timeline' ? (
+                <div className="space-y-6">
+                  <AddEventForm onAdd={(type, description) => onAddEvent({ leadId: lead.id, type, description, date: new Date().toISOString(), completed: false })} />
+                  
+                  <div className="relative border-l-2 border-slate-100 ml-3 pl-8 space-y-8">
+                    {events.length === 0 && <p className="text-slate-400 italic text-sm">Sin actividad registrada aún...</p>}
+                    {events.map((event, idx) => (
+                      <div key={event.id} className="relative">
+                        <div className="absolute -left-[41px] top-0 w-5 h-5 bg-white border-2 border-emerald-500 rounded-full z-10"></div>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-gray-100 group hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded uppercase tracking-tighter">{event.type}</span>
+                            <span className="text-[10px] text-slate-400 font-bold">{new Date(event.date).toLocaleDateString()}</span>
+                          </div>
+                          <p className="text-sm text-slate-700 leading-relaxed">{event.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {AVAILABLE_DOCS.map(doc => (
+                    <div key={doc.id} className="p-4 border border-gray-100 rounded-xl hover:bg-slate-50 transition-all flex items-center justify-between group">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-rose-50 text-rose-500 rounded-lg group-hover:scale-110 transition-transform"><FileText size={20}/></div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-700">{doc.name}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase">{doc.category}</p>
+                        </div>
+                      </div>
+                      <button className="text-slate-400 hover:text-emerald-600"><Download size={18}/></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PipelineView({ leads, onDragLead, onSelectLead }: { leads: Lead[], onDragLead: any, onSelectLead: any }) {
+  const stages: PipelineStage[] = ['Prospecto', 'Visitando', 'Interés', 'Cierre'];
+  
+  return (
+    <div className="flex gap-6 h-full overflow-x-auto pb-4">
+      {stages.map(stage => (
+        <div key={stage} className="min-w-[320px] bg-slate-100/50 rounded-2xl flex flex-col border border-slate-200/50">
+          <div className="p-4 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${stage === 'Cierre' ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+              {stage}
+            </h3>
+            <span className="bg-white px-2 py-1 rounded text-xs font-bold text-slate-400 shadow-sm border border-gray-100">
+              {leads.filter(l => l.stage === stage).length}
+            </span>
+          </div>
+          <div className="flex-1 p-3 space-y-3 overflow-y-auto">
+            {leads.filter(l => l.stage === stage).map(lead => (
+              <div 
+                key={lead.id} 
+                onClick={() => onSelectLead(lead.id)}
+                className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-emerald-300 transition-all cursor-pointer group"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex text-amber-400">
+                    {[...Array(lead.rating)].map((_, i) => <Star key={i} size={10} fill="currentColor" />)}
+                  </div>
+                  <MoreVertical size={14} className="text-slate-300 group-hover:text-slate-600" />
+                </div>
+                <h4 className="font-bold text-slate-800 text-sm">{lead.firstName} {lead.lastName}</h4>
+                <p className="text-[10px] text-slate-400 font-medium mt-1 truncate">{lead.email}</p>
+                
+                <div className="mt-4 flex items-center justify-between border-t border-slate-50 pt-3">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{lead.source}</span>
+                  <div className="flex -space-x-1">
+                    <div className="w-5 h-5 bg-slate-100 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-bold text-slate-500">
+                      MP
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>
   );
 }
 
-// --- INVENTARIO VISUAL ---
 function InventoryView({ inventory }: { inventory: InventoryUnit[] }) {
-  const olivo = inventory.filter(i => i.type === 'OLIVO');
-  const arce = inventory.filter(i => i.type === 'ARCE');
-  const parcelas = inventory.filter(i => i.type === 'PARCELA');
-
-  const UnitCard = ({ unit }: { unit: InventoryUnit }) => {
-    const statusColors = {
-      available: 'bg-white border-emerald-200 hover:border-emerald-400',
-      reserved: 'bg-amber-50 border-amber-200',
-      sold: 'bg-blue-50 border-blue-200 opacity-75'
-    };
-    const statusDot = {
-      available: 'bg-emerald-500',
-      reserved: 'bg-amber-500',
-      sold: 'bg-blue-500'
-    };
-
-    return (
-      <div className={`p-4 rounded-lg border-2 flex flex-col items-center justify-center relative shadow-sm transition-all cursor-pointer ${statusColors[unit.status]}`}>
-        <div className={`absolute top-2 right-2 w-2 h-2 rounded-full ${statusDot[unit.status]}`} title={unit.status}></div>
-        <span className="text-xs font-bold text-gray-400 uppercase mb-1">{unit.type}</span>
-        <span className="text-2xl font-bold text-slate-700">{unit.number}</span>
-        <span className="text-[10px] uppercase tracking-wider text-gray-500 mt-2 font-medium">
-           {unit.status === 'available' ? 'Disponible' : unit.status === 'reserved' ? 'Reservado' : 'Vendido'}
-        </span>
-      </div>
-    );
-  };
-
+  const sections: PropertyType[] = ['OLIVO', 'ARCE', 'PARCELA'];
+  
   return (
-    <div className="space-y-10 pb-10">
-      <div className="flex gap-6 mb-8">
-        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-500 rounded-full"></div><span className="text-sm">Disponible</span></div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-amber-500 rounded-full"></div><span className="text-sm">Reservado</span></div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-500 rounded-full"></div><span className="text-sm">Vendido</span></div>
-      </div>
-
-      <section>
-        <h3 className="text-lg font-bold text-emerald-800 border-b border-emerald-100 pb-2 mb-4">Tipología OLIVO (Adosadas) - Unidades 1 a 13</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-          {olivo.map(u => <UnitCard key={u.id} unit={u} />)}
+    <div className="space-y-8">
+      {sections.map(section => (
+        <div key={section} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-6 border-b border-gray-50 pb-4">
+            <h3 className="text-lg font-black text-slate-800 tracking-tight">MODELO {section}</h3>
+            <div className="flex gap-4 text-xs font-bold">
+              <span className="flex items-center gap-1.5 text-emerald-600"><span className="w-3 h-3 bg-emerald-500 rounded-sm"></span> LIBRE</span>
+              <span className="flex items-center gap-1.5 text-amber-600"><span className="w-3 h-3 bg-amber-500 rounded-sm"></span> RESERVADO</span>
+              <span className="flex items-center gap-1.5 text-slate-400"><span className="w-3 h-3 bg-slate-300 rounded-sm"></span> VENDIDO</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-3">
+            {inventory.filter(u => u.type === section).map(unit => (
+              <div 
+                key={unit.id}
+                className={`aspect-square rounded-xl flex flex-col items-center justify-center font-bold text-xs shadow-sm transition-all border-2 ${
+                  unit.status === 'available' ? 'bg-emerald-50 border-emerald-100 text-emerald-700 hover:scale-105 hover:bg-emerald-100' :
+                  unit.status === 'reserved' ? 'bg-amber-50 border-amber-100 text-amber-700' : 
+                  'bg-slate-50 border-slate-100 text-slate-300'
+                }`}
+              >
+                {unit.number}
+              </div>
+            ))}
+          </div>
         </div>
-      </section>
-
-      <section>
-        <h3 className="text-lg font-bold text-blue-800 border-b border-blue-100 pb-2 mb-4">Tipología ARCE (Pareadas) - Unidades 14 a 35</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-          {arce.map(u => <UnitCard key={u.id} unit={u} />)}
-        </div>
-      </section>
-
-      <section>
-        <h3 className="text-lg font-bold text-amber-800 border-b border-amber-100 pb-2 mb-4">Parcelas Autopromoción</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {parcelas.map(u => <UnitCard key={u.id} unit={u} />)}
-        </div>
-      </section>
+      ))}
     </div>
   );
 }
 
-// --- FORMULARIO ALTA CLIENTE ---
-function AddLeadForm({ onSubmit, onCancel }: any) {
+// --- FORMULARIOS ---
+
+function AddLeadForm({ onSubmit, onCancel }: { onSubmit: any, onCancel: any }) {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    phone: '',
     email: '',
+    phone: '',
     source: 'Web' as LeadSource,
-    stage: 'Prospecto' as PipelineStage,
-    rating: 1
+    rating: 3,
+    stage: 'Prospecto' as PipelineStage
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }}>
+      <div className="grid grid-cols-2 gap-4">
+        <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nombre</label><input required className="w-full p-2 bg-slate-50 border border-gray-200 rounded-lg text-sm" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} /></div>
+        <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Apellidos</label><input required className="w-full p-2 bg-slate-50 border border-gray-200 rounded-lg text-sm" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} /></div>
+      </div>
+      <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Email</label><input type="email" required className="w-full p-2 bg-slate-50 border border-gray-200 rounded-lg text-sm" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
+      <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Teléfono</label><input required className="w-full p-2 bg-slate-50 border border-gray-200 rounded-lg text-sm" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /></div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-           <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-           <input required type="text" className="w-full border border-gray-300 rounded-lg p-2 text-sm" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
+          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Origen</label>
+          <select className="w-full p-2 bg-slate-50 border border-gray-200 rounded-lg text-sm" value={formData.source} onChange={e => setFormData({...formData, source: e.target.value as LeadSource})}>
+            {['Web', 'RRSS', 'Idealista', 'Buzoneo', 'Referido', 'Otros'].map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
         </div>
         <div>
-           <label className="block text-sm font-medium text-gray-700 mb-1">Apellidos</label>
-           <input required type="text" className="w-full border border-gray-300 rounded-lg p-2 text-sm" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
+          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Valoración</label>
+          <select className="w-full p-2 bg-slate-50 border border-gray-200 rounded-lg text-sm" value={formData.rating} onChange={e => setFormData({...formData, rating: Number(e.target.value)})}>
+            {[1,2,3,4,5].map(v => <option key={v} value={v}>{v} Estrellas</option>)}
+          </select>
         </div>
       </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-           <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-           <input required type="tel" className="w-full border border-gray-300 rounded-lg p-2 text-sm" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-        </div>
-        <div>
-           <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-           <input required type="email" className="w-full border border-gray-300 rounded-lg p-2 text-sm" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-        </div>
-      </div>
-
-      <div>
-         <label className="block text-sm font-medium text-gray-700 mb-1">Origen del contacto</label>
-         <select className="w-full border border-gray-300 rounded-lg p-2 text-sm" value={formData.source} onChange={e => setFormData({...formData, source: e.target.value as LeadSource})}>
-            <option value="Web">Web</option>
-            <option value="RRSS">Redes Sociales</option>
-            <option value="Idealista">Idealista</option>
-            <option value="Buzoneo">Buzoneo</option>
-            <option value="Referido">Referido</option>
-            <option value="Otros">Otros</option>
-         </select>
-      </div>
-
-      <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
-         <button type="button" onClick={onCancel} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Cancelar</button>
-         <button type="submit" className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg text-sm font-medium">Guardar Cliente</button>
+      <div className="flex gap-3 pt-6">
+        <button type="button" onClick={onCancel} className="flex-1 px-4 py-2 text-sm font-bold text-slate-400 bg-white hover:bg-slate-50 rounded-lg transition-colors border border-gray-200 uppercase tracking-tighter">Cancelar</button>
+        <button type="submit" className="flex-1 px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-lg shadow-emerald-200 uppercase tracking-tighter">Guardar Cliente</button>
       </div>
     </form>
   );
 }
 
-// --- UI HELPERS ---
-function SidebarItem({ icon, label, active, onClick }: any) {
+function AddEventForm({ onAdd }: { onAdd: (type: EventType, desc: string) => void }) {
+  const [desc, setDesc] = useState('');
+  const [type, setType] = useState<EventType>('Llamada');
+
   return (
-    <button 
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${active ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
-    >
-      {icon}
-      {label}
-    </button>
+    <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 flex gap-3 items-end group">
+      <div className="flex-1 space-y-2">
+        <label className="block text-[9px] font-black text-emerald-700 uppercase tracking-widest ml-1">Registrar nueva actividad</label>
+        <div className="flex gap-2">
+          <select 
+            value={type} 
+            onChange={e => setType(e.target.value as EventType)}
+            className="text-xs font-bold border-none bg-white rounded-lg px-2 py-2 shadow-sm focus:ring-2 focus:ring-emerald-500/20"
+          >
+            {['Contacto', 'Llamada', 'Cita Oficina', 'Cita Obra', 'Reserva', 'Otros'].map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <input 
+            className="flex-1 p-2 text-sm bg-white border-none rounded-lg shadow-sm placeholder-slate-400 focus:ring-2 focus:ring-emerald-500/20" 
+            placeholder="¿Qué ha ocurrido con este cliente?"
+            value={desc}
+            onChange={e => setDesc(e.target.value)}
+          />
+        </div>
+      </div>
+      <button 
+        onClick={() => { if(desc) { onAdd(type, desc); setDesc(''); } }}
+        className="p-2 bg-emerald-600 text-white rounded-lg shadow-md hover:bg-emerald-700 transition-all hover:scale-110"
+      >
+        <Send size={18} />
+      </button>
+    </div>
   );
-}
-
-function StageBadge({ stage }: { stage: PipelineStage }) {
-   const colors = {
-      'Prospecto': 'bg-gray-100 text-gray-600',
-      'Visitando': 'bg-blue-100 text-blue-700',
-      'Interés': 'bg-amber-100 text-amber-700',
-      'Cierre': 'bg-emerald-100 text-emerald-700'
-   };
-   return (
-      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${colors[stage]}`}>
-         {stage}
-      </span>
-   );
-}
-
-function StatCard({ title, value, subtext, total, color }: any) {
-   return (
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-         <p className="text-gray-500 text-xs uppercase tracking-wider font-semibold">{title}</p>
-         <div className="mt-2 flex items-baseline gap-2">
-            <span className={`text-3xl font-bold ${color}`}>{value}</span>
-            {total && <span className="text-sm text-gray-400">/ {total}</span>}
-         </div>
-         {subtext && <p className="text-xs text-gray-400 mt-1">{subtext}</p>}
-      </div>
-   );
-}
-
-function InfoRow({ label, value }: { label: string, value: string }) {
-   return (
-      <div className="flex flex-col border-b border-gray-100 last:border-0 py-2">
-         <span className="text-xs text-gray-400">{label}</span>
-         <span className="text-sm font-medium text-slate-700">{value}</span>
-      </div>
-   );
 }
