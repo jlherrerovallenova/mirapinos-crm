@@ -4,22 +4,30 @@ import { StageBadge, AppNotification } from '../components/Shared';
 import { supabase } from '../lib/supabase';
 import { 
   Search, Plus, X, Loader2, Edit2, Trash2, 
-  Mail, Phone, Eye, Save, FileText, History, Send, Clock, Globe
+  Mail, Phone, Eye, Save, FileText, History, 
+  Clock, Globe, Check, MessageCircle, Calendar, User
 } from 'lucide-react';
 
 export default function Leads() {
-  // --- ESTADOS ---
+  // --- 1. ESTADOS GLOBALES ---
   const [leads, setLeads] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  
+  // --- 2. ESTADOS DEL MODAL Y EDICIÓN ---
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false); // Para el modal de creación
+  const [isModalOpen, setIsModalOpen] = useState(false); // Modal de creación
   
+  // --- 3. ESTADO GESTIÓN DOCUMENTAL ---
+  const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+  
+  // --- 4. NOTIFICACIONES ---
   const [notification, setNotification] = useState<{
     show: boolean; title: string; message: string; type: 'success' | 'error' | 'info';
   }>({ show: false, title: '', message: '', type: 'success' });
 
+  // --- 5. FORMULARIO NUEVO LEAD ---
   const [newLead, setNewLead] = useState({
     firstName: '',
     lastName: '',
@@ -29,35 +37,57 @@ export default function Leads() {
     source: 'Web'
   });
 
-  // --- EFECTOS ---
+  // --- 6. DATOS ESTÁTICOS (CONFIGURACIÓN) ---
+  const availableDocs = [
+    { id: 'dossier', name: 'Dossier Informativo Vallenova', file: 'dossier.pdf' },
+    { id: 'reserva', name: 'Contrato de Reserva Standard', file: 'reserva.pdf' },
+    { id: 'planos', name: 'Planos de Planta y Distribución', file: 'planos.zip' },
+    { id: 'precios', name: 'Lista de Precios Actualizada', file: 'precios.pdf' },
+    { id: 'calidades', name: 'Memoria de Calidades', file: 'calidades.pdf' }
+  ];
+
+  const stages = ['Prospecto', 'Visitando', 'Interés', 'Cierre'];
+  const sources = ['Web', 'Instagram', 'Telefónico', 'Referido', 'Portal Inmobiliario', 'Idealista'];
+
+  // --- 7. EFECTOS ---
   useEffect(() => {
     fetchLeads();
   }, []);
 
-  // --- FUNCIONES DE BASE DE DATOS ---
+  // --- 8. FUNCIONES DE LÓGICA ---
+  
+  // Cargar clientes desde Supabase
   async function fetchLeads() {
     setLoading(true);
     const { data, error } = await supabase
       .from('leads')
       .select('*')
       .order('createdAt', { ascending: false });
-    if (!error && data) setLeads(data);
+    
+    if (!error && data) {
+      setLeads(data);
+    } else if (error) {
+      console.error('Error cargando leads:', error);
+    }
     setLoading(false);
   }
 
+  // Crear nuevo cliente
   const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.from('leads').insert([newLead]);
+    
     if (!error) {
       setIsModalOpen(false);
       setNewLead({ firstName: '', lastName: '', email: '', phone: '', stage: 'Prospecto', source: 'Web' });
       fetchLeads();
-      setNotification({ show: true, title: "ÉXITO", message: "Cliente creado correctamente", type: 'success' });
+      setNotification({ show: true, title: "ÉXITO", message: "Cliente creado correctamente.", type: 'success' });
     } else {
       setNotification({ show: true, title: "ERROR", message: error.message, type: 'error' });
     }
   };
 
+  // Guardar edición de cliente
   const handleSaveEdit = async () => {
     const { error } = await supabase
       .from('leads')
@@ -66,62 +96,103 @@ export default function Leads() {
         lastName: selectedLead.lastName,
         email: selectedLead.email,
         phone: selectedLead.phone,
-        stage: selectedLead.stage
+        stage: selectedLead.stage,
+        source: selectedLead.source
       })
       .eq('id', selectedLead.id);
 
     if (!error) {
       setIsEditing(false);
       fetchLeads();
-      setNotification({ show: true, title: "ACTUALIZADO", message: "Los cambios han sido guardados.", type: 'success' });
+      setNotification({ show: true, title: "ACTUALIZADO", message: "Datos del cliente guardados.", type: 'success' });
     } else {
       setNotification({ show: true, title: "ERROR", message: "No se pudo actualizar.", type: 'error' });
     }
   };
 
+  // Borrar cliente
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
-    if (!window.confirm(`¿Seguro que quieres eliminar a ${name}?`)) return;
+    // Usamos window.confirm para una confirmación nativa rápida
+    if (!window.confirm(`¿Estás seguro de eliminar a ${name}? Esta acción no se puede deshacer.`)) return;
     
     const { error } = await supabase.from('leads').delete().eq('id', id);
     if (!error) {
-      setSelectedLead(null);
-      fetchLeads();
-      setNotification({ show: true, title: "ELIMINADO", message: "Registro borrado permanentemente.", type: 'error' });
+      setSelectedLead(null); // Cerrar modal si estaba abierto
+      fetchLeads(); // Recargar lista
+      setNotification({ show: true, title: "ELIMINADO", message: "Cliente eliminado del sistema.", type: 'error' });
+    } else {
+      setNotification({ show: true, title: "ERROR", message: "No se pudo eliminar.", type: 'error' });
     }
   };
 
-  // --- FILTRADO ---
+  // Gestión de selección de documentos
+  const toggleDocSelection = (docId: string) => {
+    setSelectedDocs(prev => 
+      prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]
+    );
+  };
+
+  // Enviar documentación (WhatsApp / Email)
+  const handleSendDocs = (method: 'whatsapp' | 'email') => {
+    if (selectedDocs.length === 0) return;
+    
+    // Obtener nombres de los documentos seleccionados
+    const docNames = availableDocs.filter(d => selectedDocs.includes(d.id)).map(d => d.name).join(', ');
+    
+    if (method === 'whatsapp') {
+      const text = `Hola ${selectedLead.firstName}, aquí tienes la documentación solicitada de Vallenova: ${docNames}.`;
+      // Limpiamos el teléfono de espacios para el link
+      const cleanPhone = selectedLead.phone?.replace(/\s/g, '') || '';
+      window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
+    }
+    
+    if (method === 'email') {
+      const subject = `Documentación Vallenova - ${selectedLead.firstName} ${selectedLead.lastName}`;
+      const body = `Hola ${selectedLead.firstName},\n\nAdjunto encontrarás la siguiente documentación:\n${docNames}\n\nUn saludo,\nEquipo Vallenova.`;
+      window.open(`mailto:${selectedLead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+    }
+
+    setNotification({ 
+      show: true, 
+      title: "ENVÍO INICIADO", 
+      message: `Abriendo ${method} con ${selectedDocs.length} documentos.`, 
+      type: 'success' 
+    });
+    setSelectedDocs([]); // Limpiar selección tras enviar
+  };
+
+  // Filtrado de la lista
   const filteredLeads = leads.filter(lead => 
-    `${lead.firstName} ${lead.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.email.toLowerCase().includes(searchTerm.toLowerCase())
+    `${lead.firstName || ''} ${lead.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (lead.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* HEADER */}
-      <header className="flex justify-between items-center">
+      {/* HEADER PRINCIPAL */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <p className="text-pine-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">CRM Gestión</p>
-          <h1 className="text-4xl font-poppins font-bold text-slate-900 tracking-tight">Clientes</h1>
+          <p className="text-pine-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">CRM Comercial</p>
+          <h1 className="text-4xl font-poppins font-bold text-slate-900 tracking-tight">Cartera de Clientes</h1>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="px-8 py-4 bg-pine-900 text-white font-bold rounded-2xl shadow-lg hover:bg-pine-800 transition-all text-sm flex items-center gap-2"
+          className="px-8 py-4 bg-pine-900 text-white font-bold rounded-2xl shadow-xl shadow-pine-900/20 hover:bg-pine-800 transition-all flex items-center gap-3 active:scale-95"
         >
           <Plus size={20} /> NUEVO PROSPECTO
         </button>
       </header>
 
-      {/* BUSCADOR */}
+      {/* BARRA DE BÚSQUEDA */}
       <div className="bg-white p-4 rounded-3xl shadow-sm border border-pine-100 flex items-center gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm outline-none focus:ring-2 focus:ring-pine-600/10" 
-            placeholder="Buscar por nombre, correo o teléfono..." 
+            className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm outline-none focus:ring-2 focus:ring-pine-600/10 transition-all" 
+            placeholder="Buscar por nombre, email o teléfono..." 
           />
         </div>
       </div>
@@ -131,12 +202,12 @@ export default function Leads() {
         {loading ? (
           <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-pine-600" size={40}/></div>
         ) : (
-          <table className="w-full">
+          <table className="w-full border-collapse">
             <thead>
               <tr className="bg-pine-50/50 border-b border-pine-50">
                 <th className="px-8 py-5 text-left text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Cliente</th>
                 <th className="px-8 py-5 text-left text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Estado</th>
-                <th className="px-8 py-5 text-left text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Origen</th>
+                <th className="px-8 py-5 text-left text-[10px] font-black text-pine-900/40 uppercase tracking-widest hidden md:table-cell">Origen</th>
                 <th className="px-8 py-5 text-right text-[10px] font-black text-pine-900/40 uppercase tracking-widest">Acciones</th>
               </tr>
             </thead>
@@ -144,24 +215,29 @@ export default function Leads() {
               {filteredLeads.map((lead) => (
                 <tr 
                   key={lead.id} 
-                  onClick={() => { setSelectedLead(lead); setIsEditing(false); }}
+                  onClick={() => { 
+                    setSelectedLead({...lead}); // Importante: Clonamos el objeto para editarlo de forma segura
+                    setIsEditing(false); 
+                    setSelectedDocs([]); 
+                  }}
                   className="hover:bg-pine-50/30 transition-colors cursor-pointer group"
                 >
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-pine-100 rounded-xl flex items-center justify-center text-pine-600 font-bold uppercase tracking-tighter">
+                      <div className="w-12 h-12 bg-white shadow-sm border border-pine-100 rounded-2xl flex items-center justify-center text-pine-600 font-bold uppercase text-lg">
                         {lead.firstName?.[0]}{lead.lastName?.[0]}
                       </div>
                       <div>
                         <p className="text-sm font-bold text-slate-900">{lead.firstName} {lead.lastName}</p>
-                        <p className="text-xs text-slate-400">{lead.email}</p>
+                        <p className="text-xs text-slate-400 font-medium">{lead.email}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-8 py-6"><StageBadge stage={lead.stage} /></td>
-                  <td className="px-8 py-6">
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                      <Globe size={12} className="text-pine-600" /> {lead.source || 'Web'}
+                  <td className="px-8 py-6 hidden md:table-cell">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full w-fit">
+                      <Globe size={12} className="text-pine-600" />
+                      {lead.source || 'Web'}
                     </div>
                   </td>
                   <td className="px-8 py-6 text-right">
@@ -174,147 +250,273 @@ export default function Leads() {
         )}
       </div>
 
-      {/* MODAL 1: DETALLE / EDICIÓN / HISTORIAL / DOCUMENTACIÓN */}
+      {/* MODAL MAESTRO: DETALLE / EDICIÓN / DOCS / HISTORIAL */}
       {selectedLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-pine-900/60 backdrop-blur-sm" onClick={() => setSelectedLead(null)}></div>
-          <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-[40px] shadow-2xl overflow-y-auto animate-in zoom-in-95 duration-300">
+          <div className="absolute inset-0 bg-pine-900/60 backdrop-blur-md" onClick={() => setSelectedLead(null)}></div>
+          <div className="relative bg-white w-full max-w-5xl max-h-[92vh] rounded-[48px] shadow-2xl overflow-y-auto animate-in zoom-in-95 duration-300 border border-white/20">
             
-            {/* Cabecera pegajosa */}
-            <div className="bg-pine-900 p-10 text-white flex justify-between items-start sticky top-0 z-10">
-              <div className="flex-1">
+            {/* CABECERA DEL MODAL */}
+            <div className="bg-pine-900 p-8 md:p-12 text-white flex flex-col md:flex-row justify-between items-start sticky top-0 z-10 shadow-lg">
+              <div className="flex-1 w-full">
                 {isEditing ? (
-                  <div className="flex gap-4">
-                    <input 
-                      className="bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-2xl font-bold outline-none focus:bg-white/20" 
-                      value={selectedLead.firstName} 
-                      onChange={(e) => setSelectedLead({...selectedLead, firstName: e.target.value})} 
-                    />
-                    <input 
-                      className="bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-2xl font-bold outline-none focus:bg-white/20" 
-                      value={selectedLead.lastName} 
-                      onChange={(e) => setSelectedLead({...selectedLead, lastName: e.target.value})} 
-                    />
+                  <div className="space-y-4 w-full md:w-2/3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <input 
+                        className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 text-xl font-bold outline-none focus:bg-white/20 w-full placeholder-white/30 text-white"
+                        placeholder="Nombre"
+                        value={selectedLead.firstName || ''} 
+                        onChange={(e) => setSelectedLead({...selectedLead, firstName: e.target.value})} 
+                      />
+                      <input 
+                        className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 text-xl font-bold outline-none focus:bg-white/20 w-full placeholder-white/30 text-white"
+                        placeholder="Apellidos"
+                        value={selectedLead.lastName || ''} 
+                        onChange={(e) => setSelectedLead({...selectedLead, lastName: e.target.value})} 
+                      />
+                    </div>
+                    {/* SELECTORES DE ESTADO Y ORIGEN EN MODO EDICIÓN */}
+                    <div className="flex gap-4">
+                      <select 
+                        className="bg-pine-800 border border-white/20 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-white"
+                        value={selectedLead.stage}
+                        onChange={(e) => setSelectedLead({...selectedLead, stage: e.target.value})}
+                      >
+                        {stages.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <select 
+                        className="bg-pine-800 border border-white/20 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-white"
+                        value={selectedLead.source}
+                        onChange={(e) => setSelectedLead({...selectedLead, source: e.target.value})}
+                      >
+                        {sources.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
                   </div>
                 ) : (
                   <>
-                    <h2 className="text-4xl font-poppins font-bold tracking-tighter">{selectedLead.firstName} {selectedLead.lastName}</h2>
-                    <div className="mt-4"><StageBadge stage={selectedLead.stage} /></div>
+                    <h2 className="text-4xl md:text-5xl font-poppins font-bold tracking-tighter mb-2">
+                      {selectedLead.firstName} {selectedLead.lastName}
+                    </h2>
+                    <div className="flex items-center gap-3 mt-2">
+                      <StageBadge stage={selectedLead.stage} />
+                      <span className="text-pine-300 text-sm font-medium flex items-center gap-1">
+                        <Globe size={14} /> {selectedLead.source}
+                      </span>
+                    </div>
                   </>
                 )}
               </div>
 
-              <div className="flex gap-2 ml-4">
+              {/* BOTONES DE ACCIÓN (Top Right) */}
+              <div className="flex gap-3 mt-6 md:mt-0 self-end md:self-start">
                 {isEditing ? (
-                  <button onClick={handleSaveEdit} className="p-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl text-white transition-all shadow-lg"><Save size={20} /></button>
+                  <button onClick={handleSaveEdit} className="p-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl text-white transition-all shadow-lg hover:shadow-emerald-500/30" title="Guardar Cambios">
+                    <Save size={24} />
+                  </button>
                 ) : (
-                  <button onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-white transition-all"><Edit2 size={20} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-white transition-all" title="Editar Cliente">
+                    <Edit2 size={24} />
+                  </button>
                 )}
-                <button onClick={(e) => handleDelete(e, selectedLead.id, selectedLead.firstName)} className="p-4 bg-rose-500/20 hover:bg-rose-500 text-white rounded-2xl border border-rose-500/20 transition-all"><Trash2 size={20} /></button>
-                <button onClick={() => setSelectedLead(null)} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all"><X size={20} /></button>
+                
+                {/* Botón Borrar siempre visible */}
+                <button onClick={(e) => handleDelete(e, selectedLead.id, selectedLead.firstName)} className="p-4 bg-rose-500/20 hover:bg-rose-500 text-white rounded-2xl border border-rose-500/20 transition-all" title="Eliminar Cliente">
+                  <Trash2 size={24} />
+                </button>
+                
+                <button onClick={() => setSelectedLead(null)} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all" title="Cerrar">
+                  <X size={24} />
+                </button>
               </div>
             </div>
 
-            <div className="p-10 space-y-12 bg-white">
-              <section className="grid grid-cols-2 gap-12">
-                {/* Datos de contacto */}
-                <div className="space-y-6">
-                  <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.2em] flex items-center gap-2"><Mail size={14} /> Contacto</h3>
-                  <div className="bg-slate-50 p-6 rounded-3xl space-y-4">
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase">Email</p>
+            {/* CUERPO DEL MODAL */}
+            <div className="p-8 md:p-12 grid grid-cols-1 lg:grid-cols-12 gap-12 bg-white">
+              
+              {/* COLUMNA IZQUIERDA: DATOS Y DOCUMENTOS (7 columnas) */}
+              <div className="lg:col-span-7 space-y-12">
+                
+                {/* 1. SECCIÓN CONTACTO */}
+                <section className="space-y-6">
+                  <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2 px-2">
+                    <User size={14} /> Información de Contacto
+                  </h3>
+                  <div className="bg-slate-50/50 border border-pine-50 p-8 rounded-[32px] grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Email</p>
                       {isEditing ? (
-                        <input className="w-full mt-1 p-2 bg-white rounded-lg border border-pine-100" value={selectedLead.email} onChange={(e) => setSelectedLead({...selectedLead, email: e.target.value})} />
+                        <input className="w-full p-3 bg-white rounded-xl border border-pine-100 outline-none focus:border-pine-400" value={selectedLead.email || ''} onChange={e => setSelectedLead({...selectedLead, email: e.target.value})} />
                       ) : (
-                        <p className="font-bold text-slate-700">{selectedLead.email}</p>
+                        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.open(`mailto:${selectedLead.email}`)}>
+                          <Mail size={16} className="text-pine-400 group-hover:text-pine-600" />
+                          <p className="font-bold text-slate-700 truncate group-hover:text-pine-900 transition-colors">{selectedLead.email}</p>
+                        </div>
                       )}
                     </div>
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase">Teléfono</p>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Teléfono</p>
                       {isEditing ? (
-                        <input className="w-full mt-1 p-2 bg-white rounded-lg border border-pine-100" value={selectedLead.phone} onChange={(e) => setSelectedLead({...selectedLead, phone: e.target.value})} />
+                        <input className="w-full p-3 bg-white rounded-xl border border-pine-100 outline-none focus:border-pine-400" value={selectedLead.phone || ''} onChange={e => setSelectedLead({...selectedLead, phone: e.target.value})} />
                       ) : (
-                        <p className="font-bold text-slate-700">{selectedLead.phone}</p>
+                        <div className="flex items-center gap-2">
+                          <Phone size={16} className="text-pine-400" />
+                          <p className="font-bold text-slate-700">{selectedLead.phone}</p>
+                        </div>
                       )}
+                    </div>
+                    {/* Fecha de Registro (Solo Lectura) */}
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Fecha Registro</p>
+                      <div className="flex items-center gap-2">
+                        <Calendar size={16} className="text-pine-400" />
+                        <p className="font-bold text-slate-700">
+                          {selectedLead.createdAt ? new Date(selectedLead.createdAt).toLocaleDateString() : 'N/A'}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </section>
 
-                {/* Documentación */}
-                <div className="space-y-6">
-                  <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.2em] flex items-center gap-2"><FileText size={14} /> Documentos</h3>
-                  <div className="space-y-2">
-                    {['Dossier Informativo', 'Contrato de Reserva'].map(doc => (
-                      <button key={doc} className="w-full flex items-center justify-between p-4 bg-white border border-pine-100 rounded-2xl hover:bg-pine-50 transition-all group">
-                        <span className="text-sm font-bold text-slate-700">{doc}</span>
-                        <Send size={16} className="text-slate-300 group-hover:text-pine-600" />
-                      </button>
+                {/* 2. SECCIÓN DOCUMENTACIÓN (MULTISELECCIÓN) */}
+                <section className="space-y-6">
+                  <div className="flex justify-between items-end px-2">
+                    <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2">
+                      <FileText size={14} /> Envío de Documentación
+                    </h3>
+                    {selectedDocs.length > 0 && (
+                      <span className="text-[10px] font-black text-white bg-pine-600 px-3 py-1 rounded-full animate-in fade-in zoom-in">
+                        {selectedDocs.length} seleccionados
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Lista de Documentos */}
+                  <div className="grid grid-cols-1 gap-3">
+                    {availableDocs.map(doc => (
+                      <div 
+                        key={doc.id}
+                        onClick={() => toggleDocSelection(doc.id)}
+                        className={`
+                          flex items-center justify-between p-5 rounded-3xl border transition-all cursor-pointer select-none
+                          ${selectedDocs.includes(doc.id) 
+                            ? 'bg-pine-900 border-pine-900 text-white shadow-lg shadow-pine-900/20 transform scale-[1.01]' 
+                            : 'bg-white border-pine-100 text-slate-600 hover:border-pine-300 hover:bg-slate-50'}
+                        `}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`p-3 rounded-2xl transition-colors ${selectedDocs.includes(doc.id) ? 'bg-white/10' : 'bg-pine-50 text-pine-600'}`}>
+                            <FileText size={20} />
+                          </div>
+                          <span className="font-bold text-sm tracking-tight">{doc.name}</span>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${selectedDocs.includes(doc.id) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200'}`}>
+                          {selectedDocs.includes(doc.id) && <Check size={14} strokeWidth={4} />}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
-              </section>
 
-              {/* Historial */}
-              <section className="space-y-6">
-                <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.2em] flex items-center gap-2"><History size={14} /> Historial de Actividad</h3>
-                <div className="space-y-6 border-l-2 border-slate-100 ml-3 pl-6">
-                  {[
-                    { date: 'Hoy, 10:30', msg: 'Registro actualizado por el usuario.' },
-                    { date: '12 Feb, 2024', msg: 'Cliente contactado vía telefónica.' }
-                  ].map((h, i) => (
-                    <div key={i} className="relative">
-                      <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-pine-600 border-4 border-white shadow-sm"></div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase">{h.date}</p>
-                      <p className="text-sm text-slate-700 font-medium">{h.msg}</p>
-                    </div>
-                  ))}
+                  {/* Botones de Envío */}
+                  <div className="grid grid-cols-2 gap-4 pt-4">
+                    <button 
+                      onClick={() => handleSendDocs('whatsapp')}
+                      disabled={selectedDocs.length === 0}
+                      className="flex items-center justify-center gap-3 py-5 bg-emerald-500 text-white rounded-[24px] font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-30 disabled:grayscale shadow-lg shadow-emerald-500/20 active:scale-95"
+                    >
+                      <MessageCircle size={18} /> WhatsApp
+                    </button>
+                    <button 
+                      onClick={() => handleSendDocs('email')}
+                      disabled={selectedDocs.length === 0}
+                      className="flex items-center justify-center gap-3 py-5 bg-pine-900 text-white rounded-[24px] font-black text-xs uppercase tracking-widest hover:bg-black transition-all disabled:opacity-30 disabled:grayscale shadow-lg shadow-pine-900/20 active:scale-95"
+                    >
+                      <Mail size={18} /> Email
+                    </button>
+                  </div>
+                </section>
+              </div>
+
+              {/* COLUMNA DERECHA: HISTORIAL (5 columnas) */}
+              <div className="lg:col-span-5 space-y-8">
+                <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2 px-2">
+                  <History size={14} /> Actividad Reciente
+                </h3>
+                <div className="relative pl-8 space-y-10 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
+                  {/* Item Historial Actual */}
+                  <div className="relative group">
+                    <div className="absolute -left-[29px] top-1 w-5 h-5 rounded-full bg-white border-4 border-pine-600 shadow-sm z-10 group-hover:scale-125 transition-transform"></div>
+                    <p className="text-[10px] font-black text-pine-600 uppercase tracking-widest mb-1">Hoy, 12:00</p>
+                    <p className="text-sm text-slate-700 font-bold leading-relaxed tracking-tight">Registro consultado en panel.</p>
+                  </div>
+                  {/* Item Historial Pasado */}
+                  <div className="relative group opacity-60 hover:opacity-100 transition-opacity">
+                    <div className="absolute -left-[29px] top-1 w-5 h-5 rounded-full bg-white border-4 border-slate-300 shadow-sm z-10"></div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      {selectedLead.createdAt ? new Date(selectedLead.createdAt).toLocaleDateString() : 'Fecha desc.'}
+                    </p>
+                    <p className="text-sm text-slate-500 font-medium">Cliente creado en el sistema.</p>
+                  </div>
                 </div>
-              </section>
+              </div>
+
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL 2: CREACIÓN DE NUEVO CLIENTE */}
+      {/* MODAL CREACIÓN NUEVO PROSPECTO */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-pine-900/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
           <div className="relative bg-white w-full max-w-xl rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="bg-pine-900 p-10 text-white">
-              <h2 className="text-3xl font-poppins font-bold tracking-tighter">Nuevo Prospecto</h2>
-              <p className="text-pine-300 text-sm mt-2">Introduce los datos del nuevo cliente para el CRM.</p>
+              <h2 className="text-3xl font-poppins font-bold">Nuevo Prospecto</h2>
+              <p className="text-pine-300 mt-2">Introduce los datos para el CRM.</p>
             </div>
             
             <form onSubmit={handleCreateLead} className="p-10 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nombre</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase">Nombre</label>
                   <input required className="w-full p-3 bg-slate-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-pine-600/10" value={newLead.firstName} onChange={e => setNewLead({...newLead, firstName: e.target.value})} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Apellidos</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase">Apellidos</label>
                   <input required className="w-full p-3 bg-slate-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-pine-600/10" value={newLead.lastName} onChange={e => setNewLead({...newLead, lastName: e.target.value})} />
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase">Email</label>
                 <input type="email" required className="w-full p-3 bg-slate-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-pine-600/10" value={newLead.email} onChange={e => setNewLead({...newLead, email: e.target.value})} />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Teléfono</label>
-                <input className="w-full p-3 bg-slate-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-pine-600/10" value={newLead.phone} onChange={e => setNewLead({...newLead, phone: e.target.value})} />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase">Teléfono</label>
+                  <input className="w-full p-3 bg-slate-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-pine-600/10" value={newLead.phone} onChange={e => setNewLead({...newLead, phone: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase">Origen</label>
+                  <select 
+                    className="w-full p-3 bg-slate-50 rounded-xl border-none outline-none focus:ring-2 focus:ring-pine-600/10 appearance-none font-bold text-slate-700" 
+                    value={newLead.source} 
+                    onChange={e => setNewLead({...newLead, source: e.target.value})}
+                  >
+                    {sources.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
               </div>
               
-              <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 font-bold text-slate-400 hover:text-slate-600 transition-colors">Cancelar</button>
-                <button type="submit" className="flex-[2] bg-pine-900 text-white py-4 rounded-2xl font-bold shadow-lg hover:bg-pine-800 transition-all">CREAR CLIENTE</button>
+              <div className="pt-4 flex gap-4">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 text-slate-400 font-bold hover:text-slate-600">Cancelar</button>
+                <button type="submit" className="flex-[2] bg-pine-900 text-white py-4 rounded-2xl font-bold shadow-lg hover:bg-pine-800 transition-all">CREAR FICHA</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* COMPONENTE DE NOTIFICACIÓN */}
+      {/* NOTIFICACIONES TOAST */}
       {notification.show && (
         <AppNotification 
           title={notification.title} 
