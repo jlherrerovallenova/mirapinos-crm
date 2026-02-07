@@ -83,9 +83,10 @@ export default function LeadDetail() {
 
     try {
       // REEMPLAZA ESTOS IDs CON LOS DE TU CUENTA DE EMAILJS
-      const SERVICE_ID = service_gmail;
-      const TEMPLATE_ID = template_nddenal;
-      const PUBLIC_KEY = 6cSzcXY4Og4WvMITi;
+      // Corrección: Se han añadido comillas a los valores para que sean strings válidos
+      const SERVICE_ID = "service_gmail";
+      const TEMPLATE_ID = "template_nddenal";
+      const PUBLIC_KEY = "6cSzcXY4Og4WvMITi";
 
       await emailjs.send(
         SERVICE_ID,
