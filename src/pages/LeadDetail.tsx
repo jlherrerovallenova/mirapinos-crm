@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import emailjs from '@emailjs/browser';
 import { 
   ChevronRight, Phone, Mail, Send, FileText, 
-  CheckCircle2, MessageCircle, X, Clock, Loader2 
+  CheckCircle2, MessageCircle, X, Loader2, Link as LinkIcon
 } from 'lucide-react';
 
 export default function LeadDetail() {
@@ -23,15 +23,18 @@ export default function LeadDetail() {
 
   // Estado del Formulario de Email
   const [emailData, setEmailData] = useState({
-    subject: 'Documentación Solicitada - Mirapinos',
+    subject: 'FINCA MIRAPINOS', // Asunto fijo
     body: ''
   });
 
   const loadData = async () => {
     if(!id) return;
     const { data: l } = await supabase.from('leads').select('*').eq('id', id).single();
+    // Eventos ordenados por fecha
     const { data: e } = await supabase.from('events').select('*').eq('leadId', id).order('date', { ascending: false });
-    const { data: d } = await supabase.from('documents').select('*');
+    // CORRECCIÓN 1: Ordenamos documentos por ID descendente (nuevos arriba) para que coincidan con lo recién subido
+    const { data: d } = await supabase.from('documents').select('*').order('id', { ascending: false });
+    
     if (l) setLead(l);
     if (e) setEvents(e);
     if (d) setAllDocuments(d);
@@ -55,7 +58,7 @@ export default function LeadDetail() {
 
   const handleSendWhatsApp = async () => {
     const docLinks = selectedDocs.map(d => `${d.name}: ${d.url}`).join('\n');
-    const message = `Hola ${lead.firstName}, te adjunto la documentación:\n\n${docLinks}`;
+    const message = `Hola ${lead.firstName}, desde Finca Mirapinos te adjuntamos la documentación solicitada:\n\n${docLinks}`;
     window.open(`https://wa.me/${lead.phone.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
     await logActivity('WhatsApp', selectedDocs.map(d => d.name).join(', '));
     setIsChannelModalOpen(false);
@@ -63,10 +66,10 @@ export default function LeadDetail() {
   };
 
   const openEmailComposer = () => {
-    const docLinks = selectedDocs.map(d => `• ${d.name}`).join('\n');
+    // Seteamos el cuerpo inicial sin enlaces (los enlaces se añaden visualmente y al enviar)
     setEmailData({
-      ...emailData,
-      body: `Hola ${lead.firstName},\n\nTal como acordamos, te envío los enlaces de la documentación seleccionada:\n\n${docLinks}\n\nSaludos,\nEquipo Mirapinos.`
+      subject: 'FINCA MIRAPINOS',
+      body: `Hola ${lead.firstName},\n\nTal como acordamos, te envío adjunta la documentación sobre Finca Mirapinos.\n\nCualquier duda quedo a tu disposición.\n\nSaludos cordiales.`
     });
     setIsChannelModalOpen(false);
     setIsEmailComposerOpen(true);
@@ -77,13 +80,12 @@ export default function LeadDetail() {
     
     setIsSending(true);
 
-    // Los links se generan para el cuerpo del mensaje
-    const docLinksHtml = selectedDocs.map(d => `<li><a href="${d.url}">${d.name}</a></li>`).join('');
-    const fullMessage = `${emailData.body}\n\nDocumentos adjuntos:\n${selectedDocs.map(d => `- ${d.name}: ${d.url}`).join('\n')}`;
+    // CORRECCIÓN 2: Construcción robusta del mensaje.
+    // Concatenamos el cuerpo escrito por el usuario + la lista de enlaces de forma obligatoria.
+    const linksList = selectedDocs.map(d => `• ${d.name}: ${d.url}`).join('\n');
+    const fullMessage = `${emailData.body}\n\n--------------------------------\nDOCUMENTACIÓN ADJUNTA:\n\n${linksList}\n--------------------------------`;
 
     try {
-      // REEMPLAZA ESTOS IDs CON LOS DE TU CUENTA DE EMAILJS
-      // Corrección: Se han añadido comillas a los valores para que sean strings válidos
       const SERVICE_ID = "service_w8zzkn8";
       const TEMPLATE_ID = "template_t3fn5js";
       const PUBLIC_KEY = "UsY6LDpIJtiB91VMI";
@@ -92,8 +94,8 @@ export default function LeadDetail() {
         SERVICE_ID,
         TEMPLATE_ID,
         {
-          subject: emailData.subject,
-          message: fullMessage,
+          subject: emailData.subject, // Siempre enviará "FINCA MIRAPINOS"
+          message: fullMessage,       // Mensaje combinado
           to_email: lead.email,
           to_name: `${lead.firstName} ${lead.lastName}`,
         },
@@ -167,6 +169,7 @@ export default function LeadDetail() {
                         Enviar Documentos
                       </button>
                     </div>
+                    {allDocuments.length === 0 && <p className="text-center text-slate-400 py-10">No hay documentos disponibles. Sube archivos en Configuración.</p>}
                     <div className="grid grid-cols-2 gap-4">
                       {allDocuments.map(doc => (
                         <div key={doc.id} onClick={() => toggleDocSelection(doc)} className={`p-6 rounded-3xl border-2 cursor-pointer flex items-center justify-between transition-all ${selectedDocs.find(d => d.id === doc.id) ? 'border-pine-600 bg-pine-50/50' : 'border-slate-50 bg-white'}`}>
@@ -195,7 +198,7 @@ export default function LeadDetail() {
           </div>
        </div>
 
-       {/* MODAL 1: CANAL */}
+       {/* MODAL 1: SELECCIÓN DE CANAL */}
        {isChannelModalOpen && (
          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
            <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in">
@@ -208,54 +211,71 @@ export default function LeadDetail() {
                   <MessageCircle size={24}/> <span className="font-bold uppercase text-xs">Enviar por WhatsApp</span>
                 </button>
                 <button onClick={openEmailComposer} className="w-full flex items-center gap-4 p-6 rounded-3xl bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-600 hover:text-white transition-all">
-                  <Mail size={24}/> <span className="font-bold uppercase text-xs">Redactar Email en App</span>
+                  <Mail size={24}/> <span className="font-bold uppercase text-xs">Previsualizar Email</span>
                 </button>
               </div>
            </div>
          </div>
        )}
 
-       {/* MODAL 2: REDACTOR EMAIL */}
+       {/* MODAL 2: PREVISUALIZACIÓN Y ENVÍO DE EMAIL */}
        {isEmailComposerOpen && (
          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-           <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8">
-              <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50">
+           <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 flex flex-col max-h-[90vh]">
+              {/* Header Modal */}
+              <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50 shrink-0">
                 <div>
-                  <h3 className="font-bold text-xl text-slate-900">Redactar Mensaje</h3>
-                  <p className="text-xs text-slate-500 font-medium">Para: {lead.email}</p>
+                  <h3 className="font-bold text-xl text-slate-900">Previsualización del Correo</h3>
+                  <p className="text-xs text-slate-500 font-medium">Destinatario: {lead.email}</p>
                 </div>
                 <button onClick={() => setIsEmailComposerOpen(false)} className="p-2 hover:bg-white rounded-xl transition-colors"><X/></button>
               </div>
-              <div className="p-8 space-y-6">
+
+              {/* Body Modal (Scrollable) */}
+              <div className="p-8 space-y-6 overflow-y-auto">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Asunto</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Asunto (Fijo)</label>
                   <input 
-                    className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-blue-500/20 font-bold text-slate-800"
+                    className="w-full p-4 bg-slate-100 text-slate-500 rounded-2xl border-none outline-none font-bold cursor-not-allowed"
                     value={emailData.subject}
-                    onChange={(e) => setEmailData({...emailData, subject: e.target.value})}
+                    readOnly
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mensaje</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mensaje Personalizado</label>
                   <textarea 
-                    rows={8}
-                    className="w-full p-6 bg-slate-50 rounded-3xl border-none outline-none focus:ring-2 focus:ring-blue-500/20 font-medium text-slate-600 text-sm leading-relaxed"
+                    rows={6}
+                    className="w-full p-6 bg-slate-50 rounded-3xl border-none outline-none focus:ring-2 focus:ring-blue-500/20 font-medium text-slate-600 text-sm leading-relaxed resize-none"
                     value={emailData.body}
                     onChange={(e) => setEmailData({...emailData, body: e.target.value})}
                   />
                 </div>
                 
-                <div className="bg-blue-50/50 p-4 rounded-2xl flex items-center gap-3">
-                  <FileText className="text-blue-500" size={18}/>
-                  <p className="text-[10px] font-bold text-blue-700 uppercase">Se enviarán {selectedDocs.length} enlaces directos</p>
+                {/* Bloque Visual de Adjuntos (No editable por el usuario, se genera auto) */}
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Documentación a adjuntar automáticamente</label>
+                    <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100">
+                        <div className="flex items-center gap-2 mb-3 text-blue-700 font-bold text-xs uppercase border-b border-blue-100 pb-2">
+                            <LinkIcon size={14}/> {selectedDocs.length} Enlaces se añadirán al final del correo
+                        </div>
+                        <ul className="space-y-2">
+                            {selectedDocs.map(doc => (
+                                <li key={doc.id} className="flex items-center gap-3 text-xs text-slate-600 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
+                                    <FileText size={14} className="text-blue-400"/>
+                                    <span className="font-semibold truncate">{doc.name}</span>
+                                    <span className="text-[10px] text-slate-300 ml-auto select-all">({doc.url})</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                 </div>
 
                 <button 
                   onClick={handleFinalEmailSend}
                   disabled={isSending}
-                  className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50"
+                  className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50 shrink-0"
                 >
-                  {isSending ? <Loader2 className="animate-spin" size={18}/> : <><Send size={18}/> Confirmar y Enviar Email</>}
+                  {isSending ? <Loader2 className="animate-spin" size={18}/> : <><Send size={18}/> Enviar Email Definitivo</>}
                 </button>
               </div>
            </div>
