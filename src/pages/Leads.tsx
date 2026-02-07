@@ -1,5 +1,6 @@
 // src/pages/Leads.tsx
 import React, { useState, useEffect } from 'react';
+import emailjs from '@emailjs/browser'; // ✅ Importación recuperada
 import { StageBadge, AppNotification } from '../components/Shared';
 import { supabase } from '../lib/supabase';
 import { 
@@ -8,26 +9,29 @@ import {
   Clock, Globe, Check, MessageCircle, Calendar, User
 } from 'lucide-react';
 
+// --- ⚠️ CONFIGURACIÓN EMAILJS (PON TUS CLAVES AQUÍ) ---
+const EMAILJS_SERVICE_ID = "service_w8zzkn8";   // Ej: "service_x9s..."
+const EMAILJS_TEMPLATE_ID = "template_t3fn5js"; // Ej: "template_3d..."
+const EMAILJS_PUBLIC_KEY = "UsY6LDpIJtiB91VMI";   // Ej: "user_8sD..."
+
 export default function Leads() {
-  // --- 1. ESTADOS GLOBALES ---
+  // --- 1. ESTADOS ---
   const [leads, setLeads] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   
-  // --- 2. ESTADOS DEL MODAL Y EDICIÓN ---
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false); // Modal de creación
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // --- 3. ESTADO GESTIÓN DOCUMENTAL ---
+  // Estado para documentos y envío
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+  const [isSending, setIsSending] = useState(false); // ✅ Estado para spinner de carga
   
-  // --- 4. NOTIFICACIONES ---
   const [notification, setNotification] = useState<{
     show: boolean; title: string; message: string; type: 'success' | 'error' | 'info';
   }>({ show: false, title: '', message: '', type: 'success' });
 
-  // --- 5. FORMULARIO NUEVO LEAD ---
   const [newLead, setNewLead] = useState({
     firstName: '',
     lastName: '',
@@ -37,26 +41,23 @@ export default function Leads() {
     source: 'Web'
   });
 
-  // --- 6. DATOS ESTÁTICOS (CONFIGURACIÓN) ---
+  // --- 2. DATOS DE EJEMPLO (Docs y Selectores) ---
   const availableDocs = [
-    { id: 'dossier', name: 'Dossier Informativo Vallenova', file: 'dossier.pdf' },
-    { id: 'reserva', name: 'Contrato de Reserva Standard', file: 'reserva.pdf' },
-    { id: 'planos', name: 'Planos de Planta y Distribución', file: 'planos.zip' },
-    { id: 'precios', name: 'Lista de Precios Actualizada', file: 'precios.pdf' },
-    { id: 'calidades', name: 'Memoria de Calidades', file: 'calidades.pdf' }
+    { id: 'dossier', name: 'Dossier Informativo Vallenova', url: 'https://ejemplo.com/dossier.pdf' },
+    { id: 'reserva', name: 'Contrato de Reserva Standard', url: 'https://ejemplo.com/reserva.pdf' },
+    { id: 'planos', name: 'Planos de Planta y Distribución', url: 'https://ejemplo.com/planos.pdf' },
+    { id: 'precios', name: 'Lista de Precios Actualizada', url: 'https://ejemplo.com/precios.pdf' },
+    { id: 'calidades', name: 'Memoria de Calidades', url: 'https://ejemplo.com/calidades.pdf' }
   ];
 
   const stages = ['Prospecto', 'Visitando', 'Interés', 'Cierre'];
   const sources = ['Web', 'Instagram', 'Telefónico', 'Referido', 'Portal Inmobiliario', 'Idealista'];
 
-  // --- 7. EFECTOS ---
+  // --- 3. CARGA DE DATOS ---
   useEffect(() => {
     fetchLeads();
   }, []);
 
-  // --- 8. FUNCIONES DE LÓGICA ---
-  
-  // Cargar clientes desde Supabase
   async function fetchLeads() {
     setLoading(true);
     const { data, error } = await supabase
@@ -64,15 +65,11 @@ export default function Leads() {
       .select('*')
       .order('createdAt', { ascending: false });
     
-    if (!error && data) {
-      setLeads(data);
-    } else if (error) {
-      console.error('Error cargando leads:', error);
-    }
+    if (!error && data) setLeads(data);
     setLoading(false);
   }
 
-  // Crear nuevo cliente
+  // --- 4. FUNCIONES CRUD (Crear, Editar, Borrar) ---
   const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.from('leads').insert([newLead]);
@@ -87,7 +84,6 @@ export default function Leads() {
     }
   };
 
-  // Guardar edición de cliente
   const handleSaveEdit = async () => {
     const { error } = await supabase
       .from('leads')
@@ -104,65 +100,89 @@ export default function Leads() {
     if (!error) {
       setIsEditing(false);
       fetchLeads();
-      setNotification({ show: true, title: "ACTUALIZADO", message: "Datos del cliente guardados.", type: 'success' });
+      setNotification({ show: true, title: "ACTUALIZADO", message: "Datos guardados.", type: 'success' });
     } else {
       setNotification({ show: true, title: "ERROR", message: "No se pudo actualizar.", type: 'error' });
     }
   };
 
-  // Borrar cliente
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
-    // Usamos window.confirm para una confirmación nativa rápida
-    if (!window.confirm(`¿Estás seguro de eliminar a ${name}? Esta acción no se puede deshacer.`)) return;
+    if (!window.confirm(`¿Estás seguro de eliminar a ${name}?`)) return;
     
     const { error } = await supabase.from('leads').delete().eq('id', id);
     if (!error) {
-      setSelectedLead(null); // Cerrar modal si estaba abierto
-      fetchLeads(); // Recargar lista
-      setNotification({ show: true, title: "ELIMINADO", message: "Cliente eliminado del sistema.", type: 'error' });
-    } else {
-      setNotification({ show: true, title: "ERROR", message: "No se pudo eliminar.", type: 'error' });
+      setSelectedLead(null);
+      fetchLeads();
+      setNotification({ show: true, title: "ELIMINADO", message: "Cliente eliminado.", type: 'error' });
     }
   };
 
-  // Gestión de selección de documentos
+  // --- 5. LÓGICA DE ENVÍO (WhatsApp & EmailJS) ---
   const toggleDocSelection = (docId: string) => {
     setSelectedDocs(prev => 
       prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]
     );
   };
 
-  // Enviar documentación (WhatsApp / Email)
-  const handleSendDocs = (method: 'whatsapp' | 'email') => {
+  const handleSendDocs = async (method: 'whatsapp' | 'email') => {
     if (selectedDocs.length === 0) return;
     
-    // Obtener nombres de los documentos seleccionados
-    const docNames = availableDocs.filter(d => selectedDocs.includes(d.id)).map(d => d.name).join(', ');
-    
+    const docsToSend = availableDocs.filter(d => selectedDocs.includes(d.id));
+    const docNames = docsToSend.map(d => d.name).join(', ');
+
+    // --> ENVÍO POR WHATSAPP
     if (method === 'whatsapp') {
-      const text = `Hola ${selectedLead.firstName}, aquí tienes la documentación solicitada de Vallenova: ${docNames}.`;
-      // Limpiamos el teléfono de espacios para el link
+      const text = `Hola ${selectedLead.firstName}, aquí tienes la documentación solicitada: ${docNames}.`;
       const cleanPhone = selectedLead.phone?.replace(/\s/g, '') || '';
       window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
-    }
-    
-    if (method === 'email') {
-      const subject = `Documentación Vallenova - ${selectedLead.firstName} ${selectedLead.lastName}`;
-      const body = `Hola ${selectedLead.firstName},\n\nAdjunto encontrarás la siguiente documentación:\n${docNames}\n\nUn saludo,\nEquipo Vallenova.`;
-      window.open(`mailto:${selectedLead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+      setNotification({ show: true, title: "WHATSAPP", message: "Chat abierto.", type: 'success' });
+      setSelectedDocs([]);
+      return;
     }
 
-    setNotification({ 
-      show: true, 
-      title: "ENVÍO INICIADO", 
-      message: `Abriendo ${method} con ${selectedDocs.length} documentos.`, 
-      type: 'success' 
-    });
-    setSelectedDocs([]); // Limpiar selección tras enviar
+    // --> ENVÍO POR EMAIL (EMAILJS INTEGRADO)
+    if (method === 'email') {
+      setIsSending(true); // Activa spinner
+      
+      const templateParams = {
+        to_name: selectedLead.firstName,
+        to_email: selectedLead.email,
+        message: `Hola ${selectedLead.firstName},\n\nAdjunto encontrarás la siguiente documentación solicitada:\n\n${docNames}\n\nUn saludo,\nEquipo Vallenova.`,
+        reply_to: 'info@mirapinos.com',
+      };
+
+      try {
+        await emailjs.send(
+          EMAILJS_SERVICE_ID,
+          EMAILJS_TEMPLATE_ID,
+          templateParams,
+          EMAILJS_PUBLIC_KEY
+        );
+
+        setNotification({ 
+          show: true, 
+          title: "ENVIADO", 
+          message: `Correo enviado a ${selectedLead.email}.`, 
+          type: 'success' 
+        });
+        setSelectedDocs([]);
+
+      } catch (error: any) {
+        console.error('Error EmailJS:', error);
+        setNotification({ 
+          show: true, 
+          title: "ERROR", 
+          message: "Fallo al enviar el correo. Revisa la consola.", 
+          type: 'error' 
+        });
+      } finally {
+        setIsSending(false); // Desactiva spinner
+      }
+    }
   };
 
-  // Filtrado de la lista
+  // --- 6. RENDERIZADO ---
   const filteredLeads = leads.filter(lead => 
     `${lead.firstName || ''} ${lead.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (lead.email || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -170,7 +190,8 @@ export default function Leads() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* HEADER PRINCIPAL */}
+      
+      {/* HEADER */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <p className="text-pine-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">CRM Comercial</p>
@@ -178,13 +199,13 @@ export default function Leads() {
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="px-8 py-4 bg-pine-900 text-white font-bold rounded-2xl shadow-xl shadow-pine-900/20 hover:bg-pine-800 transition-all flex items-center gap-3 active:scale-95"
+          className="px-8 py-4 bg-pine-900 text-white font-bold rounded-2xl shadow-xl hover:bg-pine-800 transition-all flex items-center gap-3 active:scale-95"
         >
           <Plus size={20} /> NUEVO PROSPECTO
         </button>
       </header>
 
-      {/* BARRA DE BÚSQUEDA */}
+      {/* BUSCADOR */}
       <div className="bg-white p-4 rounded-3xl shadow-sm border border-pine-100 flex items-center gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
@@ -197,7 +218,7 @@ export default function Leads() {
         </div>
       </div>
 
-      {/* TABLA DE CLIENTES */}
+      {/* TABLA */}
       <div className="bg-white rounded-4xl shadow-sm border border-pine-100 overflow-hidden">
         {loading ? (
           <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-pine-600" size={40}/></div>
@@ -215,11 +236,7 @@ export default function Leads() {
               {filteredLeads.map((lead) => (
                 <tr 
                   key={lead.id} 
-                  onClick={() => { 
-                    setSelectedLead({...lead}); // Importante: Clonamos el objeto para editarlo de forma segura
-                    setIsEditing(false); 
-                    setSelectedDocs([]); 
-                  }}
+                  onClick={() => { setSelectedLead({...lead}); setIsEditing(false); setSelectedDocs([]); }}
                   className="hover:bg-pine-50/30 transition-colors cursor-pointer group"
                 >
                   <td className="px-8 py-6">
@@ -250,13 +267,12 @@ export default function Leads() {
         )}
       </div>
 
-      {/* MODAL MAESTRO: DETALLE / EDICIÓN / DOCS / HISTORIAL */}
+      {/* MODAL DETALLE / EDICIÓN */}
       {selectedLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-pine-900/60 backdrop-blur-md" onClick={() => setSelectedLead(null)}></div>
           <div className="relative bg-white w-full max-w-5xl max-h-[92vh] rounded-[48px] shadow-2xl overflow-y-auto animate-in zoom-in-95 duration-300 border border-white/20">
             
-            {/* CABECERA DEL MODAL */}
             <div className="bg-pine-900 p-8 md:p-12 text-white flex flex-col md:flex-row justify-between items-start sticky top-0 z-10 shadow-lg">
               <div className="flex-1 w-full">
                 {isEditing ? (
@@ -275,7 +291,6 @@ export default function Leads() {
                         onChange={(e) => setSelectedLead({...selectedLead, lastName: e.target.value})} 
                       />
                     </div>
-                    {/* SELECTORES DE ESTADO Y ORIGEN EN MODO EDICIÓN */}
                     <div className="flex gap-4">
                       <select 
                         className="bg-pine-800 border border-white/20 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-white"
@@ -308,36 +323,28 @@ export default function Leads() {
                 )}
               </div>
 
-              {/* BOTONES DE ACCIÓN (Top Right) */}
               <div className="flex gap-3 mt-6 md:mt-0 self-end md:self-start">
                 {isEditing ? (
-                  <button onClick={handleSaveEdit} className="p-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl text-white transition-all shadow-lg hover:shadow-emerald-500/30" title="Guardar Cambios">
+                  <button onClick={handleSaveEdit} className="p-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl text-white transition-all shadow-lg hover:shadow-emerald-500/30">
                     <Save size={24} />
                   </button>
                 ) : (
-                  <button onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-white transition-all" title="Editar Cliente">
+                  <button onClick={(e) => { e.stopPropagation(); setIsEditing(true); }} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-white transition-all">
                     <Edit2 size={24} />
                   </button>
                 )}
-                
-                {/* Botón Borrar siempre visible */}
-                <button onClick={(e) => handleDelete(e, selectedLead.id, selectedLead.firstName)} className="p-4 bg-rose-500/20 hover:bg-rose-500 text-white rounded-2xl border border-rose-500/20 transition-all" title="Eliminar Cliente">
+                <button onClick={(e) => handleDelete(e, selectedLead.id, selectedLead.firstName)} className="p-4 bg-rose-500/20 hover:bg-rose-500 text-white rounded-2xl border border-rose-500/20 transition-all">
                   <Trash2 size={24} />
                 </button>
-                
-                <button onClick={() => setSelectedLead(null)} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all" title="Cerrar">
+                <button onClick={() => setSelectedLead(null)} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all">
                   <X size={24} />
                 </button>
               </div>
             </div>
 
-            {/* CUERPO DEL MODAL */}
             <div className="p-8 md:p-12 grid grid-cols-1 lg:grid-cols-12 gap-12 bg-white">
               
-              {/* COLUMNA IZQUIERDA: DATOS Y DOCUMENTOS (7 columnas) */}
               <div className="lg:col-span-7 space-y-12">
-                
-                {/* 1. SECCIÓN CONTACTO */}
                 <section className="space-y-6">
                   <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2 px-2">
                     <User size={14} /> Información de Contacto
@@ -365,7 +372,6 @@ export default function Leads() {
                         </div>
                       )}
                     </div>
-                    {/* Fecha de Registro (Solo Lectura) */}
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Fecha Registro</p>
                       <div className="flex items-center gap-2">
@@ -378,7 +384,6 @@ export default function Leads() {
                   </div>
                 </section>
 
-                {/* 2. SECCIÓN DOCUMENTACIÓN (MULTISELECCIÓN) */}
                 <section className="space-y-6">
                   <div className="flex justify-between items-end px-2">
                     <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2">
@@ -391,7 +396,6 @@ export default function Leads() {
                     )}
                   </div>
                   
-                  {/* Lista de Documentos */}
                   <div className="grid grid-cols-1 gap-3">
                     {availableDocs.map(doc => (
                       <div 
@@ -417,7 +421,6 @@ export default function Leads() {
                     ))}
                   </div>
 
-                  {/* Botones de Envío */}
                   <div className="grid grid-cols-2 gap-4 pt-4">
                     <button 
                       onClick={() => handleSendDocs('whatsapp')}
@@ -428,28 +431,33 @@ export default function Leads() {
                     </button>
                     <button 
                       onClick={() => handleSendDocs('email')}
-                      disabled={selectedDocs.length === 0}
+                      disabled={selectedDocs.length === 0 || isSending}
                       className="flex items-center justify-center gap-3 py-5 bg-pine-900 text-white rounded-[24px] font-black text-xs uppercase tracking-widest hover:bg-black transition-all disabled:opacity-30 disabled:grayscale shadow-lg shadow-pine-900/20 active:scale-95"
                     >
-                      <Mail size={18} /> Email
+                      {isSending ? (
+                        <>
+                           <Loader2 className="animate-spin" size={18} /> Enviando...
+                        </>
+                      ) : (
+                        <>
+                           <Mail size={18} /> Enviar Email
+                        </>
+                      )}
                     </button>
                   </div>
                 </section>
               </div>
 
-              {/* COLUMNA DERECHA: HISTORIAL (5 columnas) */}
               <div className="lg:col-span-5 space-y-8">
                 <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2 px-2">
                   <History size={14} /> Actividad Reciente
                 </h3>
                 <div className="relative pl-8 space-y-10 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
-                  {/* Item Historial Actual */}
                   <div className="relative group">
                     <div className="absolute -left-[29px] top-1 w-5 h-5 rounded-full bg-white border-4 border-pine-600 shadow-sm z-10 group-hover:scale-125 transition-transform"></div>
                     <p className="text-[10px] font-black text-pine-600 uppercase tracking-widest mb-1">Hoy, 12:00</p>
                     <p className="text-sm text-slate-700 font-bold leading-relaxed tracking-tight">Registro consultado en panel.</p>
                   </div>
-                  {/* Item Historial Pasado */}
                   <div className="relative group opacity-60 hover:opacity-100 transition-opacity">
                     <div className="absolute -left-[29px] top-1 w-5 h-5 rounded-full bg-white border-4 border-slate-300 shadow-sm z-10"></div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
@@ -465,7 +473,7 @@ export default function Leads() {
         </div>
       )}
 
-      {/* MODAL CREACIÓN NUEVO PROSPECTO */}
+      {/* MODAL CREAR CLIENTE */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-pine-900/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
@@ -516,7 +524,7 @@ export default function Leads() {
         </div>
       )}
 
-      {/* NOTIFICACIONES TOAST */}
+      {/* NOTIFICACIONES */}
       {notification.show && (
         <AppNotification 
           title={notification.title} 
