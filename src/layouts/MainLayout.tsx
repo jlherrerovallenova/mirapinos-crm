@@ -7,15 +7,32 @@ export default function MainLayout() {
 
   return (
     <div className="flex h-screen bg-pine-50 font-lato text-slate-700">
+      
       {/* SIDEBAR FLOTANTE */}
       <aside className="w-72 bg-pine-900 text-white flex flex-col m-4 rounded-4xl shadow-2xl shadow-pine-900/20">
+        
+        {/* --- SECCIÓN DEL LOGO (MODIFICADA SEGÚN PLAN) --- */}
         <div className="p-8">
-          <h1 className="text-2xl font-poppins font-bold tracking-tight text-pine-100 flex items-center gap-2">
-            <div className="w-8 h-8 bg-pine-600 rounded-lg"></div>
-            Mirapinos
-          </h1>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-pine-600 font-bold mt-2">Premium CRM</p>
+          <div className="flex items-center gap-3">
+            {/* Imagen del Logo */}
+            <img 
+              src="/logo_mirapinos.png" 
+              alt="Logo Mirapinos" 
+              className="h-10 w-auto object-contain transition-transform duration-300 hover:scale-105" 
+            />
+            
+            {/* Texto de Marca */}
+            <h1 className="text-2xl font-poppins font-bold tracking-tight text-pine-100 leading-none">
+              Mirapinos
+            </h1>
+          </div>
+          
+          {/* Subtítulo alineado */}
+          <p className="text-[10px] uppercase tracking-[0.3em] text-pine-600 font-bold mt-2 ml-1">
+            Premium CRM
+          </p>
         </div>
+        {/* ----------------------------------------------- */}
         
         <nav className="flex-1 px-4 space-y-2 mt-4">
           <SidebarItem to="/" icon={<LayoutDashboard size={22} />} label="Dashboard" active={location.pathname === '/'} />
@@ -58,6 +75,7 @@ export default function MainLayout() {
   );
 }
 
+// Componente auxiliar para los items del sidebar
 function SidebarItem({ to, icon, label, active }: any) {
   return (
     <Link 
