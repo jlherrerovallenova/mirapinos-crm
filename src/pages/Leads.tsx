@@ -1,22 +1,23 @@
 // src/pages/Leads.tsx
 import React, { useState, useEffect } from 'react';
-import emailjs from '@emailjs/browser'; // ✅ Importación recuperada
+import emailjs from '@emailjs/browser';
 import { StageBadge, AppNotification } from '../components/Shared';
 import { supabase } from '../lib/supabase';
 import { 
   Search, Plus, X, Loader2, Edit2, Trash2, 
   Mail, Phone, Eye, Save, FileText, History, 
-  Clock, Globe, Check, MessageCircle, Calendar, User
+  Globe, Check, MessageCircle, Calendar, User
 } from 'lucide-react';
 
-// --- ⚠️ CONFIGURACIÓN EMAILJS (PON TUS CLAVES AQUÍ) ---
-const EMAILJS_SERVICE_ID = "service_w8zzkn8";   // Ej: "service_x9s..."
-const EMAILJS_TEMPLATE_ID = "template_t3fn5js"; // Ej: "template_3d..."
-const EMAILJS_PUBLIC_KEY = "UsY6LDpIJtiB91VMI";   // Ej: "user_8sD..."
+// Configuración segura mediante variables de entorno
+const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || "service_w8zzkn8";
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || "template_t3fn5js";
+const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || "UsY6LDpIJtiB91VMI";
 
 export default function Leads() {
   // --- 1. ESTADOS ---
   const [leads, setLeads] = useState<any[]>([]);
+  const [availableDocs, setAvailableDocs] = useState<any[]>([]); 
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   
@@ -24,9 +25,8 @@ export default function Leads() {
   const [isEditing, setIsEditing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // Estado para documentos y envío
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
-  const [isSending, setIsSending] = useState(false); // ✅ Estado para spinner de carga
+  const [isSending, setIsSending] = useState(false);
   
   const [notification, setNotification] = useState<{
     show: boolean; title: string; message: string; type: 'success' | 'error' | 'info';
@@ -41,35 +41,57 @@ export default function Leads() {
     source: 'Web'
   });
 
-  // --- 2. DATOS DE EJEMPLO (Docs y Selectores) ---
-  const availableDocs = [
-    { id: 'dossier', name: 'Dossier Informativo Vallenova', url: 'https://ejemplo.com/dossier.pdf' },
-    { id: 'reserva', name: 'Contrato de Reserva Standard', url: 'https://ejemplo.com/reserva.pdf' },
-    { id: 'planos', name: 'Planos de Planta y Distribución', url: 'https://ejemplo.com/planos.pdf' },
-    { id: 'precios', name: 'Lista de Precios Actualizada', url: 'https://ejemplo.com/precios.pdf' },
-    { id: 'calidades', name: 'Memoria de Calidades', url: 'https://ejemplo.com/calidades.pdf' }
-  ];
-
   const stages = ['Prospecto', 'Visitando', 'Interés', 'Cierre'];
   const sources = ['Web', 'Instagram', 'Telefónico', 'Referido', 'Portal Inmobiliario', 'Idealista'];
 
-  // --- 3. CARGA DE DATOS ---
+  // --- 2. CARGA DE DATOS ---
   useEffect(() => {
-    fetchLeads();
+    fetchInitialData();
   }, []);
 
-  async function fetchLeads() {
+  async function fetchInitialData() {
     setLoading(true);
+    try {
+      await Promise.all([
+        fetchLeads(),
+        fetchDocuments()
+      ]);
+    } catch (error) {
+      console.error("Error cargando datos iniciales:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchLeads() {
     const { data, error } = await supabase
       .from('leads')
       .select('*')
       .order('createdAt', { ascending: false });
     
     if (!error && data) setLeads(data);
-    setLoading(false);
   }
 
-  // --- 4. FUNCIONES CRUD (Crear, Editar, Borrar) ---
+  async function fetchDocuments() {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (!error && data) setAvailableDocs(data);
+  }
+
+  // --- 3. LOG DE ACTIVIDAD ---
+  const logActivity = async (leadId: string, method: string, docNames: string) => {
+    await supabase.from('events').insert([{
+      leadId: leadId,
+      type: 'Documentación',
+      description: `Envío vía ${method}: ${docNames}`,
+      date: new Date().toISOString()
+    }]);
+  };
+
+  // --- 4. FUNCIONES CRUD ---
   const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.from('leads').insert([newLead]);
@@ -118,7 +140,7 @@ export default function Leads() {
     }
   };
 
-  // --- 5. LÓGICA DE ENVÍO (WhatsApp & EmailJS) ---
+  // --- 5. LÓGICA DE ENVÍO ---
   const toggleDocSelection = (docId: string) => {
     setSelectedDocs(prev => 
       prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]
@@ -130,59 +152,55 @@ export default function Leads() {
     
     const docsToSend = availableDocs.filter(d => selectedDocs.includes(d.id));
     const docNames = docsToSend.map(d => d.name).join(', ');
+    const docLinks = docsToSend.map(d => `${d.name}: ${d.url}`).join('\n');
 
-    // --> ENVÍO POR WHATSAPP
     if (method === 'whatsapp') {
-      const text = `Hola ${selectedLead.firstName}, aquí tienes la documentación solicitada: ${docNames}.`;
+      const text = `Hola ${selectedLead.firstName}, aquí tienes la documentación solicitada:\n\n${docLinks}`;
       const cleanPhone = selectedLead.phone?.replace(/\s/g, '') || '';
       window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
-      setNotification({ show: true, title: "WHATSAPP", message: "Chat abierto.", type: 'success' });
+      
+      await logActivity(selectedLead.id, 'WhatsApp', docNames);
+      setNotification({ show: true, title: "WHATSAPP", message: "Chat abierto y actividad registrada.", type: 'success' });
       setSelectedDocs([]);
       return;
     }
 
-    // --> ENVÍO POR EMAIL (EMAILJS INTEGRADO)
     if (method === 'email') {
-      setIsSending(true); // Activa spinner
+      setIsSending(true);
       
-      const templateParams = {
-        to_name: selectedLead.firstName,
-        to_email: selectedLead.email,
-        message: `Hola ${selectedLead.firstName},\n\nAdjunto encontrarás la siguiente documentación solicitada:\n\n${docNames}\n\nUn saludo,\nEquipo Vallenova.`,
-        reply_to: 'info@mirapinos.com',
-      };
+      const fullMessage = `Hola ${selectedLead.firstName},\n\nAdjunto encontrarás la siguiente documentación solicitada:\n\n${docLinks}\n\nUn saludo,\nEquipo Mirapinos.`;
 
       try {
         await emailjs.send(
           EMAILJS_SERVICE_ID,
           EMAILJS_TEMPLATE_ID,
-          templateParams,
+          {
+            to_name: `${selectedLead.firstName} ${selectedLead.lastName}`,
+            to_email: selectedLead.email,
+            message: fullMessage,
+            reply_to: 'info@mirapinos.com',
+          },
           EMAILJS_PUBLIC_KEY
         );
 
+        await logActivity(selectedLead.id, 'Email', docNames);
         setNotification({ 
           show: true, 
           title: "ENVIADO", 
-          message: `Correo enviado a ${selectedLead.email}.`, 
+          message: `Correo enviado a ${selectedLead.email} y registrado.`, 
           type: 'success' 
         });
         setSelectedDocs([]);
 
       } catch (error: any) {
         console.error('Error EmailJS:', error);
-        setNotification({ 
-          show: true, 
-          title: "ERROR", 
-          message: "Fallo al enviar el correo. Revisa la consola.", 
-          type: 'error' 
-        });
+        setNotification({ show: true, title: "ERROR", message: "Fallo al enviar el correo.", type: 'error' });
       } finally {
-        setIsSending(false); // Desactiva spinner
+        setIsSending(false);
       }
     }
   };
 
-  // --- 6. RENDERIZADO ---
   const filteredLeads = leads.filter(lead => 
     `${lead.firstName || ''} ${lead.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (lead.email || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -190,7 +208,6 @@ export default function Leads() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      
       {/* HEADER */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -397,28 +414,32 @@ export default function Leads() {
                   </div>
                   
                   <div className="grid grid-cols-1 gap-3">
-                    {availableDocs.map(doc => (
-                      <div 
-                        key={doc.id}
-                        onClick={() => toggleDocSelection(doc.id)}
-                        className={`
-                          flex items-center justify-between p-5 rounded-3xl border transition-all cursor-pointer select-none
-                          ${selectedDocs.includes(doc.id) 
-                            ? 'bg-pine-900 border-pine-900 text-white shadow-lg shadow-pine-900/20 transform scale-[1.01]' 
-                            : 'bg-white border-pine-100 text-slate-600 hover:border-pine-300 hover:bg-slate-50'}
-                        `}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className={`p-3 rounded-2xl transition-colors ${selectedDocs.includes(doc.id) ? 'bg-white/10' : 'bg-pine-50 text-pine-600'}`}>
-                            <FileText size={20} />
+                    {availableDocs.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic p-4">No hay documentos disponibles. Súbelos desde Ajustes.</p>
+                    ) : (
+                      availableDocs.map(doc => (
+                        <div 
+                          key={doc.id}
+                          onClick={() => toggleDocSelection(doc.id)}
+                          className={`
+                            flex items-center justify-between p-5 rounded-3xl border transition-all cursor-pointer select-none
+                            ${selectedDocs.includes(doc.id) 
+                              ? 'bg-pine-900 border-pine-900 text-white shadow-lg shadow-pine-900/20 transform scale-[1.01]' 
+                              : 'bg-white border-pine-100 text-slate-600 hover:border-pine-300 hover:bg-slate-50'}
+                          `}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-2xl transition-colors ${selectedDocs.includes(doc.id) ? 'bg-white/10' : 'bg-pine-50 text-pine-600'}`}>
+                              <FileText size={20} />
+                            </div>
+                            <span className="font-bold text-sm tracking-tight">{doc.name}</span>
                           </div>
-                          <span className="font-bold text-sm tracking-tight">{doc.name}</span>
+                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${selectedDocs.includes(doc.id) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200'}`}>
+                            {selectedDocs.includes(doc.id) && <Check size={14} strokeWidth={4} />}
+                          </div>
                         </div>
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${selectedDocs.includes(doc.id) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200'}`}>
-                          {selectedDocs.includes(doc.id) && <Check size={14} strokeWidth={4} />}
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 pt-4">
@@ -455,15 +476,8 @@ export default function Leads() {
                 <div className="relative pl-8 space-y-10 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
                   <div className="relative group">
                     <div className="absolute -left-[29px] top-1 w-5 h-5 rounded-full bg-white border-4 border-pine-600 shadow-sm z-10 group-hover:scale-125 transition-transform"></div>
-                    <p className="text-[10px] font-black text-pine-600 uppercase tracking-widest mb-1">Hoy, 12:00</p>
-                    <p className="text-sm text-slate-700 font-bold leading-relaxed tracking-tight">Registro consultado en panel.</p>
-                  </div>
-                  <div className="relative group opacity-60 hover:opacity-100 transition-opacity">
-                    <div className="absolute -left-[29px] top-1 w-5 h-5 rounded-full bg-white border-4 border-slate-300 shadow-sm z-10"></div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                      {selectedLead.createdAt ? new Date(selectedLead.createdAt).toLocaleDateString() : 'Fecha desc.'}
-                    </p>
-                    <p className="text-sm text-slate-500 font-medium">Cliente creado en el sistema.</p>
+                    <p className="text-[10px] font-black text-pine-600 uppercase tracking-widest mb-1">Sesión Actual</p>
+                    <p className="text-sm text-slate-700 font-bold leading-relaxed tracking-tight">Registro abierto en el panel de control.</p>
                   </div>
                 </div>
               </div>
