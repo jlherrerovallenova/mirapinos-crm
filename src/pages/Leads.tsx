@@ -6,10 +6,10 @@ import { supabase } from '../lib/supabase';
 import { 
   Search, Plus, X, Loader2, Edit2, Trash2, 
   Mail, Phone, Eye, Save, FileText, History, 
-  Globe, Check, MessageCircle, Calendar, User
+  Globe, Check, MessageCircle, Calendar, User, Send, Link as LinkIcon
 } from 'lucide-react';
 
-// Configuración segura mediante variables de entorno
+// --- CONFIGURACIÓN DE ENTORNO ---
 const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || "service_w8zzkn8";
 const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || "template_t3fn5js";
 const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || "UsY6LDpIJtiB91VMI";
@@ -21,24 +21,24 @@ export default function Leads() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   
+  // Estado de selección y edición
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
+  // Estado de documentos y envío
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+  const [emailBody, setEmailBody] = useState('');
   
   const [notification, setNotification] = useState<{
     show: boolean; title: string; message: string; type: 'success' | 'error' | 'info';
   }>({ show: false, title: '', message: '', type: 'success' });
 
+  // Estado para nuevo lead
   const [newLead, setNewLead] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    stage: 'Prospecto',
-    source: 'Web'
+    firstName: '', lastName: '', email: '', phone: '', stage: 'Prospecto', source: 'Web'
   });
 
   const stages = ['Prospecto', 'Visitando', 'Interés', 'Cierre'];
@@ -52,41 +52,31 @@ export default function Leads() {
   async function fetchInitialData() {
     setLoading(true);
     try {
-      await Promise.all([
-        fetchLeads(),
-        fetchDocuments()
-      ]);
+      await Promise.all([fetchLeads(), fetchDocuments()]);
     } catch (error) {
-      console.error("Error cargando datos iniciales:", error);
+      console.error("Error cargando datos:", error);
+      setNotification({ show: true, title: "ERROR", message: "Error de conexión.", type: 'error' });
     } finally {
       setLoading(false);
     }
   }
 
   async function fetchLeads() {
-    const { data, error } = await supabase
-      .from('leads')
-      .select('*')
-      .order('createdAt', { ascending: false });
-    
+    const { data, error } = await supabase.from('leads').select('*').order('createdAt', { ascending: false });
     if (!error && data) setLeads(data);
   }
 
   async function fetchDocuments() {
-    const { data, error } = await supabase
-      .from('documents')
-      .select('*')
-      .order('name', { ascending: true });
-    
+    const { data, error } = await supabase.from('documents').select('*').order('name', { ascending: true });
     if (!error && data) setAvailableDocs(data);
   }
 
   // --- 3. LOG DE ACTIVIDAD ---
-  const logActivity = async (leadId: string, method: string, docNames: string) => {
+  const logActivity = async (leadId: string, method: string, detail: string) => {
     await supabase.from('events').insert([{
-      leadId: leadId,
+      leadId,
       type: 'Documentación',
-      description: `Envío vía ${method}: ${docNames}`,
+      description: `Envío vía ${method}: ${detail}`,
       date: new Date().toISOString()
     }]);
   };
@@ -95,7 +85,6 @@ export default function Leads() {
   const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.from('leads').insert([newLead]);
-    
     if (!error) {
       setIsModalOpen(false);
       setNewLead({ firstName: '', lastName: '', email: '', phone: '', stage: 'Prospecto', source: 'Web' });
@@ -107,17 +96,14 @@ export default function Leads() {
   };
 
   const handleSaveEdit = async () => {
-    const { error } = await supabase
-      .from('leads')
-      .update({
-        firstName: selectedLead.firstName,
-        lastName: selectedLead.lastName,
-        email: selectedLead.email,
-        phone: selectedLead.phone,
-        stage: selectedLead.stage,
-        source: selectedLead.source
-      })
-      .eq('id', selectedLead.id);
+    const { error } = await supabase.from('leads').update({
+      firstName: selectedLead.firstName,
+      lastName: selectedLead.lastName,
+      email: selectedLead.email,
+      phone: selectedLead.phone,
+      stage: selectedLead.stage,
+      source: selectedLead.source
+    }).eq('id', selectedLead.id);
 
     if (!error) {
       setIsEditing(false);
@@ -131,7 +117,6 @@ export default function Leads() {
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
     if (!window.confirm(`¿Estás seguro de eliminar a ${name}?`)) return;
-    
     const { error } = await supabase.from('leads').delete().eq('id', id);
     if (!error) {
       setSelectedLead(null);
@@ -142,65 +127,66 @@ export default function Leads() {
 
   // --- 5. LÓGICA DE ENVÍO ---
   const toggleDocSelection = (docId: string) => {
-    setSelectedDocs(prev => 
-      prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]
-    );
+    setSelectedDocs(prev => prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]);
   };
 
-  const handleSendDocs = async (method: 'whatsapp' | 'email') => {
-    if (selectedDocs.length === 0) return;
-    
+  const handleSendWhatsApp = async () => {
     const docsToSend = availableDocs.filter(d => selectedDocs.includes(d.id));
     const docNames = docsToSend.map(d => d.name).join(', ');
-    const docLinks = docsToSend.map(d => `${d.name}: ${d.url}`).join('\n');
+    const docLinks = docsToSend.map(d => `• ${d.name}: ${d.url}`).join('\n');
+    
+    const text = `Hola ${selectedLead.firstName}, aquí tienes la documentación de Finca Mirapinos:\n\n${docLinks}`;
+    const cleanPhone = selectedLead.phone?.replace(/\s/g, '') || '';
+    
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
+    await logActivity(selectedLead.id, 'WhatsApp', docNames);
+    
+    setNotification({ show: true, title: "WHATSAPP", message: "Chat abierto.", type: 'success' });
+    setSelectedDocs([]);
+  };
 
-    if (method === 'whatsapp') {
-      const text = `Hola ${selectedLead.firstName}, aquí tienes la documentación solicitada:\n\n${docLinks}`;
-      const cleanPhone = selectedLead.phone?.replace(/\s/g, '') || '';
-      window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
-      
-      await logActivity(selectedLead.id, 'WhatsApp', docNames);
-      setNotification({ show: true, title: "WHATSAPP", message: "Chat abierto y actividad registrada.", type: 'success' });
+  const openEmailComposer = () => {
+    const defaultText = `Hola ${selectedLead.firstName},\n\nTal como acordamos, te envío la documentación de Finca Mirapinos que hemos seleccionado.\n\nQuedo a tu disposición para cualquier duda.\n\nUn saludo.`;
+    setEmailBody(defaultText);
+    setIsEmailComposerOpen(true);
+  };
+
+  const handleFinalEmailSend = async () => {
+    setIsSending(true);
+    const docsToSend = availableDocs.filter(d => selectedDocs.includes(d.id));
+    const docNames = docsToSend.map(d => d.name).join(', ');
+    const docLinks = docsToSend.map(d => `• ${d.name}: ${d.url}`).join('\n');
+    
+    // Concatenación robusta: Cuerpo + Separador + Enlaces
+    const fullMessage = `${emailBody}\n\n--------------------------------\nDOCUMENTACIÓN ADJUNTA:\n\n${docLinks}\n--------------------------------`;
+
+    try {
+      await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        {
+          subject: "DOCUMENTACIÓN FINCA MIRAPINOS", // Asunto FIJO
+          to_name: `${selectedLead.firstName} ${selectedLead.lastName}`,
+          to_email: selectedLead.email,
+          message: fullMessage,
+          reply_to: 'info@mirapinos.com',
+        },
+        EMAILJS_PUBLIC_KEY
+      );
+
+      await logActivity(selectedLead.id, 'Email', docNames);
+      setNotification({ show: true, title: "ENVIADO", message: "Correo enviado con éxito.", type: 'success' });
+      setIsEmailComposerOpen(false);
       setSelectedDocs([]);
-      return;
-    }
-
-    if (method === 'email') {
-      setIsSending(true);
-      
-      const fullMessage = `Hola ${selectedLead.firstName},\n\nAdjunto encontrarás la siguiente documentación solicitada:\n\n${docLinks}\n\nUn saludo,\nEquipo Mirapinos.`;
-
-      try {
-        await emailjs.send(
-          EMAILJS_SERVICE_ID,
-          EMAILJS_TEMPLATE_ID,
-          {
-            to_name: `${selectedLead.firstName} ${selectedLead.lastName}`,
-            to_email: selectedLead.email,
-            message: fullMessage,
-            reply_to: 'info@mirapinos.com',
-          },
-          EMAILJS_PUBLIC_KEY
-        );
-
-        await logActivity(selectedLead.id, 'Email', docNames);
-        setNotification({ 
-          show: true, 
-          title: "ENVIADO", 
-          message: `Correo enviado a ${selectedLead.email} y registrado.`, 
-          type: 'success' 
-        });
-        setSelectedDocs([]);
-
-      } catch (error: any) {
-        console.error('Error EmailJS:', error);
-        setNotification({ show: true, title: "ERROR", message: "Fallo al enviar el correo.", type: 'error' });
-      } finally {
-        setIsSending(false);
-      }
+    } catch (error) {
+      console.error(error);
+      setNotification({ show: true, title: "ERROR", message: "No se pudo enviar el email.", type: 'error' });
+    } finally {
+      setIsSending(false);
     }
   };
 
+  // --- 6. RENDERIZADO ---
   const filteredLeads = leads.filter(lead => 
     `${lead.firstName || ''} ${lead.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (lead.email || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -208,16 +194,14 @@ export default function Leads() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      
       {/* HEADER */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <p className="text-pine-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">CRM Comercial</p>
           <h1 className="text-4xl font-poppins font-bold text-slate-900 tracking-tight">Cartera de Clientes</h1>
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="px-8 py-4 bg-pine-900 text-white font-bold rounded-2xl shadow-xl hover:bg-pine-800 transition-all flex items-center gap-3 active:scale-95"
-        >
+        <button onClick={() => setIsModalOpen(true)} className="px-8 py-4 bg-pine-900 text-white font-bold rounded-2xl shadow-xl hover:bg-pine-800 transition-all flex items-center gap-3 active:scale-95">
           <Plus size={20} /> NUEVO PROSPECTO
         </button>
       </header>
@@ -226,12 +210,7 @@ export default function Leads() {
       <div className="bg-white p-4 rounded-3xl shadow-sm border border-pine-100 flex items-center gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm outline-none focus:ring-2 focus:ring-pine-600/10 transition-all" 
-            placeholder="Buscar por nombre, email o teléfono..." 
-          />
+          <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm outline-none focus:ring-2 focus:ring-pine-600/10 transition-all" placeholder="Buscar por nombre, email o teléfono..." />
         </div>
       </div>
 
@@ -251,16 +230,10 @@ export default function Leads() {
             </thead>
             <tbody className="divide-y divide-pine-50">
               {filteredLeads.map((lead) => (
-                <tr 
-                  key={lead.id} 
-                  onClick={() => { setSelectedLead({...lead}); setIsEditing(false); setSelectedDocs([]); }}
-                  className="hover:bg-pine-50/30 transition-colors cursor-pointer group"
-                >
+                <tr key={lead.id} onClick={() => { setSelectedLead({...lead}); setIsEditing(false); setSelectedDocs([]); }} className="hover:bg-pine-50/30 transition-colors cursor-pointer group">
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-white shadow-sm border border-pine-100 rounded-2xl flex items-center justify-center text-pine-600 font-bold uppercase text-lg">
-                        {lead.firstName?.[0]}{lead.lastName?.[0]}
-                      </div>
+                      <div className="w-12 h-12 bg-white shadow-sm border border-pine-100 rounded-2xl flex items-center justify-center text-pine-600 font-bold uppercase text-lg">{lead.firstName?.[0]}{lead.lastName?.[0]}</div>
                       <div>
                         <p className="text-sm font-bold text-slate-900">{lead.firstName} {lead.lastName}</p>
                         <p className="text-xs text-slate-400 font-medium">{lead.email}</p>
@@ -270,13 +243,10 @@ export default function Leads() {
                   <td className="px-8 py-6"><StageBadge stage={lead.stage} /></td>
                   <td className="px-8 py-6 hidden md:table-cell">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full w-fit">
-                      <Globe size={12} className="text-pine-600" />
-                      {lead.source || 'Web'}
+                      <Globe size={12} className="text-pine-600" /> {lead.source || 'Web'}
                     </div>
                   </td>
-                  <td className="px-8 py-6 text-right">
-                    <Eye size={20} className="text-slate-300 ml-auto group-hover:text-pine-600 transition-colors" />
-                  </td>
+                  <td className="px-8 py-6 text-right"><Eye size={20} className="text-slate-300 ml-auto group-hover:text-pine-600 transition-colors" /></td>
                 </tr>
               ))}
             </tbody>
@@ -362,6 +332,8 @@ export default function Leads() {
             <div className="p-8 md:p-12 grid grid-cols-1 lg:grid-cols-12 gap-12 bg-white">
               
               <div className="lg:col-span-7 space-y-12">
+                
+                {/* --- SECCIÓN 1: INFORMACIÓN DE CONTACTO (RESTAURADA) --- */}
                 <section className="space-y-6">
                   <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2 px-2">
                     <User size={14} /> Información de Contacto
@@ -401,6 +373,7 @@ export default function Leads() {
                   </div>
                 </section>
 
+                {/* --- SECCIÓN 2: DOCUMENTACIÓN --- */}
                 <section className="space-y-6">
                   <div className="flex justify-between items-end px-2">
                     <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2">
@@ -415,24 +388,13 @@ export default function Leads() {
                   
                   <div className="grid grid-cols-1 gap-3">
                     {availableDocs.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic p-4">No hay documentos disponibles. Súbelos desde Ajustes.</p>
-                    ) : (
-                      availableDocs.map(doc => (
-                        <div 
-                          key={doc.id}
-                          onClick={() => toggleDocSelection(doc.id)}
-                          className={`
-                            flex items-center justify-between p-5 rounded-3xl border transition-all cursor-pointer select-none
-                            ${selectedDocs.includes(doc.id) 
-                              ? 'bg-pine-900 border-pine-900 text-white shadow-lg shadow-pine-900/20 transform scale-[1.01]' 
-                              : 'bg-white border-pine-100 text-slate-600 hover:border-pine-300 hover:bg-slate-50'}
-                          `}
-                        >
+                        <p className="text-xs text-slate-400 italic p-4">No hay documentos disponibles. Súbelos desde Ajustes.</p>
+                      ) : (
+                        availableDocs.map(doc => (
+                        <div key={doc.id} onClick={() => toggleDocSelection(doc.id)} className={`flex items-center justify-between p-5 rounded-3xl border transition-all cursor-pointer select-none ${selectedDocs.includes(doc.id) ? 'bg-pine-900 border-pine-900 text-white shadow-lg' : 'bg-white border-pine-100 text-slate-600 hover:bg-slate-50'}`}>
                           <div className="flex items-center gap-4">
-                            <div className={`p-3 rounded-2xl transition-colors ${selectedDocs.includes(doc.id) ? 'bg-white/10' : 'bg-pine-50 text-pine-600'}`}>
-                              <FileText size={20} />
-                            </div>
-                            <span className="font-bold text-sm tracking-tight">{doc.name}</span>
+                            <div className={`p-3 rounded-2xl ${selectedDocs.includes(doc.id) ? 'bg-white/10' : 'bg-pine-50 text-pine-600'}`}><FileText size={20} /></div>
+                            <span className="font-bold text-sm">{doc.name}</span>
                           </div>
                           <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${selectedDocs.includes(doc.id) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200'}`}>
                             {selectedDocs.includes(doc.id) && <Check size={14} strokeWidth={4} />}
@@ -443,27 +405,11 @@ export default function Leads() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 pt-4">
-                    <button 
-                      onClick={() => handleSendDocs('whatsapp')}
-                      disabled={selectedDocs.length === 0}
-                      className="flex items-center justify-center gap-3 py-5 bg-emerald-500 text-white rounded-[24px] font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-30 disabled:grayscale shadow-lg shadow-emerald-500/20 active:scale-95"
-                    >
+                    <button onClick={handleSendWhatsApp} disabled={selectedDocs.length === 0} className="flex items-center justify-center gap-3 py-5 bg-emerald-500 text-white rounded-[24px] font-black text-xs uppercase hover:bg-emerald-600 disabled:opacity-30 transition-all active:scale-95 shadow-lg shadow-emerald-500/20">
                       <MessageCircle size={18} /> WhatsApp
                     </button>
-                    <button 
-                      onClick={() => handleSendDocs('email')}
-                      disabled={selectedDocs.length === 0 || isSending}
-                      className="flex items-center justify-center gap-3 py-5 bg-pine-900 text-white rounded-[24px] font-black text-xs uppercase tracking-widest hover:bg-black transition-all disabled:opacity-30 disabled:grayscale shadow-lg shadow-pine-900/20 active:scale-95"
-                    >
-                      {isSending ? (
-                        <>
-                           <Loader2 className="animate-spin" size={18} /> Enviando...
-                        </>
-                      ) : (
-                        <>
-                           <Mail size={18} /> Enviar Email
-                        </>
-                      )}
+                    <button onClick={openEmailComposer} disabled={selectedDocs.length === 0} className="flex items-center justify-center gap-3 py-5 bg-pine-900 text-white rounded-[24px] font-black text-xs uppercase hover:bg-black disabled:opacity-30 transition-all active:scale-95 shadow-lg shadow-pine-900/20">
+                      <Mail size={18} /> Enviar Email
                     </button>
                   </div>
                 </section>
@@ -471,17 +417,65 @@ export default function Leads() {
 
               <div className="lg:col-span-5 space-y-8">
                 <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2 px-2">
-                  <History size={14} /> Actividad Reciente
+                  <History size={14} /> Historial
                 </h3>
                 <div className="relative pl-8 space-y-10 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
                   <div className="relative group">
-                    <div className="absolute -left-[29px] top-1 w-5 h-5 rounded-full bg-white border-4 border-pine-600 shadow-sm z-10 group-hover:scale-125 transition-transform"></div>
+                    <div className="absolute -left-[29px] top-1 w-5 h-5 rounded-full bg-white border-4 border-pine-600 shadow-sm z-10"></div>
                     <p className="text-[10px] font-black text-pine-600 uppercase tracking-widest mb-1">Sesión Actual</p>
-                    <p className="text-sm text-slate-700 font-bold leading-relaxed tracking-tight">Registro abierto en el panel de control.</p>
+                    <p className="text-sm text-slate-700 font-bold leading-relaxed tracking-tight">Ficha de cliente activa en pantalla.</p>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* MODAL EDITOR DE EMAIL */}
+      {isEmailComposerOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setIsEmailComposerOpen(false)}></div>
+          <div className="relative bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8">
+            <div className="bg-slate-50 p-8 border-b border-slate-100 flex justify-between items-center">
+              <div>
+                <h3 className="font-bold text-xl text-slate-900">Personalizar Mensaje</h3>
+                <p className="text-xs text-slate-500">Destinatario: {selectedLead.email}</p>
+              </div>
+              <button onClick={() => setIsEmailComposerOpen(false)} className="p-2 hover:bg-white rounded-xl transition-colors"><X /></button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Asunto (Fijo)</label>
+                <div className="w-full p-4 bg-slate-100 text-slate-600 rounded-2xl font-bold border border-slate-200">
+                  DOCUMENTACIÓN FINCA MIRAPINOS
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mensaje</label>
+                <textarea 
+                  rows={6}
+                  className="w-full p-6 bg-slate-50 rounded-3xl border-none outline-none focus:ring-2 focus:ring-pine-600/10 text-slate-700 text-sm leading-relaxed resize-none"
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                />
+              </div>
+
+              <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100">
+                <div className="flex items-center gap-2 mb-2 text-blue-700 font-bold text-[10px] uppercase">
+                  <LinkIcon size={12}/> Se adjuntarán {selectedDocs.length} enlaces automáticamente
+                </div>
+              </div>
+
+              <button 
+                onClick={handleFinalEmailSend}
+                disabled={isSending}
+                className="w-full py-5 bg-pine-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50"
+              >
+                {isSending ? <Loader2 className="animate-spin" size={18} /> : <><Send size={18} /> ENVIAR EMAIL DEFINITIVO</>}
+              </button>
             </div>
           </div>
         </div>
@@ -540,12 +534,7 @@ export default function Leads() {
 
       {/* NOTIFICACIONES */}
       {notification.show && (
-        <AppNotification 
-          title={notification.title} 
-          message={notification.message} 
-          type={notification.type} 
-          onClose={() => setNotification({ ...notification, show: false })} 
-        />
+        <AppNotification title={notification.title} message={notification.message} type={notification.type} onClose={() => setNotification({ ...notification, show: false })} />
       )}
     </div>
   );
