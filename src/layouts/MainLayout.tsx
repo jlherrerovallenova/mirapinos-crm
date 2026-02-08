@@ -21,15 +21,10 @@ export default function MainLayout() {
               className="h-10 w-auto object-contain transition-transform duration-300 hover:scale-105" 
             />
             
-            {/* Texto de Marca */}
-            <h1 className="text-2xl font-poppins font-bold tracking-tight text-pine-100 leading-none">
-              Mirapinos
-            </h1>
-          </div>
-          
+                  
           {/* Subtítulo alineado */}
           <p className="text-[10px] uppercase tracking-[0.3em] text-pine-600 font-bold mt-2 ml-1">
-            Premium CRM
+            CRM
           </p>
         </div>
         {/* ----------------------------------------------- */}
