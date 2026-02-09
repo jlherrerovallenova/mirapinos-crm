@@ -1,191 +1,286 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
-import { StageBadge } from '../Shared';
-import { X, Edit2, Trash2, Save, User, Mail, Phone, Calendar, FileText, Check, MessageCircle, History, Globe } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import emailjs from '@emailjs/browser';
+import { 
+  ChevronRight, Phone, Mail, Send, FileText, 
+  CheckCircle2, MessageCircle, X, Loader2, Link as LinkIcon
+} from 'lucide-react';
 
-interface LeadDetailModalProps {
-  lead: any;
-  availableDocs: any[];
-  onClose: () => void;
-  onUpdate: () => void;
-  onDelete: () => void;
-  onOpenEmail: (selectedDocs: string[]) => void;
-}
+export default function LeadDetail() {
+  const { id } = useParams();
+  const [lead, setLead] = useState<any>(null);
+  const [events, setEvents] = useState<any[]>([]);
+  const [allDocuments, setAllDocuments] = useState<any[]>([]);
+  const [selectedDocs, setSelectedDocs] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'agenda' | 'docs'>('agenda');
+  
+  const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
+  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
-export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate, onDelete, onOpenEmail }: LeadDetailModalProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<any>(lead);
-  const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+  const [emailData, setEmailData] = useState({
+    subject: 'FINCA MIRAPINOS', 
+    body: ''
+  });
 
-  // Sincronizar estado cuando cambia el lead
-  useEffect(() => {
-    setFormData(lead);
+  const loadData = async () => {
+    if(!id) return;
+    const { data: l } = await supabase.from('leads').select('*').eq('id', id).single();
+    const { data: e } = await supabase.from('events').select('*').eq('leadId', id).order('date', { ascending: false });
+    const { data: d } = await supabase.from('documents').select('*').order('id', { ascending: false });
+    
+    if (l) setLead(l);
+    if (e) setEvents(e);
+    if (d) setAllDocuments(d);
+  };
+
+  useEffect(() => { loadData(); }, [id]);
+
+  const logActivity = async (method: string, detail: string) => {
+    await supabase.from('events').insert([{
+      leadId: id,
+      type: 'Documentación',
+      description: `Envío vía ${method}: ${detail}`,
+      date: new Date().toISOString()
+    }]);
+    loadData();
+  };
+
+  const toggleDocSelection = (doc: any) => {
+    setSelectedDocs(prev => prev.find(d => d.id === doc.id) ? prev.filter(d => d.id !== doc.id) : [...prev, doc]);
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (selectedDocs.length === 0) return alert("Selecciona al menos un documento.");
+    
+    // WhatsApp NO soporta HTML, así que aquí mantenemos texto plano
+    const docLinks = selectedDocs.map(d => `• ${d.name}: ${d.url}`).join('\n');
+    const message = `Hola ${lead.firstName}, desde Finca Mirapinos te adjuntamos la documentación solicitada:\n\n${docLinks}`;
+    window.open(`https://wa.me/${lead.phone.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+    
+    await logActivity('WhatsApp', selectedDocs.map(d => d.name).join(', '));
+    setIsChannelModalOpen(false);
     setSelectedDocs([]);
-    setIsEditing(false);
-  }, [lead]);
+  };
 
-  const handleSave = async () => {
-    const { error } = await supabase.from('leads').update({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      phone: formData.phone,
-      stage: formData.stage,
-      source: formData.source
-    }).eq('id', lead.id);
+  const openEmailComposer = () => {
+    setEmailData({
+      subject: 'FINCA MIRAPINOS',
+      body: `Hola ${lead.firstName},\n\nTal como acordamos, te envío adjunta la documentación sobre Finca Mirapinos.\n\nCualquier duda quedo a tu disposición.\n\nSaludos cordiales.`
+    });
+    setIsChannelModalOpen(false);
+    setIsEmailComposerOpen(true);
+  };
 
-    if (!error) {
-      setIsEditing(false);
-      onUpdate();
-    } else {
-      alert(`Error al actualizar: ${error.message}`); // Feedback de error original
+  const handleFinalEmailSend = async () => {
+    if (!lead.email) return alert("El cliente no tiene email configurado.");
+    if (selectedDocs.length === 0) return alert("No hay documentos seleccionados.");
+    
+    setIsSending(true);
+
+    // --- CAMBIO AQUÍ PARA EMAIL ---
+    const linksList = selectedDocs.map(d => 
+        `• <a href="${d.url}" target="_blank" style="color: #2563EB; text-decoration: none; font-weight: bold;">${d.name}</a>`
+    ).join('\n');
+    
+    const fullMessage = `${emailData.body}\n\n--------------------------------\nDOCUMENTACIÓN ADJUNTA:\n\n${linksList}\n--------------------------------`;
+    // ------------------------------
+
+    const SERVICE_ID = "service_w8zzkn8";
+    const TEMPLATE_ID = "template_t3fn5js";
+    const PUBLIC_KEY = "UsY6LDpIJtiB91VMI";
+
+    const templateParams = {
+        subject: emailData.subject, 
+        message: fullMessage,
+        message_html: fullMessage,
+        to_email: lead.email,
+        to_name: `${lead.firstName} ${lead.lastName}`,
+        reply_to: 'info@mirapinos.com'
+    };
+    
+    try {
+      await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+
+      await logActivity('Email App', selectedDocs.map(d => d.name).join(', '));
+      alert('¡Email enviado con éxito!');
+      setIsEmailComposerOpen(false);
+      setSelectedDocs([]);
+      setActiveTab('agenda');
+    } catch (error: any) {
+      console.error("Error EmailJS:", error);
+      alert(`Error al enviar el email: ${error?.text || 'Revisa la consola'}`);
+    } finally {
+      setIsSending(false);
     }
   };
 
-  const toggleDoc = (id: string) => {
-    setSelectedDocs(prev => prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]);
-  };
-
-  const handleWhatsApp = async () => {
-    const docsToSend = availableDocs.filter(d => selectedDocs.includes(d.id));
-    const docLinks = docsToSend.map(d => `• ${d.name}: ${d.url}`).join('\n');
-    const text = `Hola ${formData.firstName}, aquí tienes la documentación de Finca Mirapinos:\n\n${docLinks}`;
-    
-    // Lógica original de limpieza de teléfono
-    const cleanPhone = formData.phone?.replace(/\s/g, '') || '';
-    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
-    
-    // Log de actividad (Funcionalidad original preservada)
-    await supabase.from('events').insert([{
-        leadId: lead.id, 
-        type: 'Documentación', 
-        description: `Envío vía WhatsApp: ${docsToSend.map(d=>d.name).join(', ')}`, 
-        date: new Date().toISOString()
-    }]);
-  };
+  if (!lead) return <div className="p-8">Cargando...</div>;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-pine-900/60 backdrop-blur-md" onClick={onClose}></div>
-      <div className="relative bg-white w-full max-w-5xl max-h-[92vh] rounded-[48px] shadow-2xl overflow-y-auto animate-in zoom-in-95 duration-300 border border-white/20">
-        
-        {/* HEADER CON EDICIÓN/VISUALIZACIÓN */}
-        <div className="bg-pine-900 p-8 md:p-12 text-white flex flex-col md:flex-row justify-between items-start sticky top-0 z-10 shadow-lg">
-          <div className="flex-1 w-full">
-            {isEditing ? (
-              <div className="space-y-4 w-full md:w-2/3">
-                <div className="grid grid-cols-2 gap-4">
-                   <input className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 text-xl font-bold outline-none focus:bg-white/20 w-full placeholder-white/30 text-white" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} placeholder="Nombre" />
-                   <input className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 text-xl font-bold outline-none focus:bg-white/20 w-full placeholder-white/30 text-white" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} placeholder="Apellidos" />
+    <div className="p-8 h-full flex flex-col animate-in fade-in">
+       {/* HEADER */}
+       <div className="mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to="/leads" className="p-2 bg-white rounded-xl shadow-sm text-slate-400 hover:text-slate-800"><ChevronRight className="rotate-180" size={20}/></Link>
+            <div>
+                <h2 className="text-3xl font-black text-slate-800 tracking-tighter">{lead.firstName} {lead.lastName}</h2>
+                <div className="flex gap-4 mt-2 text-sm text-slate-500 font-medium">
+                    <span className="flex items-center gap-2 text-pine-600 bg-pine-50 px-3 py-1 rounded-full"><Phone size={14}/> {lead.phone}</span>
+                    <span className="flex items-center gap-2 text-pine-600 bg-pine-50 px-3 py-1 rounded-full"><Mail size={14}/> {lead.email}</span>
                 </div>
-                <div className="flex gap-4">
-                  <select className="bg-pine-800 border border-white/20 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-white" value={formData.stage} onChange={e => setFormData({...formData, stage: e.target.value})}>
-                    {['Prospecto', 'Visitando', 'Interés', 'Cierre'].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  <select className="bg-pine-800 border border-white/20 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-white" value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})}>
-                    {['Web', 'Instagram', 'Telefónico', 'Referido', 'Portal Inmobiliario', 'Idealista'].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-              </div>
-            ) : (
-              <>
-                <h2 className="text-4xl md:text-5xl font-poppins font-bold tracking-tighter mb-2">{formData.firstName} {formData.lastName}</h2>
-                <div className="flex items-center gap-3 mt-2">
-                  <StageBadge stage={formData.stage} />
-                  <span className="text-pine-300 text-sm font-medium flex items-center gap-1"><Globe size={14} /> {formData.source}</span>
-                </div>
-              </>
-            )}
+            </div>
           </div>
-          <div className="flex gap-3 mt-6 md:mt-0 self-end md:self-start">
-            {isEditing ? (
-              <button onClick={handleSave} className="p-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl text-white transition-all shadow-lg hover:shadow-emerald-500/30"><Save size={24} /></button>
-            ) : (
-              <button onClick={() => setIsEditing(true)} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-white transition-all"><Edit2 size={24} /></button>
-            )}
-            <button onClick={onDelete} className="p-4 bg-rose-500/20 hover:bg-rose-500 text-white rounded-2xl border border-rose-500/20 transition-all"><Trash2 size={24} /></button>
-            <button onClick={onClose} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all"><X size={24} /></button>
-          </div>
-        </div>
+       </div>
 
-        {/* CUERPO PRINCIPAL */}
-        <div className="p-8 md:p-12 grid grid-cols-1 lg:grid-cols-12 gap-12 bg-white">
-          <div className="lg:col-span-7 space-y-12">
-            
-            {/* SECCIÓN 1: INFO CONTACTO */}
-            <section className="space-y-6">
-              <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2 px-2"><User size={14} /> Información de Contacto</h3>
-              <div className="bg-slate-50/50 border border-pine-50 p-8 rounded-[32px] grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-1">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Email</p>
-                   {isEditing ? <input className="w-full p-3 bg-white rounded-xl border border-pine-100 outline-none focus:border-pine-400" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /> : 
-                   <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.open(`mailto:${formData.email}`)}>
-                      <Mail size={16} className="text-pine-400 group-hover:text-pine-600" />
-                      <p className="font-bold text-slate-700 truncate group-hover:text-pine-900 transition-colors">{formData.email}</p>
-                   </div>}
+       <div className="flex gap-8 flex-1 overflow-hidden">
+          {/* PANEL IZQUIERDO */}
+          <div className="w-1/4 bg-white p-8 rounded-4xl border border-pine-100 h-full overflow-auto shadow-sm">
+             <h3 className="uppercase text-[10px] font-black tracking-[0.2em] text-pine-600 mb-8">Info Cliente</h3>
+             <div className="space-y-4">
+                <div className="p-4 bg-pine-50 rounded-2xl">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Origen</span>
+                  <p className="font-bold text-slate-800">{lead.source || 'Directo'}</p>
                 </div>
-                <div className="space-y-1">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Teléfono</p>
-                   {isEditing ? <input className="w-full p-3 bg-white rounded-xl border border-pine-100 outline-none focus:border-pine-400" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /> : 
-                   <div className="flex items-center gap-2">
-                      <Phone size={16} className="text-pine-400" />
-                      <p className="font-bold text-slate-700">{formData.phone}</p>
-                   </div>}
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Fecha Registro</p>
-                  <div className="flex items-center gap-2">
-                    <Calendar size={16} className="text-pine-400" />
-                    <p className="font-bold text-slate-700">{formData.createdAt ? new Date(formData.createdAt).toLocaleDateString() : 'N/A'}</p>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* SECCIÓN 2: DOCUMENTOS */}
-            <section className="space-y-6">
-               <div className="flex justify-between items-end px-2">
-                  <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2"><FileText size={14} /> Envío de Documentación</h3>
-                  {selectedDocs.length > 0 && <span className="text-[10px] font-black text-white bg-pine-600 px-3 py-1 rounded-full animate-in fade-in zoom-in">{selectedDocs.length} seleccionados</span>}
-               </div>
-               <div className="grid grid-cols-1 gap-3">
-                  {availableDocs.length === 0 ? (
-                    <p className="text-xs text-slate-400 italic p-4">No hay documentos disponibles. Súbelos desde Ajustes.</p>
-                  ) : (
-                    availableDocs.map(doc => (
-                      <div key={doc.id} onClick={() => toggleDoc(doc.id)} className={`flex items-center justify-between p-5 rounded-3xl border transition-all cursor-pointer select-none ${selectedDocs.includes(doc.id) ? 'bg-pine-900 border-pine-900 text-white shadow-lg' : 'bg-white border-pine-100 text-slate-600 hover:bg-slate-50'}`}>
-                        <div className="flex items-center gap-4">
-                          <div className={`p-3 rounded-2xl ${selectedDocs.includes(doc.id) ? 'bg-white/10' : 'bg-pine-50 text-pine-600'}`}><FileText size={20} /></div>
-                          <span className="font-bold text-sm">{doc.name}</span>
-                        </div>
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${selectedDocs.includes(doc.id) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200'}`}>
-                          {selectedDocs.includes(doc.id) && <Check size={14} strokeWidth={4} />}
-                        </div>
-                      </div>
-                    ))
-                  )}
-               </div>
-               <div className="grid grid-cols-2 gap-4 pt-4">
-                  <button onClick={handleWhatsApp} disabled={selectedDocs.length === 0} className="flex items-center justify-center gap-3 py-5 bg-emerald-500 text-white rounded-[24px] font-black text-xs uppercase hover:bg-emerald-600 disabled:opacity-30 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"><MessageCircle size={18} /> WhatsApp</button>
-                  <button onClick={() => onOpenEmail(selectedDocs)} disabled={selectedDocs.length === 0} className="flex items-center justify-center gap-3 py-5 bg-pine-900 text-white rounded-[24px] font-black text-xs uppercase hover:bg-black disabled:opacity-30 transition-all active:scale-95 shadow-lg shadow-pine-900/20"><Mail size={18} /> Enviar Email</button>
-               </div>
-            </section>
-          </div>
-          
-          {/* SECCIÓN 3: HISTORIAL (RESTAURADO EL UI ORIGINAL) */}
-          <div className="lg:col-span-5 space-y-8">
-             <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2 px-2"><History size={14} /> Historial</h3>
-             {/* Aquí está el diseño CSS exacto del timeline original */}
-             <div className="relative pl-8 space-y-10 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
-                <div className="relative group">
-                  <div className="absolute -left-[29px] top-1 w-5 h-5 rounded-full bg-white border-4 border-pine-600 shadow-sm z-10"></div>
-                  <p className="text-[10px] font-black text-pine-600 uppercase tracking-widest mb-1">Sesión Actual</p>
-                  <p className="text-sm text-slate-700 font-bold leading-relaxed tracking-tight">Ficha de cliente activa en pantalla.</p>
+                <div className="p-4 bg-pine-50 rounded-2xl">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Estado Actual</span>
+                  <p className="font-bold text-pine-600">{lead.stage}</p>
                 </div>
              </div>
           </div>
-        </div>
-      </div>
+
+          {/* PANEL DERECHO: TABS */}
+          <div className="flex-1 bg-white rounded-4xl border border-pine-100 h-full flex flex-col overflow-hidden shadow-sm">
+             <div className="flex bg-pine-50/50 p-2 m-4 rounded-2xl">
+                <button onClick={() => setActiveTab('agenda')} className={`flex-1 py-3 text-[10px] uppercase font-black tracking-widest rounded-xl transition-all ${activeTab === 'agenda' ? 'bg-white text-pine-900 shadow-sm' : 'text-slate-400'}`}>Historial</button>
+                <button onClick={() => setActiveTab('docs')} className={`flex-1 py-3 text-[10px] uppercase font-black tracking-widest rounded-xl transition-all ${activeTab === 'docs' ? 'bg-white text-pine-900 shadow-sm' : 'text-slate-400'}`}>Documentos</button>
+             </div>
+             
+             <div className="p-8 overflow-auto flex-1">
+                {activeTab === 'docs' ? (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center bg-slate-900 p-6 rounded-3xl text-white">
+                      <h4 className="text-lg font-bold">{selectedDocs.length} seleccionados</h4>
+                      <button 
+                        disabled={selectedDocs.length === 0}
+                        onClick={() => setIsChannelModalOpen(true)}
+                        className="px-8 py-4 bg-pine-600 text-white rounded-2xl font-black text-xs uppercase hover:bg-emerald-500 disabled:opacity-30"
+                      >
+                        Enviar Documentos
+                      </button>
+                    </div>
+                    {allDocuments.length === 0 && <p className="text-center text-slate-400 py-10">No hay documentos disponibles.</p>}
+                    <div className="grid grid-cols-2 gap-4">
+                      {allDocuments.map(doc => (
+                        <div key={doc.id} onClick={() => toggleDocSelection(doc)} className={`p-6 rounded-3xl border-2 cursor-pointer flex items-center justify-between transition-all ${selectedDocs.find(d => d.id === doc.id) ? 'border-pine-600 bg-pine-50/50' : 'border-slate-50 bg-white'}`}>
+                          <div className="flex items-center gap-5">
+                            <div className={`p-4 rounded-2xl ${selectedDocs.find(d => d.id === doc.id) ? 'bg-pine-600 text-white' : 'bg-slate-100 text-slate-400'}`}><FileText size={24}/></div>
+                            <p className="font-black text-slate-800 text-sm">{doc.name}</p>
+                          </div>
+                          {selectedDocs.find(d => d.id === doc.id) && <CheckCircle2 className="text-pine-600" size={24}/>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {events.map(e => (
+                      <div key={e.id} className="relative pl-8 border-l-2 border-pine-100 pb-6">
+                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-4 border-pine-600"></div>
+                        <span className="text-[10px] font-black uppercase text-pine-600 bg-pine-50 px-3 py-1 rounded-lg">{e.type}</span>
+                        <p className="font-semibold text-slate-700 text-sm mt-2">{e.description}</p>
+                        <p className="text-[10px] text-slate-400 mt-1">{new Date(e.date).toLocaleString()}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+             </div>
+          </div>
+       </div>
+
+       {/* MODAL 1: SELECCIÓN DE CANAL */}
+       {isChannelModalOpen && (
+         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+           <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in">
+              <div className="p-8 border-b border-slate-50 flex justify-between items-center">
+                <h3 className="font-bold text-xl">Enviar Documentación</h3>
+                <button onClick={() => setIsChannelModalOpen(false)}><X/></button>
+              </div>
+              <div className="p-8 space-y-4">
+                <button onClick={handleSendWhatsApp} className="w-full flex items-center gap-4 p-6 rounded-3xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all">
+                  <MessageCircle size={24}/> <span className="font-bold uppercase text-xs">Enviar por WhatsApp</span>
+                </button>
+                <button onClick={openEmailComposer} className="w-full flex items-center gap-4 p-6 rounded-3xl bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-600 hover:text-white transition-all">
+                  <Mail size={24}/> <span className="font-bold uppercase text-xs">Previsualizar Email</span>
+                </button>
+              </div>
+           </div>
+         </div>
+       )}
+
+       {/* MODAL 2: PREVISUALIZACIÓN Y ENVÍO DE EMAIL */}
+       {isEmailComposerOpen && (
+         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+           <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 flex flex-col max-h-[90vh]">
+              {/* Header Modal */}
+              <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50 shrink-0">
+                <div>
+                  <h3 className="font-bold text-xl text-slate-900">Previsualización del Correo</h3>
+                  <p className="text-xs text-slate-500 font-medium">Destinatario: {lead.email}</p>
+                </div>
+                <button onClick={() => setIsEmailComposerOpen(false)} className="p-2 hover:bg-white rounded-xl transition-colors"><X/></button>
+              </div>
+
+              {/* Body Modal (Scrollable) */}
+              <div className="p-8 space-y-6 overflow-y-auto">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Asunto (Fijo)</label>
+                  <input 
+                    className="w-full p-4 bg-slate-100 text-slate-500 rounded-2xl border-none outline-none font-bold cursor-not-allowed"
+                    value={emailData.subject}
+                    readOnly
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mensaje Personalizado</label>
+                  <textarea 
+                    rows={6}
+                    className="w-full p-6 bg-slate-50 rounded-3xl border-none outline-none focus:ring-2 focus:ring-blue-500/20 font-medium text-slate-600 text-sm leading-relaxed resize-none"
+                    value={emailData.body}
+                    onChange={(e) => setEmailData({...emailData, body: e.target.value})}
+                  />
+                </div>
+                
+                {/* Bloque Visual de Adjuntos */}
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Documentación a adjuntar automáticamente</label>
+                    <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100">
+                        <div className="flex items-center gap-2 mb-3 text-blue-700 font-bold text-xs uppercase border-b border-blue-100 pb-2">
+                            <LinkIcon size={14}/> {selectedDocs.length} Enlaces se añadirán al final del correo
+                        </div>
+                        <ul className="space-y-2">
+                            {selectedDocs.map(doc => (
+                                <li key={doc.id} className="flex items-center gap-3 text-xs text-slate-600 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
+                                    <FileText size={14} className="text-blue-400"/>
+                                    <span className="font-semibold truncate">{doc.name}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+
+                <button 
+                  onClick={handleFinalEmailSend}
+                  disabled={isSending}
+                  className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50 shrink-0"
+                >
+                  {isSending ? <Loader2 className="animate-spin" size={18}/> : <><Send size={18}/> Enviar Email Definitivo</>}
+                </button>
+              </div>
+           </div>
+         </div>
+       )}
     </div>
   );
 }
