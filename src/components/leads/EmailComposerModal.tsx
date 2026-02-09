@@ -3,8 +3,6 @@ import emailjs from '@emailjs/browser';
 import { supabase } from '../../lib/supabase';
 import { X, Send, Link as LinkIcon, Loader2 } from 'lucide-react';
 
-// CORRECCIÓN: He restaurado tus claves originales como fallback ("||")
-// para que funcione inmediatamente si no tienes el archivo .env creado.
 const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || "service_w8zzkn8";
 const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || "template_t3fn5js";
 const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || "UsY6LDpIJtiB91VMI";
@@ -30,11 +28,6 @@ export default function EmailComposerModal({
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    // Verificar credenciales al montar (solo para depuración en consola)
-    if (!SERVICE_ID || !TEMPLATE_ID || !PUBLIC_KEY) {
-      console.warn("⚠️ Faltan credenciales de EmailJS. Revisa tus variables de entorno o los valores por defecto.");
-    }
-
     if (isOpen && lead) {
         setBody(`Hola ${lead.firstName},\n\nTal como acordamos, te envío la documentación de Finca Mirapinos.\n\nQuedo a tu disposición.\n\nUn saludo.`);
     }
@@ -45,16 +38,17 @@ export default function EmailComposerModal({
   const handleSend = async () => {
     setSending(true);
     
-    // Validación previa para dar un error más claro
     if (!SERVICE_ID || !TEMPLATE_ID || !PUBLIC_KEY) {
-        alert("Error de Configuración: Faltan las claves de EmailJS (Service ID, Template ID o Public Key).");
+        alert("Error de Configuración: Faltan las claves de EmailJS.");
         setSending(false);
         return;
     }
 
+    // GESTIÓN DE DOCUMENTOS: Filtramos y generamos los enlaces
     const docs = allDocs.filter(d => selectedDocIds.includes(d.id));
     const docLinks = docs.map(d => `• ${d.name}: ${d.url}`).join('\n');
     
+    // CONSTRUCCIÓN DEL MENSAJE COMPLETO
     const fullMessage = `${body}\n\n--------------------------------\nDOCUMENTACIÓN:\n\n${docLinks}\n--------------------------------`;
 
     try {
@@ -62,7 +56,7 @@ export default function EmailComposerModal({
           subject: "DOCUMENTACIÓN FINCA MIRAPINOS",
           to_name: `${lead.firstName} ${lead.lastName}`,
           to_email: lead.email,
-          message: fullMessage,
+          message: fullMessage, // Esta variable debe coincidir con {{message}} en tu plantilla de EmailJS
           reply_to: 'info@mirapinos.com',
       }, PUBLIC_KEY);
 
@@ -77,7 +71,6 @@ export default function EmailComposerModal({
       onClose();
     } catch (err: any) {
       console.error("Error EmailJS:", err);
-      // Mostrar el mensaje técnico exacto si existe
       const errMsg = err?.text || "Verifica la consola para más detalles.";
       alert(`Error al enviar email: ${errMsg}`);
     } finally {
