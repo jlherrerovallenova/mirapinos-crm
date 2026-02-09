@@ -54,8 +54,7 @@ export default function LeadDetail() {
   const handleSendWhatsApp = async () => {
     if (selectedDocs.length === 0) return alert("Selecciona al menos un documento.");
     
-    // WhatsApp NO soporta HTML, así que aquí mantenemos texto plano
-    const docLinks = selectedDocs.map(d => `• ${d.name}: ${d.url}`).join('\n');
+    const docLinks = selectedDocs.map(d => `• ${d.name}:\n  ${d.url}`).join('\n\n');
     const message = `Hola ${lead.firstName}, desde Finca Mirapinos te adjuntamos la documentación solicitada:\n\n${docLinks}`;
     window.open(`https://wa.me/${lead.phone.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
     
@@ -79,13 +78,10 @@ export default function LeadDetail() {
     
     setIsSending(true);
 
-    // --- CAMBIO AQUÍ PARA EMAIL ---
-    const linksList = selectedDocs.map(d => 
-        `• <a href="${d.url}" target="_blank" style="color: #2563EB; text-decoration: none; font-weight: bold;">${d.name}</a>`
-    ).join('\n');
-    
+    // --- PLAN B: TEXTO PLANO ---
+    const linksList = selectedDocs.map(d => `• ${d.name}:\n  ${d.url}`).join('\n\n');
     const fullMessage = `${emailData.body}\n\n--------------------------------\nDOCUMENTACIÓN ADJUNTA:\n\n${linksList}\n--------------------------------`;
-    // ------------------------------
+    // ---------------------------
 
     const SERVICE_ID = "service_w8zzkn8";
     const TEMPLATE_ID = "template_t3fn5js";
@@ -94,7 +90,6 @@ export default function LeadDetail() {
     const templateParams = {
         subject: emailData.subject, 
         message: fullMessage,
-        message_html: fullMessage,
         to_email: lead.email,
         to_name: `${lead.firstName} ${lead.lastName}`,
         reply_to: 'info@mirapinos.com'
@@ -170,7 +165,7 @@ export default function LeadDetail() {
                         Enviar Documentos
                       </button>
                     </div>
-                    {allDocuments.length === 0 && <p className="text-center text-slate-400 py-10">No hay documentos disponibles.</p>}
+                    {allDocuments.length === 0 && <p className="text-center text-slate-400 py-10">No hay documentos disponibles. Sube archivos en Configuración.</p>}
                     <div className="grid grid-cols-2 gap-4">
                       {allDocuments.map(doc => (
                         <div key={doc.id} onClick={() => toggleDocSelection(doc)} className={`p-6 rounded-3xl border-2 cursor-pointer flex items-center justify-between transition-all ${selectedDocs.find(d => d.id === doc.id) ? 'border-pine-600 bg-pine-50/50' : 'border-slate-50 bg-white'}`}>
@@ -264,6 +259,7 @@ export default function LeadDetail() {
                                 <li key={doc.id} className="flex items-center gap-3 text-xs text-slate-600 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
                                     <FileText size={14} className="text-blue-400"/>
                                     <span className="font-semibold truncate">{doc.name}</span>
+                                    <span className="text-[10px] text-slate-300 ml-auto select-all">({doc.url})</span>
                                 </li>
                             ))}
                         </ul>
