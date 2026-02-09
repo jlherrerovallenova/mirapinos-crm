@@ -44,21 +44,29 @@ export default function EmailComposerModal({
         return;
     }
 
-    // GESTIÓN DE DOCUMENTOS: Filtramos y generamos los enlaces
+    // --- CAMBIO PRINCIPAL AQUÍ ---
     const docs = allDocs.filter(d => selectedDocIds.includes(d.id));
-    const docLinks = docs.map(d => `• ${d.name}: ${d.url}`).join('\n');
     
-    // CONSTRUCCIÓN DEL MENSAJE COMPLETO
+    // Generamos HTML en lugar de texto plano.
+    // Usamos estilos en línea para asegurar que el enlace se vea azul y bonito en cualquier correo.
+    const docLinks = docs.map(d => 
+        `• <a href="${d.url}" target="_blank" style="color: #2563EB; text-decoration: none; font-weight: bold;">${d.name}</a>`
+    ).join('\n'); // Mantenemos \n porque tu plantilla tiene 'white-space: pre-wrap'
+    
     const fullMessage = `${body}\n\n--------------------------------\nDOCUMENTACIÓN:\n\n${docLinks}\n--------------------------------`;
+    // -----------------------------
+
+    const templateParams = {
+        subject: "DOCUMENTACIÓN FINCA MIRAPINOS",
+        to_name: `${lead.firstName} ${lead.lastName}`,
+        to_email: lead.email,
+        message: fullMessage,
+        message_html: fullMessage,
+        reply_to: 'info@mirapinos.com',
+    };
 
     try {
-      await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
-          subject: "DOCUMENTACIÓN FINCA MIRAPINOS",
-          to_name: `${lead.firstName} ${lead.lastName}`,
-          to_email: lead.email,
-          message: fullMessage, // Esta variable debe coincidir con {{message}} en tu plantilla de EmailJS
-          reply_to: 'info@mirapinos.com',
-      }, PUBLIC_KEY);
+      await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
 
       await supabase.from('events').insert([{
         leadId: lead.id, 
@@ -71,7 +79,7 @@ export default function EmailComposerModal({
       onClose();
     } catch (err: any) {
       console.error("Error EmailJS:", err);
-      const errMsg = err?.text || "Verifica la consola para más detalles.";
+      const errMsg = err?.text || "Verifica la consola.";
       alert(`Error al enviar email: ${errMsg}`);
     } finally {
       setSending(false);
@@ -102,7 +110,7 @@ export default function EmailComposerModal({
            </div>
 
            <div className="bg-blue-50 p-4 rounded-3xl text-blue-700 text-[10px] uppercase font-bold flex items-center gap-2 border border-blue-100">
-             <LinkIcon size={12}/> Se adjuntarán {selectedDocIds.length} enlaces automáticamente al final
+             <LinkIcon size={12}/> Se adjuntarán {selectedDocIds.length} enlaces automáticamente
            </div>
 
            <button 
