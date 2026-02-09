@@ -44,55 +44,25 @@ export default function EmailComposerModal({
         return;
     }
 
-    // Filtramos los documentos seleccionados
     const docs = allDocs.filter(d => selectedDocIds.includes(d.id));
     
-    // 1. Convertir el cuerpo del mensaje (texto plano) a HTML
-    // Reemplazamos los saltos de línea (\n) por <br> para que se vean en el email
-    const formattedBody = body.replace(/\n/g, '<br />');
-
-    // 2. Generar la lista de enlaces en formato HTML
-    // Cada documento será un item de lista con un enlace en el nombre
-    const docLinks = docs.map(d => 
-      `<li style="margin-bottom: 5px;">
-         <a href="${d.url}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">
-           ${d.name}
-         </a>
-       </li>`
-    ).join('');
+    // SOLUCIÓN: Volvemos a Texto Plano para evitar que se vea código HTML.
+    // Usamos un formato limpio: Nombre y luego enlace en la siguiente línea.
+    const docLinks = docs.map(d => `📄 ${d.name}:\n🔗 ${d.url}`).join('\n\n');
     
-    // 3. Construir el mensaje completo en HTML con estilos básicos
-    const fullMessage = `
-      <div style="font-family: sans-serif; font-size: 14px; line-height: 1.6; color: #333;">
-        <div>
-          ${formattedBody}
-        </div>
-        <br />
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-        <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
-          <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 16px; color: #0f172a; text-transform: uppercase;">
-            Documentación Adjunta:
-          </h3>
-          <ul style="margin: 0; padding-left: 20px;">
-            ${docLinks}
-          </ul>
-        </div>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-      </div>
-    `;
+    const fullMessage = `${body}\n\n________________________________\n\nDOCUMENTACIÓN ADJUNTA:\n\n${docLinks}\n\n________________________________`;
 
     const templateParams = {
         subject: "DOCUMENTACIÓN FINCA MIRAPINOS",
         to_name: `${lead.firstName} ${lead.lastName}`,
         to_email: lead.email,
-        message: fullMessage, // Ahora enviamos HTML
+        message: fullMessage, 
         reply_to: 'info@mirapinos.com',
     };
 
     try {
       await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
 
-      // Guardamos el evento en Supabase (aquí guardamos texto plano para el registro interno)
       await supabase.from('events').insert([{
         leadId: lead.id, 
         type: 'Documentación', 
