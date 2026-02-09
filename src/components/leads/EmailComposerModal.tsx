@@ -44,24 +44,22 @@ export default function EmailComposerModal({
         return;
     }
 
-    // --- CAMBIO PRINCIPAL AQUÍ ---
+    // --- PLAN B: TEXTO PLANO LIMPIO ---
     const docs = allDocs.filter(d => selectedDocIds.includes(d.id));
     
-    // Generamos HTML en lugar de texto plano.
-    // Usamos estilos en línea para asegurar que el enlace se vea azul y bonito en cualquier correo.
-    const docLinks = docs.map(d => 
-        `• <a href="${d.url}" target="_blank" style="color: #2563EB; text-decoration: none; font-weight: bold;">${d.name}</a>`
-    ).join('\n'); // Mantenemos \n porque tu plantilla tiene 'white-space: pre-wrap'
+    // Formato: 
+    // • Nombre del Archivo
+    //   https://url...
+    const docLinks = docs.map(d => `• ${d.name}:\n  ${d.url}`).join('\n\n');
     
     const fullMessage = `${body}\n\n--------------------------------\nDOCUMENTACIÓN:\n\n${docLinks}\n--------------------------------`;
-    // -----------------------------
+    // ----------------------------------
 
     const templateParams = {
         subject: "DOCUMENTACIÓN FINCA MIRAPINOS",
         to_name: `${lead.firstName} ${lead.lastName}`,
         to_email: lead.email,
-        message: fullMessage,
-        message_html: fullMessage,
+        message: fullMessage, // Enviamos texto plano
         reply_to: 'info@mirapinos.com',
     };
 
