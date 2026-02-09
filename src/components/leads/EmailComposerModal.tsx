@@ -44,22 +44,21 @@ export default function EmailComposerModal({
         return;
     }
 
-    // --- PLAN B: TEXTO PLANO LIMPIO ---
+    // --- PLAN B: SOLO TEXTO (Sin etiquetas HTML) ---
     const docs = allDocs.filter(d => selectedDocIds.includes(d.id));
     
-    // Formato: 
-    // • Nombre del Archivo
-    //   https://url...
-    const docLinks = docs.map(d => `• ${d.name}:\n  ${d.url}`).join('\n\n');
+    // Genera una lista simple:
+    // • Nombre: URL
+    const docLinks = docs.map(d => `• ${d.name}: ${d.url}`).join('\n');
     
     const fullMessage = `${body}\n\n--------------------------------\nDOCUMENTACIÓN:\n\n${docLinks}\n--------------------------------`;
-    // ----------------------------------
+    // ------------------------------------------------
 
     const templateParams = {
         subject: "DOCUMENTACIÓN FINCA MIRAPINOS",
         to_name: `${lead.firstName} ${lead.lastName}`,
         to_email: lead.email,
-        message: fullMessage, // Enviamos texto plano
+        message: fullMessage, 
         reply_to: 'info@mirapinos.com',
     };
 
