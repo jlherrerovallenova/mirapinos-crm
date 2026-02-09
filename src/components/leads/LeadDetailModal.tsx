@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase'; // CORRECCIÓN: Dos puntos (../../) para subir dos niveles
+import { supabase } from '../../lib/supabase'; // CORRECCIÓN: ../../ para subir dos niveles
 import { StageBadge } from '../Shared';
 import { X, Edit2, Trash2, Save, User, Mail, Phone, Calendar, FileText, Check, MessageCircle, History, Globe } from 'lucide-react';
 
@@ -49,15 +49,13 @@ export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate
   const handleWhatsApp = async () => {
     const docsToSend = availableDocs.filter(d => selectedDocs.includes(d.id));
     
-    // NOTA: WhatsApp no soporta HTML, enviamos enlaces en texto plano
+    // Texto plano para WhatsApp
     const docLinks = docsToSend.map(d => `• ${d.name}: ${d.url}`).join('\n');
     const text = `Hola ${formData.firstName}, aquí tienes la documentación de Finca Mirapinos:\n\n${docLinks}`;
     
-    // Limpieza básica del teléfono
     const cleanPhone = formData.phone?.replace(/\s/g, '') || '';
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
     
-    // Registrar evento
     await supabase.from('events').insert([{
         leadId: lead.id, 
         type: 'Documentación', 
