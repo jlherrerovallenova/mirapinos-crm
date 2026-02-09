@@ -44,33 +44,40 @@ export default function EmailComposerModal({
         return;
     }
 
+    // Filtramos los documentos seleccionados
     const docs = allDocs.filter(d => selectedDocIds.includes(d.id));
     
-    // Convertir saltos de línea del mensaje original a etiquetas <br> para HTML
-    const formattedBody = body.replace(/\n/g, '<br>');
+    // 1. Convertir el cuerpo del mensaje (texto plano) a HTML
+    // Reemplazamos los saltos de línea (\n) por <br> para que se vean en el email
+    const formattedBody = body.replace(/\n/g, '<br />');
 
-    // Generar lista HTML de documentos con enlaces clickeables
+    // 2. Generar la lista de enlaces en formato HTML
+    // Cada documento será un item de lista con un enlace en el nombre
     const docLinks = docs.map(d => 
-      `<li style="margin-bottom: 8px;">
-         <a href="${d.url}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+      `<li style="margin-bottom: 5px;">
+         <a href="${d.url}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">
            ${d.name}
          </a>
        </li>`
     ).join('');
     
-    // Construir el mensaje completo en HTML con estilos básicos para compatibilidad
+    // 3. Construir el mensaje completo en HTML con estilos básicos
     const fullMessage = `
-      <div style="font-family: sans-serif; font-size: 15px; line-height: 1.6; color: #334155;">
-        <div>${formattedBody}</div>
-        <br>
-        <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 10px;">
-          <h3 style="margin-top: 0; margin-bottom: 15px; color: #0f172a; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;">
+      <div style="font-family: sans-serif; font-size: 14px; line-height: 1.6; color: #333;">
+        <div>
+          ${formattedBody}
+        </div>
+        <br />
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+        <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 16px; color: #0f172a; text-transform: uppercase;">
             Documentación Adjunta:
           </h3>
-          <ul style="padding-left: 20px; margin: 0;">
+          <ul style="margin: 0; padding-left: 20px;">
             ${docLinks}
           </ul>
         </div>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
       </div>
     `;
 
@@ -78,13 +85,14 @@ export default function EmailComposerModal({
         subject: "DOCUMENTACIÓN FINCA MIRAPINOS",
         to_name: `${lead.firstName} ${lead.lastName}`,
         to_email: lead.email,
-        message: fullMessage, 
+        message: fullMessage, // Ahora enviamos HTML
         reply_to: 'info@mirapinos.com',
     };
 
     try {
       await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
 
+      // Guardamos el evento en Supabase (aquí guardamos texto plano para el registro interno)
       await supabase.from('events').insert([{
         leadId: lead.id, 
         type: 'Documentación', 
