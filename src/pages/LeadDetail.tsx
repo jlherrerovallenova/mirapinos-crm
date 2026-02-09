@@ -1,4 +1,3 @@
-// src/pages/LeadDetail.tsx
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -16,23 +15,19 @@ export default function LeadDetail() {
   const [selectedDocs, setSelectedDocs] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'agenda' | 'docs'>('agenda');
   
-  // Estados para Modales
   const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
-  // Estado del Formulario de Email
   const [emailData, setEmailData] = useState({
-    subject: 'FINCA MIRAPINOS', // Asunto fijo
+    subject: 'FINCA MIRAPINOS', 
     body: ''
   });
 
   const loadData = async () => {
     if(!id) return;
     const { data: l } = await supabase.from('leads').select('*').eq('id', id).single();
-    // Eventos ordenados por fecha
     const { data: e } = await supabase.from('events').select('*').eq('leadId', id).order('date', { ascending: false });
-    // CORRECCIÓN 1: Ordenamos documentos por ID descendente (nuevos arriba) para que coincidan con lo recién subido
     const { data: d } = await supabase.from('documents').select('*').order('id', { ascending: false });
     
     if (l) setLead(l);
@@ -57,16 +52,19 @@ export default function LeadDetail() {
   };
 
   const handleSendWhatsApp = async () => {
-    const docLinks = selectedDocs.map(d => `${d.name}: ${d.url}`).join('\n');
+    if (selectedDocs.length === 0) return alert("Selecciona al menos un documento.");
+    
+    // WhatsApp NO soporta HTML, así que aquí mantenemos texto plano
+    const docLinks = selectedDocs.map(d => `• ${d.name}: ${d.url}`).join('\n');
     const message = `Hola ${lead.firstName}, desde Finca Mirapinos te adjuntamos la documentación solicitada:\n\n${docLinks}`;
     window.open(`https://wa.me/${lead.phone.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+    
     await logActivity('WhatsApp', selectedDocs.map(d => d.name).join(', '));
     setIsChannelModalOpen(false);
     setSelectedDocs([]);
   };
 
   const openEmailComposer = () => {
-    // Seteamos el cuerpo inicial sin enlaces (los enlaces se añaden visualmente y al enviar)
     setEmailData({
       subject: 'FINCA MIRAPINOS',
       body: `Hola ${lead.firstName},\n\nTal como acordamos, te envío adjunta la documentación sobre Finca Mirapinos.\n\nCualquier duda quedo a tu disposición.\n\nSaludos cordiales.`
@@ -77,39 +75,42 @@ export default function LeadDetail() {
 
   const handleFinalEmailSend = async () => {
     if (!lead.email) return alert("El cliente no tiene email configurado.");
+    if (selectedDocs.length === 0) return alert("No hay documentos seleccionados.");
     
     setIsSending(true);
 
-    // CORRECCIÓN 2: Construcción robusta del mensaje.
-    // Concatenamos el cuerpo escrito por el usuario + la lista de enlaces de forma obligatoria.
-    const linksList = selectedDocs.map(d => `• ${d.name}: ${d.url}`).join('\n');
+    // --- CAMBIO AQUÍ PARA EMAIL ---
+    const linksList = selectedDocs.map(d => 
+        `• <a href="${d.url}" target="_blank" style="color: #2563EB; text-decoration: none; font-weight: bold;">${d.name}</a>`
+    ).join('\n');
+    
     const fullMessage = `${emailData.body}\n\n--------------------------------\nDOCUMENTACIÓN ADJUNTA:\n\n${linksList}\n--------------------------------`;
+    // ------------------------------
 
+    const SERVICE_ID = "service_w8zzkn8";
+    const TEMPLATE_ID = "template_t3fn5js";
+    const PUBLIC_KEY = "UsY6LDpIJtiB91VMI";
+
+    const templateParams = {
+        subject: emailData.subject, 
+        message: fullMessage,
+        message_html: fullMessage,
+        to_email: lead.email,
+        to_name: `${lead.firstName} ${lead.lastName}`,
+        reply_to: 'info@mirapinos.com'
+    };
+    
     try {
-      const SERVICE_ID = "service_w8zzkn8";
-      const TEMPLATE_ID = "template_t3fn5js";
-      const PUBLIC_KEY = "UsY6LDpIJtiB91VMI";
-
-      await emailjs.send(
-        SERVICE_ID,
-        TEMPLATE_ID,
-        {
-          subject: emailData.subject, // Siempre enviará "FINCA MIRAPINOS"
-          message: fullMessage,       // Mensaje combinado
-          to_email: lead.email,
-          to_name: `${lead.firstName} ${lead.lastName}`,
-        },
-        PUBLIC_KEY
-      );
+      await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
 
       await logActivity('Email App', selectedDocs.map(d => d.name).join(', '));
       alert('¡Email enviado con éxito!');
       setIsEmailComposerOpen(false);
       setSelectedDocs([]);
       setActiveTab('agenda');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error EmailJS:", error);
-      alert('Error al enviar el email. Verifica la configuración de EmailJS.');
+      alert(`Error al enviar el email: ${error?.text || 'Revisa la consola'}`);
     } finally {
       setIsSending(false);
     }
@@ -169,7 +170,7 @@ export default function LeadDetail() {
                         Enviar Documentos
                       </button>
                     </div>
-                    {allDocuments.length === 0 && <p className="text-center text-slate-400 py-10">No hay documentos disponibles. Sube archivos en Configuración.</p>}
+                    {allDocuments.length === 0 && <p className="text-center text-slate-400 py-10">No hay documentos disponibles.</p>}
                     <div className="grid grid-cols-2 gap-4">
                       {allDocuments.map(doc => (
                         <div key={doc.id} onClick={() => toggleDocSelection(doc)} className={`p-6 rounded-3xl border-2 cursor-pointer flex items-center justify-between transition-all ${selectedDocs.find(d => d.id === doc.id) ? 'border-pine-600 bg-pine-50/50' : 'border-slate-50 bg-white'}`}>
@@ -251,7 +252,7 @@ export default function LeadDetail() {
                   />
                 </div>
                 
-                {/* Bloque Visual de Adjuntos (No editable por el usuario, se genera auto) */}
+                {/* Bloque Visual de Adjuntos */}
                 <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Documentación a adjuntar automáticamente</label>
                     <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100">
@@ -263,7 +264,6 @@ export default function LeadDetail() {
                                 <li key={doc.id} className="flex items-center gap-3 text-xs text-slate-600 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
                                     <FileText size={14} className="text-blue-400"/>
                                     <span className="font-semibold truncate">{doc.name}</span>
-                                    <span className="text-[10px] text-slate-300 ml-auto select-all">({doc.url})</span>
                                 </li>
                             ))}
                         </ul>
