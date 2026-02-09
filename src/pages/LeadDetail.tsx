@@ -54,7 +54,7 @@ export default function LeadDetail() {
   const handleSendWhatsApp = async () => {
     if (selectedDocs.length === 0) return alert("Selecciona al menos un documento.");
     
-    const docLinks = selectedDocs.map(d => `• ${d.name}:\n  ${d.url}`).join('\n\n');
+    const docLinks = selectedDocs.map(d => `• ${d.name}: ${d.url}`).join('\n');
     const message = `Hola ${lead.firstName}, desde Finca Mirapinos te adjuntamos la documentación solicitada:\n\n${docLinks}`;
     window.open(`https://wa.me/${lead.phone.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
     
@@ -78,10 +78,10 @@ export default function LeadDetail() {
     
     setIsSending(true);
 
-    // --- PLAN B: TEXTO PLANO ---
-    const linksList = selectedDocs.map(d => `• ${d.name}:\n  ${d.url}`).join('\n\n');
+    // --- PLAN B: SOLO TEXTO (Sin etiquetas HTML) ---
+    const linksList = selectedDocs.map(d => `• ${d.name}: ${d.url}`).join('\n');
     const fullMessage = `${emailData.body}\n\n--------------------------------\nDOCUMENTACIÓN ADJUNTA:\n\n${linksList}\n--------------------------------`;
-    // ---------------------------
+    // ------------------------------------------------
 
     const SERVICE_ID = "service_w8zzkn8";
     const TEMPLATE_ID = "template_t3fn5js";
@@ -259,7 +259,6 @@ export default function LeadDetail() {
                                 <li key={doc.id} className="flex items-center gap-3 text-xs text-slate-600 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
                                     <FileText size={14} className="text-blue-400"/>
                                     <span className="font-semibold truncate">{doc.name}</span>
-                                    <span className="text-[10px] text-slate-300 ml-auto select-all">({doc.url})</span>
                                 </li>
                             ))}
                         </ul>
