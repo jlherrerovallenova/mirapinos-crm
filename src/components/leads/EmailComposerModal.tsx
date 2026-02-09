@@ -44,15 +44,35 @@ export default function EmailComposerModal({
         return;
     }
 
-    // --- PLAN B: SOLO TEXTO (Sin etiquetas HTML) ---
     const docs = allDocs.filter(d => selectedDocIds.includes(d.id));
     
-    // Genera una lista simple:
-    // • Nombre: URL
-    const docLinks = docs.map(d => `• ${d.name}: ${d.url}`).join('\n');
+    // Convertir saltos de línea del mensaje original a etiquetas <br> para HTML
+    const formattedBody = body.replace(/\n/g, '<br>');
+
+    // Generar lista HTML de documentos con enlaces clickeables
+    const docLinks = docs.map(d => 
+      `<li style="margin-bottom: 8px;">
+         <a href="${d.url}" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+           ${d.name}
+         </a>
+       </li>`
+    ).join('');
     
-    const fullMessage = `${body}\n\n--------------------------------\nDOCUMENTACIÓN:\n\n${docLinks}\n--------------------------------`;
-    // ------------------------------------------------
+    // Construir el mensaje completo en HTML con estilos básicos para compatibilidad
+    const fullMessage = `
+      <div style="font-family: sans-serif; font-size: 15px; line-height: 1.6; color: #334155;">
+        <div>${formattedBody}</div>
+        <br>
+        <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 10px;">
+          <h3 style="margin-top: 0; margin-bottom: 15px; color: #0f172a; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;">
+            Documentación Adjunta:
+          </h3>
+          <ul style="padding-left: 20px; margin: 0;">
+            ${docLinks}
+          </ul>
+        </div>
+      </div>
+    `;
 
     const templateParams = {
         subject: "DOCUMENTACIÓN FINCA MIRAPINOS",
