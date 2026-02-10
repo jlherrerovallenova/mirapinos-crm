@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { StatCard } from '../components/Shared';
+import CreateAppointmentModal from '../components/CreateAppointmentModal'; // <--- IMPORTANTE
 import { 
   ArrowUpRight, 
   Calendar, 
@@ -10,14 +11,15 @@ import {
   MoreHorizontal,
   MapPin,
   Clock,
-  Loader2
+  Loader2,
+  Plus // <--- Nuevo icono
 } from 'lucide-react';
 
 // Definición de tipos para la cita
 interface Appointment {
   id: string;
   title: string;
-  date: string; // ISO string from Supabase
+  date: string; // ISO string
   location: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
 }
@@ -28,8 +30,11 @@ export default function Dashboard() {
   // Estados para datos dinámicos
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(true);
+  
+  // Estado del Modal
+  const [isModalOpen, setIsModalOpen] = useState(false); // <--- Estado del modal
 
-  // Cargar datos al montar el componente
+  // Cargar datos al montar
   useEffect(() => {
     fetchAppointments();
   }, []);
@@ -38,7 +43,6 @@ export default function Dashboard() {
     try {
       setLoadingAppointments(true);
       
-      // Obtenemos citas desde hoy en adelante
       const todayISO = new Date().toISOString();
 
       const { data, error } = await supabase
@@ -46,7 +50,7 @@ export default function Dashboard() {
         .select('*')
         .gte('date', todayISO) // Solo citas futuras o de hoy
         .order('date', { ascending: true }) // Las más próximas primero
-        .limit(5); // Limitamos a 5 para el dashboard
+        .limit(5);
 
       if (error) throw error;
 
@@ -106,7 +110,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Gráfico Principal - Caja Blanca Definida */}
+        {/* Gráfico Principal */}
         <div className="lg:col-span-2 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <div>
@@ -119,7 +123,6 @@ export default function Dashboard() {
             </select>
           </div>
           <div className="p-6 flex-1 min-h-[300px]">
-            {/* Placeholder del Gráfico */}
             <div className="h-full bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center text-slate-400">
               <TrendingUp size={48} className="mb-2 opacity-20" />
               <span className="font-medium text-sm">Área del Gráfico de Rendimiento</span>
@@ -132,14 +135,24 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Lista Lateral - Agenda / Próximas Citas */}
+        {/* Lista Lateral - Agenda */}
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
           <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
             <div>
               <h3 className="font-bold text-slate-800">Próximas Citas</h3>
               <p className="text-xs text-slate-500">Agenda de visitas y reuniones</p>
             </div>
-            <button className="text-slate-400 hover:text-slate-600"><MoreHorizontal size={18}/></button>
+            <div className="flex gap-2">
+                {/* BOTÓN NUEVA CITA */}
+                <button 
+                    onClick={() => setIsModalOpen(true)}
+                    className="p-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-md transition-colors"
+                    title="Nueva Cita"
+                >
+                    <Plus size={18}/>
+                </button>
+                <button className="text-slate-400 hover:text-slate-600"><MoreHorizontal size={18}/></button>
+            </div>
           </div>
           
           <div className="flex-1 overflow-auto divide-y divide-slate-50">
@@ -150,19 +163,23 @@ export default function Dashboard() {
             ) : appointments.length === 0 ? (
               <div className="p-8 text-center text-slate-400 text-sm">
                 No hay citas programadas próximamente.
+                <button 
+                  onClick={() => setIsModalOpen(true)}
+                  className="block mx-auto mt-2 text-emerald-600 hover:underline font-medium"
+                >
+                  Crear la primera
+                </button>
               </div>
             ) : (
               appointments.map((apt) => {
                 const { day, month, time } = formatDate(apt.date);
                 return (
                   <div key={apt.id} className="p-4 hover:bg-slate-50 transition-colors flex items-start gap-3 group cursor-pointer" onClick={() => navigate('/pipeline')}>
-                    {/* Fecha Badge */}
                     <div className="bg-emerald-50 text-emerald-700 w-12 h-12 rounded-lg border border-emerald-100 flex flex-col items-center justify-center shrink-0">
                       <span className="text-[10px] uppercase font-bold text-emerald-600/70">{month}</span>
                       <span className="text-lg font-bold leading-none">{day}</span>
                     </div>
                     
-                    {/* Detalles */}
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-slate-800 text-sm truncate">{apt.title}</p>
                       <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
@@ -181,8 +198,6 @@ export default function Dashboard() {
                         )}
                       </div>
                     </div>
-
-                    {/* Acción */}
                     <button className="self-center text-slate-300 group-hover:text-emerald-600 transition-colors">
                       <ArrowUpRight size={16} />
                     </button>
@@ -202,6 +217,16 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* MODAL DE CREACIÓN */}
+      <CreateAppointmentModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => {
+            fetchAppointments(); // Recargar lista tras crear
+        }}
+      />
+
     </div>
   );
 }
