@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase'; // CORRECCIÓN: ../../ para subir dos niveles
+import { supabase } from '../../lib/supabase';
 import { StageBadge } from '../Shared';
-import { X, Edit2, Trash2, Save, User, Mail, Phone, Calendar, FileText, Check, MessageCircle, History, Globe } from 'lucide-react';
+import { 
+  X, Edit2, Trash2, Save, User, Mail, Phone, Calendar, 
+  FileText, Check, MessageCircle, History, Globe, File, Download
+} from 'lucide-react';
 
 interface LeadDetailModalProps {
   lead: any;
@@ -17,7 +20,6 @@ export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate
   const [formData, setFormData] = useState<any>(lead);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
 
-  // Sincronizar estado cuando cambia el lead
   useEffect(() => {
     setFormData(lead);
     setSelectedDocs([]);
@@ -48,143 +50,212 @@ export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate
 
   const handleWhatsApp = async () => {
     const docsToSend = availableDocs.filter(d => selectedDocs.includes(d.id));
-    
-    // Texto plano para WhatsApp
     const docLinks = docsToSend.map(d => `• ${d.name}: ${d.url}`).join('\n');
-    const text = `Hola ${formData.firstName}, aquí tienes la documentación de Finca Mirapinos:\n\n${docLinks}`;
-    
+    const text = `Hola ${formData.firstName}, aquí tienes la documentación:\n\n${docLinks}`;
     const cleanPhone = formData.phone?.replace(/\s/g, '') || '';
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
-    
-    await supabase.from('events').insert([{
-        leadId: lead.id, 
-        type: 'Documentación', 
-        description: `Envío vía WhatsApp: ${docsToSend.map(d=>d.name).join(', ')}`, 
-        date: new Date().toISOString()
-    }]);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-pine-900/60 backdrop-blur-md" onClick={onClose}></div>
-      <div className="relative bg-white w-full max-w-5xl max-h-[92vh] rounded-[48px] shadow-2xl overflow-y-auto animate-in zoom-in-95 duration-300 border border-white/20">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all">
+      <div className="bg-slate-50 w-full max-w-4xl max-h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
         
-        {/* HEADER CON EDICIÓN/VISUALIZACIÓN */}
-        <div className="bg-pine-900 p-8 md:p-12 text-white flex flex-col md:flex-row justify-between items-start sticky top-0 z-10 shadow-lg">
-          <div className="flex-1 w-full">
+        {/* HEADER */}
+        <div className="bg-white px-8 py-5 border-b border-slate-200 flex justify-between items-start shrink-0">
+          <div className="flex-1">
             {isEditing ? (
-              <div className="space-y-4 w-full md:w-2/3">
-                <div className="grid grid-cols-2 gap-4">
-                   <input className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 text-xl font-bold outline-none focus:bg-white/20 w-full placeholder-white/30 text-white" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} placeholder="Nombre" />
-                   <input className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3 text-xl font-bold outline-none focus:bg-white/20 w-full placeholder-white/30 text-white" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} placeholder="Apellidos" />
-                </div>
-                <div className="flex gap-4">
-                  <select className="bg-pine-800 border border-white/20 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-white" value={formData.stage} onChange={e => setFormData({...formData, stage: e.target.value})}>
-                    {['Prospecto', 'Visitando', 'Interés', 'Cierre'].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  <select className="bg-pine-800 border border-white/20 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-white" value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})}>
-                    {['Web', 'Instagram', 'Telefónico', 'Referido', 'Portal Inmobiliario', 'Idealista'].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
+              <div className="space-y-3 max-w-md">
+                 <div className="grid grid-cols-2 gap-3">
+                   <input className="input-std font-bold text-lg" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} placeholder="Nombre" />
+                   <input className="input-std font-bold text-lg" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} placeholder="Apellidos" />
+                 </div>
               </div>
             ) : (
-              <>
-                <h2 className="text-4xl md:text-5xl font-poppins font-bold tracking-tighter mb-2">{formData.firstName} {formData.lastName}</h2>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">{formData.firstName} {formData.lastName}</h2>
                 <div className="flex items-center gap-3 mt-2">
                   <StageBadge stage={formData.stage} />
-                  <span className="text-pine-300 text-sm font-medium flex items-center gap-1"><Globe size={14} /> {formData.source}</span>
+                  <span className="text-slate-400 text-xs flex items-center gap-1 font-medium bg-slate-100 px-2 py-1 rounded">
+                    <Globe size={12} /> {formData.source}
+                  </span>
                 </div>
-              </>
+              </div>
             )}
           </div>
-          <div className="flex gap-3 mt-6 md:mt-0 self-end md:self-start">
+          
+          <div className="flex items-center gap-2">
             {isEditing ? (
-              <button onClick={handleSave} className="p-4 bg-emerald-500 hover:bg-emerald-600 rounded-2xl text-white transition-all shadow-lg hover:shadow-emerald-500/30"><Save size={24} /></button>
+              <button onClick={handleSave} className="btn-icon bg-emerald-600 text-white hover:bg-emerald-700"><Save size={18} /></button>
             ) : (
-              <button onClick={() => setIsEditing(true)} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl border border-white/10 text-white transition-all"><Edit2 size={24} /></button>
+              <button onClick={() => setIsEditing(true)} className="btn-icon text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"><Edit2 size={18} /></button>
             )}
-            <button onClick={onDelete} className="p-4 bg-rose-500/20 hover:bg-rose-500 text-white rounded-2xl border border-rose-500/20 transition-all"><Trash2 size={24} /></button>
-            <button onClick={onClose} className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all"><X size={24} /></button>
+            <button onClick={onDelete} className="btn-icon text-slate-400 hover:text-rose-600 hover:bg-rose-50"><Trash2 size={18} /></button>
+            <div className="w-px h-6 bg-slate-200 mx-1"></div>
+            <button onClick={onClose} className="btn-icon text-slate-400 hover:text-slate-600"><X size={20} /></button>
           </div>
         </div>
 
-        {/* CUERPO PRINCIPAL */}
-        <div className="p-8 md:p-12 grid grid-cols-1 lg:grid-cols-12 gap-12 bg-white">
-          <div className="lg:col-span-7 space-y-12">
+        {/* BODY CON SCROLL */}
+        <div className="flex-1 overflow-y-auto p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* COLUMNA IZQUIERDA: DATOS */}
+          <div className="lg:col-span-7 space-y-6">
             
-            {/* SECCIÓN 1: INFO CONTACTO */}
-            <section className="space-y-6">
-              <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2 px-2"><User size={14} /> Información de Contacto</h3>
-              <div className="bg-slate-50/50 border border-pine-50 p-8 rounded-[32px] grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-1">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Email</p>
-                   {isEditing ? <input className="w-full p-3 bg-white rounded-xl border border-pine-100 outline-none focus:border-pine-400" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /> : 
-                   <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.open(`mailto:${formData.email}`)}>
-                      <Mail size={16} className="text-pine-400 group-hover:text-pine-600" />
-                      <p className="font-bold text-slate-700 truncate group-hover:text-pine-900 transition-colors">{formData.email}</p>
-                   </div>}
+            {/* Tarjeta de Contacto */}
+            <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <User size={14} /> Información Personal
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <InfoItem icon={<Mail size={16}/>} label="Email" value={formData.email} isEditing={isEditing} 
+                   onChange={(val) => setFormData({...formData, email: val})} />
+                
+                <InfoItem icon={<Phone size={16}/>} label="Teléfono" value={formData.phone} isEditing={isEditing} 
+                   onChange={(val) => setFormData({...formData, phone: val})} />
+                
+                <div className="col-span-2 md:col-span-1">
+                   <p className="text-[10px] text-slate-400 uppercase font-bold mb-1 ml-1">Estado</p>
+                   {isEditing ? (
+                     <select className="input-std text-sm w-full" value={formData.stage} onChange={e => setFormData({...formData, stage: e.target.value})}>
+                       {['Prospecto', 'Visitando', 'Interés', 'Cierre'].map(s => <option key={s} value={s}>{s}</option>)}
+                     </select>
+                   ) : (
+                     <div className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700">
+                        {formData.stage}
+                     </div>
+                   )}
                 </div>
-                <div className="space-y-1">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Teléfono</p>
-                   {isEditing ? <input className="w-full p-3 bg-white rounded-xl border border-pine-100 outline-none focus:border-pine-400" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /> : 
-                   <div className="flex items-center gap-2">
-                      <Phone size={16} className="text-pine-400" />
-                      <p className="font-bold text-slate-700">{formData.phone}</p>
-                   </div>}
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Fecha Registro</p>
-                  <div className="flex items-center gap-2">
-                    <Calendar size={16} className="text-pine-400" />
-                    <p className="font-bold text-slate-700">{formData.createdAt ? new Date(formData.createdAt).toLocaleDateString() : 'N/A'}</p>
-                  </div>
+
+                <div className="col-span-2 md:col-span-1">
+                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-1 ml-1">Registrado</p>
+                    <div className="flex items-center gap-2 p-2 text-sm text-slate-600">
+                        <Calendar size={16} className="text-slate-400"/>
+                        {new Date(formData.createdAt).toLocaleDateString()}
+                    </div>
                 </div>
               </div>
-            </section>
+            </div>
 
-            {/* SECCIÓN 2: DOCUMENTOS */}
-            <section className="space-y-6">
-               <div className="flex justify-between items-end px-2">
-                  <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2"><FileText size={14} /> Envío de Documentación</h3>
-                  {selectedDocs.length > 0 && <span className="text-[10px] font-black text-white bg-pine-600 px-3 py-1 rounded-full animate-in fade-in zoom-in">{selectedDocs.length} seleccionados</span>}
+            {/* Sección Documentos */}
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+               <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                    <FileText size={14} /> Documentación
+                  </h3>
+                  {selectedDocs.length > 0 && <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">{selectedDocs.length} seleccionados</span>}
                </div>
-               <div className="grid grid-cols-1 gap-3">
+               
+               <div className="divide-y divide-slate-50 max-h-60 overflow-y-auto">
                   {availableDocs.length === 0 ? (
-                    <p className="text-xs text-slate-400 italic p-4">No hay documentos disponibles. Súbelos desde Ajustes.</p>
+                    <p className="text-sm text-slate-400 italic p-6 text-center">No hay documentos cargados en el sistema.</p>
                   ) : (
                     availableDocs.map(doc => (
-                      <div key={doc.id} onClick={() => toggleDoc(doc.id)} className={`flex items-center justify-between p-5 rounded-3xl border transition-all cursor-pointer select-none ${selectedDocs.includes(doc.id) ? 'bg-pine-900 border-pine-900 text-white shadow-lg' : 'bg-white border-pine-100 text-slate-600 hover:bg-slate-50'}`}>
-                        <div className="flex items-center gap-4">
-                          <div className={`p-3 rounded-2xl ${selectedDocs.includes(doc.id) ? 'bg-white/10' : 'bg-pine-50 text-pine-600'}`}><FileText size={20} /></div>
-                          <span className="font-bold text-sm">{doc.name}</span>
+                      <div 
+                        key={doc.id} 
+                        onClick={() => toggleDoc(doc.id)} 
+                        className={`flex items-center justify-between px-6 py-3 cursor-pointer transition-colors hover:bg-slate-50 ${selectedDocs.includes(doc.id) ? 'bg-emerald-50/30' : ''}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${selectedDocs.includes(doc.id) ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                             <File size={16} />
+                          </div>
+                          <span className={`text-sm font-medium ${selectedDocs.includes(doc.id) ? 'text-emerald-900' : 'text-slate-600'}`}>{doc.name}</span>
                         </div>
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${selectedDocs.includes(doc.id) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200'}`}>
-                          {selectedDocs.includes(doc.id) && <Check size={14} strokeWidth={4} />}
-                        </div>
+                        {selectedDocs.includes(doc.id) && <Check size={16} className="text-emerald-600" />}
                       </div>
                     ))
                   )}
                </div>
-               <div className="grid grid-cols-2 gap-4 pt-4">
-                  <button onClick={handleWhatsApp} disabled={selectedDocs.length === 0} className="flex items-center justify-center gap-3 py-5 bg-emerald-500 text-white rounded-[24px] font-black text-xs uppercase hover:bg-emerald-600 disabled:opacity-30 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"><MessageCircle size={18} /> WhatsApp</button>
-                  <button onClick={() => onOpenEmail(selectedDocs)} disabled={selectedDocs.length === 0} className="flex items-center justify-center gap-3 py-5 bg-pine-900 text-white rounded-[24px] font-black text-xs uppercase hover:bg-black disabled:opacity-30 transition-all active:scale-95 shadow-lg shadow-pine-900/20"><Mail size={18} /> Enviar Email</button>
-               </div>
-            </section>
+            </div>
           </div>
           
-          {/* SECCIÓN 3: HISTORIAL */}
-          <div className="lg:col-span-5 space-y-8">
-             <h3 className="text-xs font-black text-pine-900/30 uppercase tracking-[0.3em] flex items-center gap-2 px-2"><History size={14} /> Historial</h3>
-             <div className="relative pl-8 space-y-10 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
-                <div className="relative group">
-                  <div className="absolute -left-[29px] top-1 w-5 h-5 rounded-full bg-white border-4 border-pine-600 shadow-sm z-10"></div>
-                  <p className="text-[10px] font-black text-pine-600 uppercase tracking-widest mb-1">Sesión Actual</p>
-                  <p className="text-sm text-slate-700 font-bold leading-relaxed tracking-tight">Ficha de cliente activa en pantalla.</p>
+          {/* COLUMNA DERECHA: ACCIONES RÁPIDAS */}
+          <div className="lg:col-span-5 space-y-6">
+             <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Acciones Rápidas</h3>
+                <div className="space-y-3">
+                   <button 
+                      onClick={handleWhatsApp} 
+                      disabled={selectedDocs.length === 0} 
+                      className="w-full py-3 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-lg font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                      <MessageCircle size={18} /> Enviar por WhatsApp
+                   </button>
+                   <button 
+                      onClick={() => onOpenEmail(selectedDocs)} 
+                      disabled={selectedDocs.length === 0} 
+                      className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                      <Mail size={18} /> Enviar por Email
+                   </button>
+                   <p className="text-[10px] text-center text-slate-400 mt-2">
+                     Selecciona documentos de la izquierda para activar el envío.
+                   </p>
+                </div>
+             </div>
+
+             <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm h-64 overflow-hidden flex flex-col">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2"><History size={14}/> Actividad</h3>
+                <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                   {/* Placeholder de actividad */}
+                   <div className="flex gap-3">
+                      <div className="mt-1 w-2 h-2 rounded-full bg-emerald-500 shrink-0"></div>
+                      <div>
+                         <p className="text-xs font-bold text-slate-700">Ficha visualizada</p>
+                         <p className="text-[10px] text-slate-400">Hace un momento</p>
+                      </div>
+                   </div>
+                   <div className="flex gap-3 opacity-60">
+                      <div className="mt-1 w-2 h-2 rounded-full bg-slate-300 shrink-0"></div>
+                      <div>
+                         <p className="text-xs font-bold text-slate-700">Lead creado</p>
+                         <p className="text-[10px] text-slate-400">{new Date(formData.createdAt).toLocaleDateString()}</p>
+                      </div>
+                   </div>
                 </div>
              </div>
           </div>
         </div>
       </div>
+      
+      {/* Estilos locales para inputs */}
+      <style>{`
+        .input-std {
+          width: 100%;
+          padding: 0.5rem 0.75rem;
+          border-radius: 0.5rem;
+          border: 1px solid #e2e8f0;
+          outline: none;
+          transition: all 0.2s;
+        }
+        .input-std:focus {
+          border-color: #10b981;
+          box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+        }
+        .btn-icon {
+          padding: 0.5rem;
+          border-radius: 0.5rem;
+          transition: all 0.2s;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// Subcomponente auxiliar
+function InfoItem({ icon, label, value, isEditing, onChange }: any) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[10px] text-slate-400 uppercase font-bold ml-1">{label}</p>
+      {isEditing ? (
+        <input className="input-std text-sm" value={value} onChange={e => onChange(e.target.value)} />
+      ) : (
+        <div className="flex items-center gap-2 p-2">
+          <div className="text-slate-400">{icon}</div>
+          <p className="text-sm font-medium text-slate-700 truncate">{value || '-'}</p>
+        </div>
+      )}
     </div>
   );
 }
