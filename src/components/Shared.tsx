@@ -1,51 +1,62 @@
-// src/components/Shared.tsx
 import React from 'react';
 import { CheckCircle2, AlertCircle, X, Info } from 'lucide-react';
 
-// --- Componentes Existentes ---
+// 1. Tarjeta de Estadísticas (Nuevo Diseño "Boxed")
+export function StatCard({ title, value, subtext, icon, type = 'neutral' }: any) {
+  // Mapeo de colores para la barra inferior
+  const colors = {
+    primary: 'bg-blue-500',
+    warning: 'bg-amber-500',
+    success: 'bg-emerald-500',
+    neutral: 'bg-slate-400',
+    error: 'bg-rose-500'
+  };
+  
+  const activeColor = colors[type as keyof typeof colors] || colors.neutral;
 
-export function StatCard({ title, value, subtext, total, color }: any) {
   return (
-    <div className="bg-white p-8 rounded-4xl shadow-sm border border-pine-100 hover:shadow-xl hover:shadow-pine-900/5 transition-all duration-500 group overflow-hidden relative">
-      <div className="absolute -right-4 -top-4 w-24 h-24 bg-pine-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
-      
-      <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4 border-l-4 border-pine-600 pl-4 transition-all group-hover:pl-6">
-        {title}
-      </p>
-      
-      <div className="flex items-baseline gap-2 relative z-10">
-        <span className={`text-5xl font-poppins font-bold tracking-tighter ${color || 'text-pine-900'}`}>
-          {value}
-        </span>
-        {total && <span className="text-lg text-slate-300 font-bold">/ {total}</span>}
-      </div>
-      
-      {subtext && (
-        <div className="mt-4 flex items-center gap-2">
-          <span className="w-2 h-2 bg-pine-600 rounded-full animate-pulse"></span>
-          <p className="text-xs text-pine-600 font-bold uppercase tracking-tighter">{subtext}</p>
+    <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group hover:border-slate-300 transition-all">
+      <div className="flex justify-between items-start z-10">
+        <div>
+          <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
+          <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{value}</h3>
         </div>
-      )}
+        <div className="text-slate-400 group-hover:text-slate-600 transition-colors">
+            {icon}
+        </div>
+      </div>
+      <div className="mt-auto z-10">
+        <p className="text-xs font-medium text-slate-400 truncate">
+          {subtext}
+        </p>
+      </div>
+      {/* Barra de color decorativa */}
+      <div className={`absolute bottom-0 left-0 w-full h-1 ${activeColor}`}></div>
     </div>
   );
 }
 
+// 2. Badge de Estado (Actualizado para High Contrast)
 export function StageBadge({ stage }: { stage: string }) {
-  const colors: any = {
-     'Prospecto': 'bg-slate-100 text-slate-500',
-     'Visitando': 'bg-emerald-50 text-emerald-600 border border-emerald-100',
-     'Interés': 'bg-amber-50 text-amber-600 border border-amber-100',
-     'Cierre': 'bg-pine-900 text-white shadow-md shadow-pine-900/20'
+  const styles: any = {
+     'Prospecto': 'bg-slate-100 text-slate-600 border-slate-200',
+     'Visitando': 'bg-blue-50 text-blue-700 border-blue-200',
+     'Interés': 'bg-amber-50 text-amber-700 border-amber-200',
+     'Cierre': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+     // Fallback
+     'default': 'bg-slate-50 text-slate-600 border-slate-200'
   };
+
+  const activeStyle = styles[stage] || styles.default;
+
   return (
-     <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${colors[stage] || 'bg-gray-100'}`}>
+     <span className={`px-2.5 py-1 rounded border text-[10px] font-bold uppercase tracking-wide ${activeStyle}`}>
         {stage}
      </span>
   );
 }
 
-// --- Nuevo Componente de Notificación ---
-
+// 3. Notificaciones (Actualizado estilo sólido)
 interface AppNotificationProps {
   title: string;
   message: string;
@@ -69,24 +80,9 @@ export const AppNotification: React.FC<AppNotificationProps> = ({
   }, [duration, onClose]);
 
   const themes = {
-    success: {
-      icon: <CheckCircle2 className="text-emerald-500" size={24} />,
-      bg: 'bg-emerald-50/90',
-      border: 'border-emerald-100',
-      accent: 'bg-emerald-500',
-    },
-    error: {
-      icon: <AlertCircle className="text-rose-500" size={24} />,
-      bg: 'bg-rose-50/90',
-      border: 'border-rose-100',
-      accent: 'bg-rose-500',
-    },
-    info: {
-      icon: <Info className="text-pine-500" size={24} />,
-      bg: 'bg-white/95',
-      border: 'border-pine-100',
-      accent: 'bg-pine-500',
-    },
+    success: { icon: <CheckCircle2 size={20} />, style: 'bg-emerald-600 text-white' },
+    error: { icon: <AlertCircle size={20} />, style: 'bg-rose-600 text-white' },
+    info: { icon: <Info size={20} />, style: 'bg-slate-800 text-white' },
   };
 
   const theme = themes[type];
@@ -95,33 +91,18 @@ export const AppNotification: React.FC<AppNotificationProps> = ({
     <div className={`
       fixed bottom-6 right-6 z-[100]
       w-full max-w-sm overflow-hidden
-      ${theme.bg} backdrop-blur-md border ${theme.border}
-      rounded-3xl shadow-2xl shadow-pine-900/10
-      animate-in slide-in-from-right-10 duration-500
+      ${theme.style} rounded-lg shadow-lg shadow-slate-900/20
+      animate-in slide-in-from-right-10 duration-300
+      flex items-start p-4 gap-3
     `}>
-      <div className={`h-1 w-full ${theme.accent} opacity-40`} />
-      
-      <div className="p-5 flex items-start gap-4">
-        <div className="flex-shrink-0 mt-0.5">
-          {theme.icon}
-        </div>
-        
-        <div className="flex-1">
-          <h4 className="text-sm font-black text-pine-900 font-poppins tracking-tight uppercase">
-            {title}
-          </h4>
-          <p className="text-xs text-pine-700/80 font-lato mt-1 leading-relaxed">
-            {message}
-          </p>
-        </div>
-
-        <button 
-          onClick={onClose}
-          className="p-1 hover:bg-pine-100/50 rounded-full transition-colors text-pine-400"
-        >
-          <X size={16} />
-        </button>
+      <div className="mt-0.5">{theme.icon}</div>
+      <div className="flex-1">
+        <h4 className="text-sm font-bold uppercase tracking-wide">{title}</h4>
+        <p className="text-sm opacity-90 leading-snug mt-1">{message}</p>
       </div>
+      <button onClick={onClose} className="opacity-50 hover:opacity-100 transition-opacity">
+        <X size={16} />
+      </button>
     </div>
   );
 };
