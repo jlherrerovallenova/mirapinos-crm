@@ -1,13 +1,17 @@
+// src/components/leads/LeadDetailModal.tsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { StageBadge } from '../Shared';
 import { 
   X, Edit2, Trash2, Save, User, Mail, Phone, Calendar, 
-  FileText, Check, MessageCircle, History, Globe, File, Download
+  FileText, Check, MessageCircle, History, Globe, File
 } from 'lucide-react';
+import { Database } from '../../types/supabase';
+
+type Lead = Database['public']['Tables']['leads']['Row'];
 
 interface LeadDetailModalProps {
-  lead: any;
+  lead: Lead;
   availableDocs: any[];
   onClose: () => void;
   onUpdate: () => void;
@@ -17,7 +21,7 @@ interface LeadDetailModalProps {
 
 export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate, onDelete, onOpenEmail }: LeadDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<any>(lead);
+  const [formData, setFormData] = useState<Lead>(lead);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
 
   useEffect(() => {
@@ -28,11 +32,10 @@ export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate
 
   const handleSave = async () => {
     const { error } = await supabase.from('leads').update({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
+      name: formData.name,
       email: formData.email,
       phone: formData.phone,
-      stage: formData.stage,
+      status: formData.status, // Campo correcto en DB
       source: formData.source
     }).eq('id', lead.id);
 
@@ -49,9 +52,7 @@ export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate
   };
 
   const handleWhatsApp = async () => {
-    const docsToSend = availableDocs.filter(d => selectedDocs.includes(d.id));
-    const docLinks = docsToSend.map(d => `• ${d.name}: ${d.url}`).join('\n');
-    const text = `Hola ${formData.firstName}, aquí tienes la documentación:\n\n${docLinks}`;
+    const text = `Hola ${formData.name}, te contacto desde Mirapinos.`;
     const cleanPhone = formData.phone?.replace(/\s/g, '') || '';
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
   };
@@ -65,16 +66,18 @@ export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate
           <div className="flex-1">
             {isEditing ? (
               <div className="space-y-3 max-w-md">
-                 <div className="grid grid-cols-2 gap-3">
-                   <input className="input-std font-bold text-lg" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} placeholder="Nombre" />
-                   <input className="input-std font-bold text-lg" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} placeholder="Apellidos" />
-                 </div>
+                   <input 
+                     className="input-std font-bold text-lg" 
+                     value={formData.name} 
+                     onChange={e => setFormData({...formData, name: e.target.value})} 
+                     placeholder="Nombre Completo" 
+                   />
               </div>
             ) : (
               <div>
-                <h2 className="text-2xl font-bold text-slate-900">{formData.firstName} {formData.lastName}</h2>
+                <h2 className="text-2xl font-bold text-slate-900">{formData.name}</h2>
                 <div className="flex items-center gap-3 mt-2">
-                  <StageBadge stage={formData.stage} />
+                  <StageBadge stage={formData.status || 'new'} />
                   <span className="text-slate-400 text-xs flex items-center gap-1 font-medium bg-slate-100 px-2 py-1 rounded">
                     <Globe size={12} /> {formData.source}
                   </span>
@@ -109,20 +112,30 @@ export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <InfoItem icon={<Mail size={16}/>} label="Email" value={formData.email} isEditing={isEditing} 
-                   onChange={(val) => setFormData({...formData, email: val})} />
+                   onChange={(val: string) => setFormData({...formData, email: val})} />
                 
                 <InfoItem icon={<Phone size={16}/>} label="Teléfono" value={formData.phone} isEditing={isEditing} 
-                   onChange={(val) => setFormData({...formData, phone: val})} />
+                   onChange={(val: string) => setFormData({...formData, phone: val})} />
                 
                 <div className="col-span-2 md:col-span-1">
                    <p className="text-[10px] text-slate-400 uppercase font-bold mb-1 ml-1">Estado</p>
                    {isEditing ? (
-                     <select className="input-std text-sm w-full" value={formData.stage} onChange={e => setFormData({...formData, stage: e.target.value})}>
-                       {['Prospecto', 'Visitando', 'Interés', 'Cierre'].map(s => <option key={s} value={s}>{s}</option>)}
+                     <select 
+                        className="input-std text-sm w-full" 
+                        value={formData.status || 'new'} 
+                        onChange={e => setFormData({...formData, status: e.target.value as any})}
+                     >
+                       <option value="new">Nuevo</option>
+                       <option value="contacted">Contactado</option>
+                       <option value="qualified">Cualificado</option>
+                       <option value="proposal">Propuesta</option>
+                       <option value="negotiation">Negociación</option>
+                       <option value="closed">Ganado</option>
+                       <option value="lost">Perdido</option>
                      </select>
                    ) : (
-                     <div className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700">
-                        {formData.stage}
+                     <div className="mt-1">
+                       <StageBadge stage={formData.status || 'new'} />
                      </div>
                    )}
                 </div>
@@ -131,13 +144,13 @@ export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate
                     <p className="text-[10px] text-slate-400 uppercase font-bold mb-1 ml-1">Registrado</p>
                     <div className="flex items-center gap-2 p-2 text-sm text-slate-600">
                         <Calendar size={16} className="text-slate-400"/>
-                        {new Date(formData.createdAt).toLocaleDateString()}
+                        {new Date(formData.created_at).toLocaleDateString()}
                     </div>
                 </div>
               </div>
             </div>
 
-            {/* Sección Documentos */}
+            {/* Sección Documentos (Placeholder) */}
             <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
@@ -177,21 +190,16 @@ export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate
                 <div className="space-y-3">
                    <button 
                       onClick={handleWhatsApp} 
-                      disabled={selectedDocs.length === 0} 
-                      className="w-full py-3 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-lg font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full py-3 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-lg font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2"
                    >
                       <MessageCircle size={18} /> Enviar por WhatsApp
                    </button>
                    <button 
                       onClick={() => onOpenEmail(selectedDocs)} 
-                      disabled={selectedDocs.length === 0} 
-                      className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2"
                    >
                       <Mail size={18} /> Enviar por Email
                    </button>
-                   <p className="text-[10px] text-center text-slate-400 mt-2">
-                     Selecciona documentos de la izquierda para activar el envío.
-                   </p>
                 </div>
              </div>
 
@@ -210,7 +218,7 @@ export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate
                       <div className="mt-1 w-2 h-2 rounded-full bg-slate-300 shrink-0"></div>
                       <div>
                          <p className="text-xs font-bold text-slate-700">Lead creado</p>
-                         <p className="text-[10px] text-slate-400">{new Date(formData.createdAt).toLocaleDateString()}</p>
+                         <p className="text-[10px] text-slate-400">{new Date(formData.created_at).toLocaleDateString()}</p>
                       </div>
                    </div>
                 </div>
@@ -249,7 +257,7 @@ function InfoItem({ icon, label, value, isEditing, onChange }: any) {
     <div className="space-y-1">
       <p className="text-[10px] text-slate-400 uppercase font-bold ml-1">{label}</p>
       {isEditing ? (
-        <input className="input-std text-sm" value={value} onChange={e => onChange(e.target.value)} />
+        <input className="input-std text-sm" value={value || ''} onChange={e => onChange(e.target.value)} />
       ) : (
         <div className="flex items-center gap-2 p-2">
           <div className="text-slate-400">{icon}</div>
