@@ -1,6 +1,10 @@
+// src/components/leads/CreateLeadModal.tsx
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Loader2, X, UserPlus } from 'lucide-react';
+import { Database } from '../../types/supabase';
+
+type LeadInsert = Database['public']['Tables']['leads']['Insert'];
 
 interface CreateLeadModalProps {
   isOpen: boolean;
@@ -11,8 +15,15 @@ interface CreateLeadModalProps {
 
 export default function CreateLeadModal({ isOpen, onClose, onSuccess, onError }: CreateLeadModalProps) {
   const [loading, setLoading] = useState(false);
-  const [newLead, setNewLead] = useState({
-    firstName: '', lastName: '', email: '', phone: '', stage: 'Prospecto', source: 'Web'
+  
+  // Estado inicial alineado con la DB
+  const [newLead, setNewLead] = useState<LeadInsert>({
+    name: '', 
+    email: '', 
+    phone: '', 
+    status: 'new', 
+    source: 'Web',
+    value: 0
   });
 
   if (!isOpen) return null;
@@ -21,12 +32,13 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess, onError }:
     e.preventDefault();
     setLoading(true);
     
+    // Inserción directa en Supabase
     const { error } = await supabase.from('leads').insert([newLead]);
     
     setLoading(false);
 
     if (!error) {
-      setNewLead({ firstName: '', lastName: '', email: '', phone: '', stage: 'Prospecto', source: 'Web' });
+      setNewLead({ name: '', email: '', phone: '', status: 'new', source: 'Web', value: 0 });
       onSuccess();
       onClose();
     } else {
@@ -38,7 +50,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess, onError }:
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-all">
       <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
         
-        {/* HEADER: Limpio y Profesional */}
+        {/* HEADER */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
@@ -56,37 +68,25 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess, onError }:
         
         {/* FORMULARIO */}
         <form onSubmit={handleCreateLead} className="p-6 space-y-5">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">Nombre <span className="text-red-500">*</span></label>
-              <input 
-                required 
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400"
-                placeholder="Ej. Juan"
-                value={newLead.firstName} 
-                onChange={e => setNewLead({...newLead, firstName: e.target.value})} 
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">Apellidos</label>
-              <input 
-                required 
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400" 
-                placeholder="Ej. Pérez"
-                value={newLead.lastName} 
-                onChange={e => setNewLead({...newLead, lastName: e.target.value})} 
-              />
-            </div>
+          
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">Nombre Completo <span className="text-red-500">*</span></label>
+            <input 
+              required 
+              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400"
+              placeholder="Ej. Juan Pérez"
+              value={newLead.name} 
+              onChange={e => setNewLead({...newLead, name: e.target.value})} 
+            />
           </div>
           
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-700">Correo Electrónico <span className="text-red-500">*</span></label>
+            <label className="text-xs font-semibold text-slate-700">Correo Electrónico</label>
             <input 
               type="email" 
-              required 
               className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400" 
               placeholder="juan@ejemplo.com"
-              value={newLead.email} 
+              value={newLead.email || ''} 
               onChange={e => setNewLead({...newLead, email: e.target.value})} 
             />
           </div>
@@ -97,15 +97,15 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess, onError }:
               <input 
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400" 
                 placeholder="+34 600..."
-                value={newLead.phone} 
+                value={newLead.phone || ''} 
                 onChange={e => setNewLead({...newLead, phone: e.target.value})} 
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">Origen del Lead</label>
+              <label className="text-xs font-semibold text-slate-700">Origen</label>
               <select 
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-600" 
-                value={newLead.source} 
+                value={newLead.source || 'Web'} 
                 onChange={e => setNewLead({...newLead, source: e.target.value})}
               >
                 {['Web', 'Instagram', 'Telefónico', 'Referido', 'Portal Inmobiliario', 'Idealista'].map(s => <option key={s} value={s}>{s}</option>)}
