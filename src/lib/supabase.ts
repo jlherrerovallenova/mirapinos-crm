@@ -1,16 +1,18 @@
 // src/lib/supabase.ts
 import { createClient } from '@supabase/supabase-js';
-import { Database } from '../types/supabase';
+import type { Database } from '../types/supabase'; // Usa 'import type' para evitar conflictos de compilación
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// En lugar de detener la app con throw, mostramos un warning en consola
+// Si faltan las variables, inicializamos con valores temporales para que no explote el JS
+// pero avisamos claramente en la consola.
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('⚠️ Variables de Supabase no detectadas. Verifica tu archivo .env en la raíz.');
+  console.error('❌ ERROR: No se detectan VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY.');
+  console.info('Asegúrate de que el archivo .env esté en la raíz del proyecto y empiece por VITE_');
 }
 
 export const supabase = createClient<Database>(
-  supabaseUrl || 'https://placeholder.supabase.co', 
+  supabaseUrl || 'https://placeholder-url.supabase.co',
   supabaseAnonKey || 'placeholder-key'
 );
