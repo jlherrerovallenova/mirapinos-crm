@@ -11,9 +11,8 @@ interface CreateAppointmentModalProps {
 
 export default function CreateAppointmentModal({ isOpen, onClose, onSuccess }: CreateAppointmentModalProps) {
   const [loading, setLoading] = useState(false);
-  const [leads, setLeads] = useState<any[]>([]); // Para el selector de clientes
+  const [leads, setLeads] = useState<any[]>([]);
   
-  // Estado del formulario
   const [formData, setFormData] = useState({
     title: '',
     date: '',
@@ -22,21 +21,20 @@ export default function CreateAppointmentModal({ isOpen, onClose, onSuccess }: C
     lead_id: ''
   });
 
-  // Cargar lista de clientes para el selector (opcional pero recomendado)
   useEffect(() => {
     if (isOpen) {
       const fetchLeads = async () => {
+        // CORRECCIÓN: Seleccionamos 'name' en lugar de campos inexistentes
         const { data } = await supabase
           .from('leads')
-          .select('id, firstName, lastName')
-          .order('firstName');
+          .select('id, name')
+          .order('name');
         if (data) setLeads(data);
       };
       fetchLeads();
-      // Resetear formulario al abrir
       setFormData({
         title: '',
-        date: new Date().toISOString().split('T')[0], // Hoy por defecto
+        date: new Date().toISOString().split('T')[0],
         time: '10:00',
         location: '',
         lead_id: ''
@@ -49,7 +47,6 @@ export default function CreateAppointmentModal({ isOpen, onClose, onSuccess }: C
     setLoading(true);
 
     try {
-      // Combinar fecha y hora en un formato ISO timestamp
       const combinedDateTime = new Date(`${formData.date}T${formData.time}:00`).toISOString();
 
       const { error } = await supabase.from('appointments').insert([
@@ -57,15 +54,14 @@ export default function CreateAppointmentModal({ isOpen, onClose, onSuccess }: C
           title: formData.title,
           date: combinedDateTime,
           location: formData.location,
-          lead_id: formData.lead_id || null, // Si está vacío, enviamos null
+          lead_id: formData.lead_id || null,
           status: 'pending'
         }
       ]);
 
       if (error) throw error;
-
-      onSuccess(); // Recargar datos en el padre
-      onClose();   // Cerrar modal
+      onSuccess();
+      onClose();
     } catch (error) {
       console.error('Error creando cita:', error);
       alert('Hubo un error al guardar la cita.');
@@ -79,8 +75,6 @@ export default function CreateAppointmentModal({ isOpen, onClose, onSuccess }: C
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-        
-        {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <h3 className="font-bold text-slate-800">Nueva Cita</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
@@ -88,10 +82,7 @@ export default function CreateAppointmentModal({ isOpen, onClose, onSuccess }: C
           </button>
         </div>
 
-        {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          
-          {/* Título */}
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Título / Motivo</label>
             <input 
@@ -104,7 +95,6 @@ export default function CreateAppointmentModal({ isOpen, onClose, onSuccess }: C
             />
           </div>
 
-          {/* Fecha y Hora (Grid) */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Fecha</label>
@@ -134,7 +124,6 @@ export default function CreateAppointmentModal({ isOpen, onClose, onSuccess }: C
             </div>
           </div>
 
-          {/* Ubicación */}
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Ubicación</label>
             <div className="relative">
@@ -149,7 +138,6 @@ export default function CreateAppointmentModal({ isOpen, onClose, onSuccess }: C
             </div>
           </div>
 
-          {/* Selector de Cliente (Opcional) */}
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Vincular Cliente (Opcional)</label>
             <select 
@@ -160,13 +148,12 @@ export default function CreateAppointmentModal({ isOpen, onClose, onSuccess }: C
               <option value="">-- Sin vincular --</option>
               {leads.map(lead => (
                 <option key={lead.id} value={lead.id}>
-                  {lead.firstName} {lead.lastName}
+                  {lead.name} {/* CORRECCIÓN: Usamos lead.name */}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Botones */}
           <div className="pt-4 flex gap-3">
             <button 
               type="button" 
