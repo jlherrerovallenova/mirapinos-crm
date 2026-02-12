@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Loader2, X, UserPlus } from 'lucide-react';
-import { Database } from '../../types/supabase';
+// SOLUCIÓN: Agregamos 'type' para que Vite entienda que es solo una definición de tipos
+import type { Database } from '../../types/supabase';
 
 type LeadInsert = Database['public']['Tables']['leads']['Insert'];
 
@@ -38,6 +39,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess, onError }:
     setLoading(false);
 
     if (!error) {
+      // Reiniciar formulario
       setNewLead({ name: '', email: '', phone: '', status: 'new', source: 'Web', value: 0 });
       onSuccess();
       onClose();
