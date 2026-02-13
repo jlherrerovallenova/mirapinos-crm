@@ -8,7 +8,9 @@ import EmailComposerModal from '../components/leads/EmailComposerModal';
 import { 
   Search, Plus, Eye, Globe, Loader2 
 } from 'lucide-react';
-import { Database } from '../types/supabase';
+
+// CORRECCIÓN: Agregamos 'import type' para evitar el error "does not provide an export named 'Database'"
+import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 
