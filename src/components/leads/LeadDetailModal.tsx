@@ -6,7 +6,8 @@ import {
   X, Edit2, Trash2, Save, User, Mail, Phone, Calendar, 
   FileText, Check, MessageCircle, History, Globe, File
 } from 'lucide-react';
-import { Database } from '../../types/supabase';
+// CORRECCIÓN AQUÍ: Agregamos 'type' para indicar que es solo una definición
+import type { Database } from '../../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 
@@ -35,7 +36,7 @@ export default function LeadDetailModal({ lead, availableDocs, onClose, onUpdate
       name: formData.name,
       email: formData.email,
       phone: formData.phone,
-      status: formData.status, // Campo correcto en DB
+      status: formData.status,
       source: formData.source
     }).eq('id', lead.id);
 
