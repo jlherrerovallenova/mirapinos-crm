@@ -1,6 +1,6 @@
 // src/context/AuthContext.tsx
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js'; // CORRECCIÓN AQUÍ: Añadido 'type'
 import { supabase } from '../lib/supabase';
 // Si tienes errores de TypeScript aquí, comenta esta línea temporalmente
 import type { Database } from '../types/supabase';
