@@ -1,94 +1,150 @@
 // src/pages/Pipeline.tsx
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { ChevronRight, Star, Loader2 } from 'lucide-react';
+import { 
+  Loader2, 
+  TrendingUp, 
+  DollarSign, 
+  MoreHorizontal,
+  ChevronRight
+} from 'lucide-react';
+import type { Database } from '../types/supabase';
+
+type Lead = Database['public']['Tables']['leads']['Row'];
+
+// Definición de las columnas del Pipeline
+const COLUMNS: { id: Lead['status']; title: string; color: string }[] = [
+  { id: 'new', title: 'Nuevos', color: 'bg-blue-500' },
+  { id: 'contacted', title: 'Contactados', color: 'bg-purple-500' },
+  { id: 'qualified', title: 'Cualificados', color: 'bg-emerald-500' },
+  { id: 'proposal', title: 'Propuesta', color: 'bg-amber-500' },
+  { id: 'negotiation', title: 'Negociación', color: 'bg-orange-500' }
+];
 
 export default function Pipeline() {
-  const [leads, setLeads] = useState<any[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const stages = ['Prospecto', 'Visitando', 'Interés', 'Cierre'];
 
   useEffect(() => {
     fetchLeads();
   }, []);
 
   async function fetchLeads() {
-    setLoading(true);
-    const { data, error } = await supabase.from('leads').select('*');
-    if (!error && data) {
-      setLeads(data);
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      if (data) setLeads(data);
+    } catch (error) {
+      console.error('Error fetching leads:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
-  const moveLead = async (id: string, newStage: string) => {
-     // Actualización visual inmediata
-     setLeads(prev => prev.map(l => l.id === id ? { ...l, stage: newStage } : l));
-     
-     const { error } = await supabase.from('leads').update({ stage: newStage }).eq('id', id);
-     if (error) {
-       alert("Error al mover el lead: " + error.message);
-       fetchLeads(); // Revertir si hay error
-     }
-  };
+  // Calcular el valor total del pipeline activo (excluyendo cerrados/perdidos)
+  const totalValue = leads
+    .filter(l => l.status !== 'closed' && l.status !== 'lost')
+    .reduce((acc, curr) => acc + (curr.value || 0), 0);
 
-  if (loading) return (
-    <div className="h-full flex items-center justify-center text-pine-600">
-      <Loader2 className="animate-spin" size={40} />
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="h-96 flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin text-emerald-600" size={40} />
+        <p className="text-slate-400 animate-pulse font-medium">Cargando túnel de ventas...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 h-full flex flex-col animate-in fade-in">
-       <h2 className="text-xl font-semibold text-slate-700 uppercase tracking-widest text-sm mb-6">Túnel de Ventas</h2>
-       <div className="flex h-full gap-6 overflow-x-auto pb-6">
-         {stages.map(stage => (
-            <div key={stage} className="flex-1 min-w-[300px] bg-slate-100/50 rounded-3xl flex flex-col border border-slate-200/50">
-               <div className="p-4 border-b border-slate-200 bg-white/50 rounded-t-3xl flex justify-between items-center">
-                  <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{stage}</span>
-                  <span className="bg-white px-2 py-1 rounded text-[10px] font-bold">
-                    {leads.filter(l => l.stage === stage).length}
-                  </span>
-               </div>
-               <div className="p-4 space-y-4 flex-1 overflow-auto">
-                  {leads.filter(l => l.stage === stage).map(lead => (
-                     <div key={lead.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 group relative hover:shadow-md transition-all">
-                        <Link to={`/leads/${lead.id}`} className="block">
-                            <div className="flex justify-between mb-2">
-                                <span className="text-[9px] font-bold uppercase text-slate-400">{lead.source || 'Directo'}</span>
-                                <div className="flex text-amber-400">
-                                  <Star size={12} fill="currentColor" />
-                                  <span className="text-[10px] font-bold text-slate-600 ml-1">{lead.rating || 0}</span>
-                                </div>
-                            </div>
-                            <p className="font-bold text-slate-800">{lead.firstName} {lead.lastName}</p>
-                        </Link>
-                        
-                        <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-slate-50 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {stage !== 'Prospecto' && (
-                              <button 
-                                onClick={() => moveLead(lead.id, stages[stages.indexOf(stage)-1])} 
-                                className="p-2 bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors"
-                              >
-                                <ChevronRight className="rotate-180" size={14}/>
-                              </button>
-                            )}
-                            {stage !== 'Cierre' && (
-                              <button 
-                                onClick={() => moveLead(lead.id, stages[stages.indexOf(stage)+1])} 
-                                className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors"
-                              >
-                                <ChevronRight size={14}/>
-                              </button>
-                            )}
-                        </div>
-                     </div>
-                  ))}
-               </div>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Header con KPIs */}
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <p className="text-emerald-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">Rendimiento Comercial</p>
+          <h1 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Túnel de Ventas</h1>
+        </div>
+        
+        <div className="flex gap-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 min-w-[200px]">
+            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+              <TrendingUp size={20} />
             </div>
-         ))}
-       </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Valor Activo</p>
+              <p className="text-lg font-bold text-slate-900">
+                {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(totalValue)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Tablero Kanban */}
+      <div className="flex gap-6 overflow-x-auto pb-8 min-h-[600px] -mx-4 px-4">
+        {COLUMNS.map((column) => {
+          const columnLeads = leads.filter(l => l.status === column.id);
+          const columnValue = columnLeads.reduce((acc, curr) => acc + (curr.value || 0), 0);
+
+          return (
+            <div key={column.id} className="flex-shrink-0 w-80 flex flex-col gap-4">
+              {/* Cabecera de Columna */}
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${column.color}`}></div>
+                  <h3 className="font-bold text-slate-700 uppercase text-xs tracking-wider">{column.title}</h3>
+                  <span className="bg-slate-200 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {columnLeads.length}
+                  </span>
+                </div>
+                <button className="text-slate-400 hover:text-slate-600">
+                  <MoreHorizontal size={16} />
+                </button>
+              </div>
+
+              {/* Contenedor de Tarjetas */}
+              <div className="bg-slate-50/50 p-3 rounded-3xl border border-slate-100 flex-1 space-y-3">
+                {columnLeads.map((lead) => (
+                  <div 
+                    key={lead.id}
+                    className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer group"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-bold text-slate-800 text-sm leading-tight group-hover:text-emerald-700 transition-colors">
+                        {lead.name}
+                      </h4>
+                    </div>
+                    
+                    <p className="text-[11px] text-slate-400 mb-4 line-clamp-1 italic">
+                      {lead.company || 'Sin empresa'}
+                    </p>
+
+                    <div className="flex items-center justify-between border-t border-slate-50 pt-3">
+                      <div className="flex items-center gap-1 text-slate-700 font-bold text-xs">
+                        <DollarSign size={12} className="text-emerald-500" />
+                        {lead.value ? new Intl.NumberFormat('es-ES').format(lead.value) : '0'}
+                      </div>
+                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 border border-white group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
+                        <ChevronRight size={12} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Indicador de valor de columna */}
+                <div className="pt-2 px-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase text-right">
+                    Subtotal: {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(columnValue)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
