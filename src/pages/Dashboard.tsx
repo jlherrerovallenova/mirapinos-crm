@@ -1,232 +1,202 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// src/pages/Dashboard.tsx
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { StatCard } from '../components/Shared';
-import CreateAppointmentModal from '../components/CreateAppointmentModal'; // <--- IMPORTANTE
 import { 
-  ArrowUpRight, 
-  Calendar, 
-  TrendingUp, 
   Users, 
-  MoreHorizontal,
-  MapPin,
+  TrendingUp, 
+  Home, 
+  ArrowUpRight, 
+  ArrowDownRight,
   Clock,
-  Loader2,
-  Plus // <--- Nuevo icono
+  Euro,
+  Loader2
 } from 'lucide-react';
+import type { Database } from '../types/supabase';
 
-// Definición de tipos para la cita
-interface Appointment {
-  id: string;
-  title: string;
-  date: string; // ISO string
-  location: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
-}
+type Lead = Database['public']['Tables']['leads']['Row'];
+type Property = Database['public']['Tables']['inventory']['Row'];
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  
-  // Estados para datos dinámicos
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loadingAppointments, setLoadingAppointments] = useState(true);
-  
-  // Estado del Modal
-  const [isModalOpen, setIsModalOpen] = useState(false); // <--- Estado del modal
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Cargar datos al montar
   useEffect(() => {
-    fetchAppointments();
+    fetchDashboardData();
   }, []);
 
-  async function fetchAppointments() {
+  async function fetchDashboardData() {
+    setLoading(true);
     try {
-      setLoadingAppointments(true);
-      
-      const todayISO = new Date().toISOString();
+      const [leadsRes, propsRes] = await Promise.all([
+        supabase.from('leads').select('*').order('created_at', { ascending: false }),
+        supabase.from('inventory').select('*')
+      ]);
 
-      const { data, error } = await supabase
-        .from('appointments')
-        .select('*')
-        .gte('date', todayISO) // Solo citas futuras o de hoy
-        .order('date', { ascending: true }) // Las más próximas primero
-        .limit(5);
-
-      if (error) throw error;
-
-      if (data) {
-        setAppointments(data);
-      }
+      if (leadsRes.data) setLeads(leadsRes.data);
+      if (propsRes.data) setProperties(propsRes.data);
     } catch (error) {
-      console.error('Error cargando citas:', error);
+      console.error('Error cargando datos del dashboard:', error);
     } finally {
-      setLoadingAppointments(false);
+      setLoading(false);
     }
   }
 
-  // Helper para formatear fecha y hora
-  const formatDate = (isoString: string) => {
-    const date = new Date(isoString);
-    const day = date.getDate();
-    const month = date.toLocaleString('es-ES', { month: 'short' }).toUpperCase();
-    const time = date.toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit' });
-    return { day, month, time };
-  };
+  // Cálculos de métricas
+  const totalPipelineValue = leads
+    .filter(l => l.status !== 'closed' && l.status !== 'lost')
+    .reduce((acc, curr) => acc + (curr.value || 0), 0);
+
+  const activeProperties = properties.filter(p => p.status === 'available').length;
+  const closedDeals = leads.filter(l => l.status === 'closed').length;
+
+  if (loading) {
+    return (
+      <div className="h-96 flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin text-emerald-600" size={40} />
+        <p className="text-slate-400 animate-pulse font-medium">Generando informe diario...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      
-      {/* Sección de KPI */}
+    <div className="space-y-10 animate-in fade-in duration-700">
+      {/* Bienvenida y Resumen Rápido */}
+      <header>
+        <p className="text-emerald-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">Visión General</p>
+        <h1 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Panel de Control</h1>
+      </header>
+
+      {/* Tarjetas de Métricas Principales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          title="Leads Activos" 
-          value="124" 
-          subtext="+12% vs mes anterior" 
-          icon={<Users size={24} />} 
-          type="primary" 
+          title="Total Leads" 
+          value={leads.length} 
+          icon={<Users size={20}/>} 
+          trend="+12%" 
+          trendUp={true}
+          color="bg-blue-500"
         />
         <StatCard 
-          title="Visitas Hoy" 
-          value={appointments.filter(a => new Date(a.date).toDateString() === new Date().toDateString()).length.toString()} 
-          subtext="Agenda actualizada" 
-          icon={<Calendar size={24} />} 
-          type="warning" 
+          title="Valor Pipeline" 
+          value={new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalPipelineValue)} 
+          icon={<TrendingUp size={20}/>} 
+          trend="+5.4%" 
+          trendUp={true}
+          color="bg-emerald-500"
         />
         <StatCard 
-          title="Ventas Totales" 
-          value="2.4M€" 
-          subtext="Objetivo: 3.0M€ (80%)" 
-          icon={<TrendingUp size={24} />} 
-          type="success" 
+          title="Stock Activo" 
+          value={activeProperties} 
+          icon={<Home size={20}/>} 
+          trend="-2" 
+          trendUp={false}
+          color="bg-amber-500"
         />
         <StatCard 
-          title="Tasa Conversión" 
-          value="24%" 
-          subtext="Estable respecto a Q1" 
-          icon={<ArrowUpRight size={24} />} 
-          type="neutral" 
+          title="Ventas Cerradas" 
+          value={closedDeals} 
+          icon={<Euro size={20}/>} 
+          trend="+3" 
+          trendUp={true}
+          color="bg-slate-900"
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Gráfico Principal */}
-        <div className="lg:col-span-2 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-            <div>
-                <h3 className="font-bold text-slate-800">Actividad Reciente</h3>
-                <p className="text-xs text-slate-500">Resumen de interacciones y ventas</p>
-            </div>
-            <select className="text-sm bg-white border border-slate-200 rounded shadow-sm text-slate-600 px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-              <option>Últimos 30 días</option>
-              <option>Este Año</option>
-            </select>
+        {/* Actividad Reciente (Leads) */}
+        <div className="lg:col-span-2 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-bold text-slate-900">Actividad Reciente</h3>
+            <Clock className="text-slate-300" size={20} />
           </div>
-          <div className="p-6 flex-1 min-h-[300px]">
-            <div className="h-full bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center text-slate-400">
-              <TrendingUp size={48} className="mb-2 opacity-20" />
-              <span className="font-medium text-sm">Área del Gráfico de Rendimiento</span>
-            </div>
-          </div>
-          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30 flex justify-end">
-             <button className="text-sm font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
-               Ver reporte completo <ArrowUpRight size={14} />
-             </button>
+          
+          <div className="space-y-6">
+            {leads.slice(0, 5).map((lead) => (
+              <div key={lead.id} className="flex items-center justify-between group">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
+                    {lead.name?.substring(0,2).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-800">{lead.name}</p>
+                    <p className="text-xs text-slate-400">{new Date(lead.created_at).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full border ${
+                    lead.status === 'new' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-50 text-slate-500 border-slate-100'
+                  }`}>
+                    {lead.status}
+                  </span>
+                  <p className="font-bold text-slate-700 text-sm">
+                    {lead.value ? `${new Intl.NumberFormat('es-ES').format(lead.value)} €` : '--'}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Lista Lateral - Agenda */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
-          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-            <div>
-              <h3 className="font-bold text-slate-800">Próximas Citas</h3>
-              <p className="text-xs text-slate-500">Agenda de visitas y reuniones</p>
-            </div>
-            <div className="flex gap-2">
-                {/* BOTÓN NUEVA CITA */}
-                <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="p-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-md transition-colors"
-                    title="Nueva Cita"
-                >
-                    <Plus size={18}/>
-                </button>
-                <button className="text-slate-400 hover:text-slate-600"><MoreHorizontal size={18}/></button>
+        {/* Resumen de Inventario */}
+        <div className="bg-slate-900 rounded-[2.5rem] shadow-xl p-8 text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <h3 className="text-xl font-bold mb-6">Estado del Inventario</h3>
+            <div className="space-y-8 mt-10">
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Disponible</p>
+                  <p className="text-3xl font-display font-bold">
+                    {properties.filter(p => p.status === 'available').length}
+                  </p>
+                </div>
+                <div className="h-1 w-24 bg-emerald-500 rounded-full mb-2"></div>
+              </div>
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Reservado</p>
+                  <p className="text-3xl font-display font-bold">
+                    {properties.filter(p => p.status === 'reserved').length}
+                  </p>
+                </div>
+                <div className="h-1 w-12 bg-amber-500 rounded-full mb-2"></div>
+              </div>
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Vendido</p>
+                  <p className="text-3xl font-display font-bold">
+                    {properties.filter(p => p.status === 'sold').length}
+                  </p>
+                </div>
+                <div className="h-1 w-32 bg-blue-500 rounded-full mb-2"></div>
+              </div>
             </div>
           </div>
           
-          <div className="flex-1 overflow-auto divide-y divide-slate-50">
-            {loadingAppointments ? (
-              <div className="flex items-center justify-center h-40 text-slate-400">
-                <Loader2 className="animate-spin mr-2" /> Cargando agenda...
-              </div>
-            ) : appointments.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 text-sm">
-                No hay citas programadas próximamente.
-                <button 
-                  onClick={() => setIsModalOpen(true)}
-                  className="block mx-auto mt-2 text-emerald-600 hover:underline font-medium"
-                >
-                  Crear la primera
-                </button>
-              </div>
-            ) : (
-              appointments.map((apt) => {
-                const { day, month, time } = formatDate(apt.date);
-                return (
-                  <div key={apt.id} className="p-4 hover:bg-slate-50 transition-colors flex items-start gap-3 group cursor-pointer" onClick={() => navigate('/pipeline')}>
-                    <div className="bg-emerald-50 text-emerald-700 w-12 h-12 rounded-lg border border-emerald-100 flex flex-col items-center justify-center shrink-0">
-                      <span className="text-[10px] uppercase font-bold text-emerald-600/70">{month}</span>
-                      <span className="text-lg font-bold leading-none">{day}</span>
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-800 text-sm truncate">{apt.title}</p>
-                      <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                        <div className="flex items-center gap-1">
-                          <Clock size={12} className="text-slate-400"/> 
-                          <span>{time}</span>
-                        </div>
-                        {apt.location && (
-                          <>
-                            <span className="text-slate-300">|</span>
-                            <div className="flex items-center gap-1 truncate">
-                              <MapPin size={12} className="text-slate-400"/>
-                              <span className="truncate">{apt.location}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <button className="self-center text-slate-300 group-hover:text-emerald-600 transition-colors">
-                      <ArrowUpRight size={16} />
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
-          
-          <div className="p-3 bg-slate-50 mt-auto border-t border-slate-100">
-            <button 
-                onClick={() => navigate('/pipeline')}
-                className="w-full text-center text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 py-2 rounded transition-colors"
-            >
-              Ver Agenda Completa
-            </button>
-          </div>
+          {/* Decoración de fondo */}
+          <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl"></div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* MODAL DE CREACIÓN */}
-      <CreateAppointmentModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => {
-            fetchAppointments(); // Recargar lista tras crear
-        }}
-      />
-
+// Subcomponente para las tarjetas de estadísticas
+function StatCard({ title, value, icon, trend, trendUp, color }: any) {
+  return (
+    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div className={`w-12 h-12 ${color} text-white rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200`}>
+          {icon}
+        </div>
+        <div className={`flex items-center gap-1 text-xs font-bold ${trendUp ? 'text-emerald-600' : 'text-red-500'}`}>
+          {trend} {trendUp ? <ArrowUpRight size={14}/> : <ArrowDownRight size={14}/>}
+        </div>
+      </div>
+      <div>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{title}</p>
+        <p className="text-2xl font-display font-bold text-slate-900 mt-1">{value}</p>
+      </div>
     </div>
   );
 }
