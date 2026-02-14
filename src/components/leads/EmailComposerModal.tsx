@@ -33,9 +33,9 @@ export default function EmailComposerModal({
   const [method, setMethod] = useState<'email' | 'whatsapp'>('email');
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   
-  const [subject, setSubject] = useState(`Documentación Mirapinos para ${leadName}`);
+  const [subject, setSubject] = useState(`Documentación MIRAPINOS para ${leadName}`);
   const [message, setMessage] = useState(
-    `Hola ${leadName},\n\nEs un placer saludarte. Te adjunto la documentación que comentamos sobre nuestras propiedades.\n\nQuedo a tu disposición para cualquier duda.`
+    `Hola ${leadName},\n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
   );
   
   const [selectedDocs, setSelectedDocs] = useState<{ name: string; url: string }[]>([]);
@@ -65,15 +65,16 @@ export default function EmailComposerModal({
             ).join('<br>')
           : '';
 
-        // Parámetros vinculados a tus credenciales y plantilla
         const templateParams = {
           to_name: leadName,
           to_email: leadEmail,
           subject: subject,
+          // Reemplazamos los saltos de línea por <br> para el formato HTML del correo
           message: message.replace(/\n/g, '<br>'), 
-          html_docs: htmlDocs, // Asegúrate de usar {{{html_docs}}} en tu plantilla de EmailJS
+          html_docs: htmlDocs, 
         };
 
+        // Valores configurados con tus credenciales
         const result = await emailjs.send(
           'service_w8zzkn8', 
           'template_t3fn5js', 
