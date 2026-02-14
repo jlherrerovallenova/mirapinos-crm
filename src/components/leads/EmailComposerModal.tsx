@@ -35,7 +35,7 @@ export default function EmailComposerModal({
   
   const [subject, setSubject] = useState(`Documentación MIRAPINOS para ${leadName}`);
   const [message, setMessage] = useState(
-    `Hola ${leadName}.\n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
+    `Hola ${leadName}. \n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
   );
   
   const [selectedDocs, setSelectedDocs] = useState<{ name: string; url: string }[]>([]);
@@ -57,7 +57,6 @@ export default function EmailComposerModal({
 
     if (method === 'email') {
       try {
-        // Generamos el HTML de los enlaces para la plantilla de EmailJS
         const htmlDocs = selectedDocs.length > 0 
           ? `<br><br><strong>Documentos adjuntos:</strong><br>` + 
             selectedDocs.map(d => 
@@ -69,12 +68,10 @@ export default function EmailComposerModal({
           to_name: leadName,
           to_email: leadEmail,
           subject: subject,
-          // Reemplazamos los saltos de línea por <br> para el formato HTML del correo
           message: message.replace(/\n/g, '<br>'), 
           html_docs: htmlDocs, 
         };
 
-        // Valores configurados con tus credenciales
         const result = await emailjs.send(
           'service_w8zzkn8', 
           'template_t3fn5js', 
@@ -91,15 +88,37 @@ export default function EmailComposerModal({
         setStatus('error');
       }
     } else {
-      // Lógica para WhatsApp
-      const docsText = selectedDocs.length > 0 
-        ? `\n\nDocumentación:\n${selectedDocs.map(d => `- ${d.name}: ${d.url}`).join('\n')}`
-        : '';
-      
-      const encodedMsg = encodeURIComponent(`${message}${docsText}`);
-      window.open(`https://wa.me/${leadPhone?.replace(/\D/g, '')}?text=${encodedMsg}`, '_blank');
-      setStatus('success');
-      setTimeout(onClose, 1000);
+      // LÓGICA DE WHATSAPP CORREGIDA
+      try {
+        if (!leadPhone) {
+          alert("El cliente no tiene un número de teléfono válido.");
+          setLoading(false);
+          return;
+        }
+
+        // 1. Limpiar el número de teléfono (solo números y añadir prefijo si no tiene)
+        let cleanPhone = leadPhone.replace(/\D/g, '');
+        if (cleanPhone.length === 9) cleanPhone = '34' + cleanPhone; // Asume España por defecto si tiene 9 dígitos
+
+        // 2. Construir la lista de documentos para texto plano
+        const docsText = selectedDocs.length > 0 
+          ? `\n\n📄 *Documentación adjunta:*` + selectedDocs.map(d => `\n- ${d.name}: ${d.url}`).join('')
+          : '';
+        
+        // 3. Codificar el mensaje
+        const fullMessage = `${message}${docsText}`;
+        const encodedMsg = encodeURIComponent(fullMessage);
+        
+        // 4. Abrir la URL de WhatsApp
+        const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMsg}`;
+        
+        window.open(whatsappUrl, '_blank');
+        setStatus('success');
+        setTimeout(onClose, 1000);
+      } catch (error) {
+        console.error('Error al abrir WhatsApp:', error);
+        setStatus('error');
+      }
     }
     
     setLoading(false);
@@ -151,7 +170,7 @@ export default function EmailComposerModal({
             </div>
 
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-3 block">Documentación Seleccionada</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-3 block">Seleccionar Documentos</label>
               <div className="grid grid-cols-2 gap-2">
                 {availableDocs.map((doc, idx) => {
                   const isSelected = selectedDocs.find(d => d.url === doc.url);
@@ -179,12 +198,12 @@ export default function EmailComposerModal({
             <div className="flex-1">
               {status === 'success' && (
                 <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm">
-                  <CheckCircle2 size={18} /> ¡Enviado correctamente!
+                  <CheckCircle2 size={18} /> Procesado correctamente
                 </div>
               )}
               {status === 'error' && (
                 <div className="flex items-center gap-2 text-red-500 font-bold text-sm">
-                  <AlertCircle size={18} /> Error en el envío.
+                  <AlertCircle size={18} /> Error en la operación
                 </div>
               )}
             </div>
@@ -200,7 +219,7 @@ export default function EmailComposerModal({
                   method === 'email' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'
                 }`}
               >
-                {loading ? <Loader2 className="animate-spin" size={18} /> : 'Enviar Documentación'}
+                {loading ? <Loader2 className="animate-spin" size={18} /> : (method === 'email' ? 'Enviar Email' : 'Abrir WhatsApp')}
               </button>
             </div>
           </div>
