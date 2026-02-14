@@ -35,7 +35,7 @@ export default function EmailComposerModal({
   
   const [subject, setSubject] = useState(`Documentación MIRAPINOS para ${leadName}`);
   const [message, setMessage] = useState(
-    `Hola ${leadName}. \n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
+    `Hola ${leadName}.\n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
   );
   
   const [selectedDocs, setSelectedDocs] = useState<{ name: string; url: string }[]>([]);
@@ -88,31 +88,35 @@ export default function EmailComposerModal({
         setStatus('error');
       }
     } else {
-      // LÓGICA DE WHATSAPP CORREGIDA
+      // --- LÓGICA DE WHATSAPP REFORZADA ---
       try {
         if (!leadPhone) {
-          alert("El cliente no tiene un número de teléfono válido.");
+          alert("Error: El cliente no tiene un número de teléfono asignado.");
           setLoading(false);
           return;
         }
 
-        // 1. Limpiar el número de teléfono (solo números y añadir prefijo si no tiene)
+        // Limpieza profunda del número
         let cleanPhone = leadPhone.replace(/\D/g, '');
-        if (cleanPhone.length === 9) cleanPhone = '34' + cleanPhone; // Asume España por defecto si tiene 9 dígitos
+        
+        // Validación de prefijo (España por defecto si tiene 9 dígitos)
+        if (cleanPhone.length === 9) {
+          cleanPhone = '34' + cleanPhone;
+        }
 
-        // 2. Construir la lista de documentos para texto plano
         const docsText = selectedDocs.length > 0 
           ? `\n\n📄 *Documentación adjunta:*` + selectedDocs.map(d => `\n- ${d.name}: ${d.url}`).join('')
           : '';
         
-        // 3. Codificar el mensaje
         const fullMessage = `${message}${docsText}`;
         const encodedMsg = encodeURIComponent(fullMessage);
         
-        // 4. Abrir la URL de WhatsApp
+        // Uso de api.whatsapp.com para máxima compatibilidad
         const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMsg}`;
         
-        window.open(whatsappUrl, '_blank');
+        // Abrir en nueva pestaña
+        window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+        
         setStatus('success');
         setTimeout(onClose, 1000);
       } catch (error) {
@@ -198,12 +202,12 @@ export default function EmailComposerModal({
             <div className="flex-1">
               {status === 'success' && (
                 <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm">
-                  <CheckCircle2 size={18} /> Procesado correctamente
+                  <CheckCircle2 size={18} /> ¡Listo! Abriendo WhatsApp...
                 </div>
               )}
               {status === 'error' && (
                 <div className="flex items-center gap-2 text-red-500 font-bold text-sm">
-                  <AlertCircle size={18} /> Error en la operación
+                  <AlertCircle size={18} /> Error al procesar.
                 </div>
               )}
             </div>
