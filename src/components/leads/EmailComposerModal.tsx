@@ -35,7 +35,7 @@ export default function EmailComposerModal({
   
   const [subject, setSubject] = useState(`Documentación MIRAPINOS para ${leadName}`);
   const [message, setMessage] = useState(
-    `Hola ${leadName},\n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
+    `Hola ${leadName}.\n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
   );
   
   const [selectedDocs, setSelectedDocs] = useState<{ name: string; url: string }[]>([]);
