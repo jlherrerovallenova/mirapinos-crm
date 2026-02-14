@@ -1,3 +1,4 @@
+// src/pages/Leads.tsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
@@ -6,7 +7,9 @@ import {
   Phone, 
   ChevronRight,
   UserPlus,
-  Loader2
+  Loader2,
+  DollarSign,
+  Tag
 } from 'lucide-react';
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
@@ -15,6 +18,20 @@ import { AppNotification } from '../components/Shared';
 import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
+
+// Función auxiliar para los colores de los estados
+const getStatusStyles = (status: Lead['status']) => {
+  const styles = {
+    new: 'bg-blue-50 text-blue-700 border-blue-100',
+    contacted: 'bg-purple-50 text-purple-700 border-purple-100',
+    qualified: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    proposal: 'bg-amber-50 text-amber-700 border-amber-100',
+    negotiation: 'bg-orange-50 text-orange-700 border-orange-100',
+    closed: 'bg-slate-900 text-white border-slate-900',
+    lost: 'bg-red-50 text-red-700 border-red-100',
+  };
+  return styles[status || 'new'];
+};
 
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -59,7 +76,6 @@ export default function Leads() {
 
   async function fetchDocuments() {
     try {
-      // Corregido: Usamos 'url' en lugar de 'file_url' para coincidir con Settings.tsx
       const { data, error } = await supabase
         .from('documents')
         .select('name, url') 
@@ -78,17 +94,12 @@ export default function Leads() {
     }
   }
 
-  // Filtrado robusto para evitar el error de 'toLowerCase'
   const filteredLeads = leads.filter(lead => {
     const search = searchTerm.toLowerCase();
-    const name = lead.name?.toLowerCase() || ""; // Usamos .name que es lo que existe en App.tsx/Leads.tsx original
+    const name = lead.name?.toLowerCase() || "";
     const email = lead.email?.toLowerCase() || "";
     return name.includes(search) || email.includes(search);
   });
-
-  const showNotif = (title: string, message: string, type: 'success' | 'error' = 'success') => {
-    setNotification({ show: true, title, message, type });
-  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -118,8 +129,13 @@ export default function Leads() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-sm flex justify-between">
-              Total Leads <span>{leads.length}</span>
+            <div className="space-y-2">
+              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-sm flex justify-between">
+                Total Leads <span>{leads.length}</span>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 text-slate-600 font-bold text-sm flex justify-between">
+                Valor Total <span>{new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(leads.reduce((acc, curr) => acc + (curr.value || 0), 0))}</span>
+              </div>
             </div>
           </div>
         </aside>
@@ -135,32 +151,50 @@ export default function Leads() {
               {filteredLeads.map((lead) => (
                 <div 
                   key={lead.id}
-                  className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group flex items-center justify-between cursor-pointer"
+                  className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group flex flex-col md:flex-row md:items-center justify-between cursor-pointer gap-4"
                   onClick={() => setSelectedLead(lead)}
                 >
                   <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center text-emerald-600 font-bold text-xl group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                    <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center text-emerald-600 font-bold text-xl group-hover:bg-emerald-600 group-hover:text-white transition-all shrink-0">
                       {lead.name?.substring(0, 2).toUpperCase() || "L"}
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-800 text-lg">{lead.name}</h3>
-                      <div className="flex items-center gap-4 mt-1 text-slate-400 text-sm">
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-bold text-slate-800 text-lg">{lead.name}</h3>
+                        <span className={`text-[10px] uppercase font-black px-2.5 py-1 rounded-full border ${getStatusStyles(lead.status)}`}>
+                          {lead.status}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-slate-400 text-sm">
                         <span className="flex items-center gap-1.5"><Mail size={14}/> {lead.email || 'Sin email'}</span>
                         {lead.phone && <span className="flex items-center gap-1.5"><Phone size={14}/> {lead.phone}</span>}
+                        {lead.value && (
+                          <span className="flex items-center gap-1.5 text-slate-600 font-semibold">
+                            <DollarSign size={14}/> {new Intl.NumberFormat('es-ES').format(lead.value)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  
+                  <div className="flex items-center justify-end gap-2 border-t md:border-t-0 pt-3 md:pt-0">
                     <button 
                       onClick={(e) => { e.stopPropagation(); setEmailLead(lead); }}
                       className="p-3 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
+                      title="Enviar Email"
                     >
                       <Mail size={20} />
                     </button>
-                    <ChevronRight size={20} className="text-slate-300" />
+                    <div className="h-8 w-px bg-slate-100 mx-2 hidden md:block"></div>
+                    <ChevronRight size={20} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
                   </div>
                 </div>
               ))}
+              {filteredLeads.length === 0 && (
+                <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
+                  <p className="text-slate-400 font-medium">No se encontraron leads con ese criterio.</p>
+                </div>
+              )}
             </div>
           )}
         </main>
