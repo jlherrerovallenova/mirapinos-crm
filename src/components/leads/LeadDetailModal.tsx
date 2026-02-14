@@ -6,7 +6,6 @@ import {
   Mail, 
   Phone, 
   Building2, 
-  BadgeEuro, 
   Tag, 
   FileText,
   Save,
@@ -37,7 +36,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     phone: lead.phone || '',
     company: lead.company || '',
     status: lead.status || 'new',
-    value: lead.value || 0,
     notes: lead.notes || ''
   });
 
@@ -63,7 +61,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     const { name, value } = e.target;
     setFormData(prev => ({ 
       ...prev, 
-      [name]: name === 'value' ? parseFloat(value) || 0 : value 
+      [name]: value 
     }));
   };
 
@@ -79,7 +77,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           phone: formData.phone,
           company: formData.company,
           status: formData.status as Lead['status'],
-          value: formData.value,
           notes: formData.notes
         })
         .eq('id', lead.id);
@@ -134,7 +131,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
             </button>
           </div>
 
-          {/* Acciones Rápidas (Nueva Sección) */}
+          {/* Acciones Rápidas */}
           <div className="px-8 pt-6">
             <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between">
               <div className="flex items-center gap-3 text-emerald-800">
@@ -143,16 +140,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
               </div>
               <div className="flex gap-2">
                 <button 
-                  onClick={() => { setMethod('whatsapp'); setIsEmailModalOpen(true); }}
+                  onClick={() => setIsEmailModalOpen(true)}
                   className="px-4 py-2 bg-white text-emerald-600 border border-emerald-200 rounded-xl text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-2"
                 >
-                  <MessageCircle size={14} /> WhatsApp
-                </button>
-                <button 
-                  onClick={() => setIsEmailModalOpen(true)}
-                  className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-2"
-                >
-                  <Mail size={14} /> Email
+                  <MessageCircle size={14} /> WhatsApp u Email
                 </button>
               </div>
             </div>
@@ -186,10 +177,29 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Valor (€)</label>
-                  <input name="value" type="number" value={formData.value} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-xl outline-none text-sm font-bold" />
+                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Teléfono</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input 
+                      name="phone" 
+                      value={formData.phone} 
+                      onChange={handleChange} 
+                      placeholder="Ej: 600000000"
+                      className="w-full mt-1 pl-10 pr-4 py-3 bg-slate-50 rounded-xl outline-none text-sm font-medium" 
+                    />
+                  </div>
                 </div>
               </div>
+            </div>
+
+            <div className="mt-4">
+               <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Empresa</label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input name="company" value={formData.company} onChange={handleChange} className="w-full mt-1 pl-10 pr-4 py-3 bg-slate-50 rounded-xl outline-none text-sm font-medium" />
+                  </div>
+                </div>
             </div>
 
             <div className="mt-6">
@@ -212,7 +222,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
         </div>
       </div>
 
-      {/* Modal de Envío de Email/WhatsApp */}
       {isEmailModalOpen && (
         <EmailComposerModal
           isOpen={isEmailModalOpen}
