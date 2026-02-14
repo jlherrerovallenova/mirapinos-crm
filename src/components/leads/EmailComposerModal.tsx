@@ -2,32 +2,36 @@
 import { useState } from 'react';
 import { 
   X, 
-  Send, 
+  Mail, 
+  MessageCircle, 
   Paperclip, 
   Loader2, 
   CheckCircle2, 
-  AlertCircle,
-  Mail,
-  MessageCircle
+  AlertCircle 
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
+import { supabase } from '../../lib/supabase';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  leadId: string;
   leadName: string;
   leadEmail: string | null;
   leadPhone: string | null;
   availableDocs: { name: string; url: string }[];
+  onSentSuccess?: () => void;
 }
 
 export default function EmailComposerModal({ 
   isOpen, 
   onClose, 
+  leadId,
   leadName, 
   leadEmail, 
   leadPhone,
-  availableDocs 
+  availableDocs,
+  onSentSuccess
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [method, setMethod] = useState<'email' | 'whatsapp'>('email');
@@ -35,7 +39,7 @@ export default function EmailComposerModal({
   
   const [subject, setSubject] = useState(`Documentación MIRAPINOS para ${leadName}`);
   const [message, setMessage] = useState(
-    `Hola ${leadName}.\n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
+    `Hola ${leadName},\n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
   );
   
   const [selectedDocs, setSelectedDocs] = useState<{ name: string; url: string }[]>([]);
@@ -50,13 +54,38 @@ export default function EmailComposerModal({
     );
   };
 
+  // Función para registrar el envío en la tabla sent_documents
+  const saveHistory = async (sentMethod: 'email' | 'whatsapp') => {
+    if (selectedDocs.length === 0) return;
+
+    try {
+      const records = selectedDocs.map(doc => ({
+        lead_id: leadId,
+        doc_name: doc.name,
+        method: sentMethod,
+        sent_at: new Date().toISOString()
+      }));
+
+      const { error } = await supabase
+        .from('sent_documents')
+        .insert(records);
+
+      if (error) throw error;
+      
+      // Notificamos al componente padre para que refresque el historial
+      if (onSentSuccess) onSentSuccess();
+    } catch (error) {
+      console.error('Error al guardar el historial:', error);
+    }
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setStatus('idle');
 
-    if (method === 'email') {
-      try {
+    try {
+      if (method === 'email') {
         const htmlDocs = selectedDocs.length > 0 
           ? `<br><br><strong>Documentos adjuntos:</strong><br>` + 
             selectedDocs.map(d => 
@@ -80,29 +109,20 @@ export default function EmailComposerModal({
         );
 
         if (result.status === 200) {
+          await saveHistory('email');
           setStatus('success');
           setTimeout(onClose, 2000);
         }
-      } catch (error) {
-        console.error('Error de EmailJS:', error);
-        setStatus('error');
-      }
-    } else {
-      // --- LÓGICA DE WHATSAPP REFORZADA ---
-      try {
+      } else {
+        // Lógica WhatsApp
         if (!leadPhone) {
-          alert("Error: El cliente no tiene un número de teléfono asignado.");
+          alert("El cliente no tiene teléfono configurado.");
           setLoading(false);
           return;
         }
 
-        // Limpieza profunda del número
         let cleanPhone = leadPhone.replace(/\D/g, '');
-        
-        // Validación de prefijo (España por defecto si tiene 9 dígitos)
-        if (cleanPhone.length === 9) {
-          cleanPhone = '34' + cleanPhone;
-        }
+        if (cleanPhone.length === 9) cleanPhone = '34' + cleanPhone;
 
         const docsText = selectedDocs.length > 0 
           ? `\n\n📄 *Documentación adjunta:*` + selectedDocs.map(d => `\n- ${d.name}: ${d.url}`).join('')
@@ -110,22 +130,21 @@ export default function EmailComposerModal({
         
         const fullMessage = `${message}${docsText}`;
         const encodedMsg = encodeURIComponent(fullMessage);
-        
-        // Uso de api.whatsapp.com para máxima compatibilidad
         const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMsg}`;
         
-        // Abrir en nueva pestaña
-        window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+        window.open(whatsappUrl, '_blank');
         
+        // En WhatsApp registramos el historial inmediatamente al abrir la pestaña
+        await saveHistory('whatsapp');
         setStatus('success');
         setTimeout(onClose, 1000);
-      } catch (error) {
-        console.error('Error al abrir WhatsApp:', error);
-        setStatus('error');
       }
+    } catch (error) {
+      console.error('Error en el proceso de envío:', error);
+      setStatus('error');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -174,7 +193,7 @@ export default function EmailComposerModal({
             </div>
 
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-3 block">Seleccionar Documentos</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-3 block">Documentación a enviar</label>
               <div className="grid grid-cols-2 gap-2">
                 {availableDocs.map((doc, idx) => {
                   const isSelected = selectedDocs.find(d => d.url === doc.url);
@@ -202,12 +221,12 @@ export default function EmailComposerModal({
             <div className="flex-1">
               {status === 'success' && (
                 <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm">
-                  <CheckCircle2 size={18} /> ¡Listo! Abriendo WhatsApp...
+                  <CheckCircle2 size={18} /> ¡Enviado con éxito!
                 </div>
               )}
               {status === 'error' && (
                 <div className="flex items-center gap-2 text-red-500 font-bold text-sm">
-                  <AlertCircle size={18} /> Error al procesar.
+                  <AlertCircle size={18} /> Error al procesar el envío
                 </div>
               )}
             </div>
@@ -223,7 +242,7 @@ export default function EmailComposerModal({
                   method === 'email' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'
                 }`}
               >
-                {loading ? <Loader2 className="animate-spin" size={18} /> : (method === 'email' ? 'Enviar Email' : 'Abrir WhatsApp')}
+                {loading ? <Loader2 className="animate-spin" size={18} /> : 'Enviar Documentación'}
               </button>
             </div>
           </div>
