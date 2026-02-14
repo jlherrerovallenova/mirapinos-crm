@@ -5,7 +5,6 @@ import {
   User, 
   Mail, 
   Phone, 
-  Building2, 
   Tag, 
   FileText,
   Save,
@@ -34,7 +33,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     name: lead.name || '',
     email: lead.email || '',
     phone: lead.phone || '',
-    company: lead.company || '',
     status: lead.status || 'new',
     notes: lead.notes || ''
   });
@@ -75,7 +73,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          company: formData.company,
           status: formData.status as Lead['status'],
           notes: formData.notes
         })
@@ -143,7 +140,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   onClick={() => setIsEmailModalOpen(true)}
                   className="px-4 py-2 bg-white text-emerald-600 border border-emerald-200 rounded-xl text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-2"
                 >
-                  <MessageCircle size={14} /> WhatsApp u Email
+                  <MessageCircle size={14} /> WhatsApp / Email
                 </button>
               </div>
             </div>
@@ -192,19 +189,9 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
               </div>
             </div>
 
-            <div className="mt-4">
-               <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Empresa</label>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input name="company" value={formData.company} onChange={handleChange} className="w-full mt-1 pl-10 pr-4 py-3 bg-slate-50 rounded-xl outline-none text-sm font-medium" />
-                  </div>
-                </div>
-            </div>
-
             <div className="mt-6">
-              <label className="text-xs font-bold text-slate-500 uppercase ml-1">Notas</label>
-              <textarea name="notes" rows={3} value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-xl outline-none text-sm font-medium resize-none" />
+              <label className="text-xs font-bold text-slate-500 uppercase ml-1">Notas de Seguimiento</label>
+              <textarea name="notes" rows={4} value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-xl outline-none text-sm font-medium resize-none" />
             </div>
 
             <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100">
