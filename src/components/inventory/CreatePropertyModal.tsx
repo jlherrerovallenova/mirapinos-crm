@@ -1,5 +1,17 @@
+// src/components/inventory/CreatePropertyModal.tsx
 import React, { useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { 
+  X, 
+  Home, 
+  MapPin, 
+  BedDouble, 
+  Bath, 
+  Square, 
+  Euro, 
+  Loader2, 
+  Save,
+  Image as ImageIcon
+} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface Props {
@@ -11,13 +23,23 @@ interface Props {
 export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
+    title: '',
     location: '',
     price: '',
-    status: 'Disponible'
+    type: 'house',
+    status: 'available',
+    beds: '',
+    baths: '',
+    sqft: '',
+    image_url: '',
+    description: ''
   });
 
   if (!isOpen) return null;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,85 +47,220 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
 
     try {
       const { error } = await supabase
-        .from('properties')
+        .from('inventory')
         .insert([{
-          name: formData.name,
+          title: formData.title,
+          description: formData.description,
+          price: parseFloat(formData.price) || 0,
+          type: formData.type,
+          status: formData.status,
+          image_url: formData.image_url || null,
+          // Nota: Asegúrate de que estos campos existan en tu tabla de Supabase 
+          // o ajusta según la definición de src/types/supabase.ts
           location: formData.location,
-          price: parseFloat(formData.price),
-          status: formData.status
+          beds: parseInt(formData.beds) || 0,
+          baths: parseInt(formData.baths) || 0,
+          sqft: parseInt(formData.sqft) || 0
         }]);
 
       if (error) throw error;
+      
       onSuccess();
       onClose();
+      setFormData({
+        title: '',
+        location: '',
+        price: '',
+        type: 'house',
+        status: 'available',
+        beds: '',
+        baths: '',
+        sqft: '',
+        image_url: '',
+        description: ''
+      });
     } catch (error) {
-      console.error('Error:', error);
-      alert('Error al crear la propiedad');
+      console.error('Error creating property:', error);
+      alert('Error al crear la propiedad. Revisa la consola para más detalles.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-in zoom-in duration-200">
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-          <h3 className="text-xl font-bold text-slate-800">Nueva Propiedad</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre del Activo</label>
-            <input 
-              required
-              className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
-              value={formData.name}
-              onChange={e => setFormData({...formData, name: e.target.value})}
-              placeholder="Ej: Villa Nova Residences"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Ubicación</label>
-            <input 
-              required
-              className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
-              value={formData.location}
-              onChange={e => setFormData({...formData, location: e.target.value})}
-              placeholder="Zona, Sector o Dirección"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Precio (€)</label>
-              <input 
-                required
-                type="number"
-                className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
-                value={formData.price}
-                onChange={e => setFormData({...formData, price: e.target.value})}
-              />
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+        {/* Header */}
+        <div className="px-10 py-8 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200">
+              <Home size={24} />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Estado</label>
-              <select 
-                className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
-                value={formData.status}
-                onChange={e => setFormData({...formData, status: e.target.value})}
-              >
-                <option value="Disponible">Disponible</option>
-                <option value="Reservado">Reservado</option>
-                <option value="Vendido">Vendido</option>
-              </select>
+              <h2 className="text-2xl font-display font-bold text-slate-900">Nueva Propiedad</h2>
+              <p className="text-sm text-slate-500 font-medium">Completa los datos del activo inmobiliario</p>
             </div>
           </div>
-          
-          <button 
-            disabled={loading}
-            className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
-          >
-            {loading ? <Loader2 className="animate-spin" size={20}/> : 'GUARDAR PROPIEDAD'}
+          <button onClick={onClose} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors text-slate-400">
+            <X size={24} />
           </button>
+        </div>
+
+        {/* Formulario */}
+        <form onSubmit={handleSubmit} className="p-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Columna Izquierda: Información Principal */}
+            <div className="space-y-6">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Título del Anuncio</label>
+                <input
+                  name="title"
+                  required
+                  value={formData.title}
+                  onChange={handleChange}
+                  placeholder="Ej: Villa Lujosa con Vistas al Mar"
+                  className="w-full mt-2 px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ubicación</label>
+                <div className="relative mt-2">
+                  <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    name="location"
+                    required
+                    value={formData.location}
+                    onChange={handleChange}
+                    placeholder="Calle, Ciudad, Provincia"
+                    className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio (€)</label>
+                  <div className="relative mt-2">
+                    <Euro className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      name="price"
+                      type="number"
+                      required
+                      value={formData.price}
+                      onChange={handleChange}
+                      placeholder="0.00"
+                      className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold transition-all"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo</label>
+                  <select
+                    name="type"
+                    value={formData.type}
+                    onChange={handleChange}
+                    className="w-full mt-2 px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold appearance-none cursor-pointer transition-all"
+                  >
+                    <option value="house">Casa / Villa</option>
+                    <option value="apartment">Apartamento</option>
+                    <option value="land">Terreno</option>
+                    <option value="commercial">Local Comercial</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Columna Derecha: Detalles Técnicos */}
+            <div className="space-y-6">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Hab.</label>
+                  <div className="relative mt-2">
+                    <BedDouble className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      name="beds"
+                      type="number"
+                      value={formData.beds}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-3 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Baños</label>
+                  <div className="relative mt-2">
+                    <Bath className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      name="baths"
+                      type="number"
+                      value={formData.baths}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-3 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">m²</label>
+                  <div className="relative mt-2">
+                    <Square className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      name="sqft"
+                      type="number"
+                      value={formData.sqft}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-3 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">URL de la Imagen</label>
+                <div className="relative mt-2">
+                  <ImageIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    name="image_url"
+                    value={formData.image_url}
+                    onChange={handleChange}
+                    placeholder="https://images.unsplash.com/..."
+                    className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descripción</label>
+                <textarea
+                  name="description"
+                  rows={3}
+                  value={formData.description}
+                  onChange={handleChange}
+                  placeholder="Detalles adicionales, equipamiento..."
+                  className="w-full mt-2 px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all resize-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer del Modal */}
+          <div className="mt-10 pt-8 border-t border-slate-100 flex items-center justify-end gap-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-8 py-4 text-slate-500 font-bold hover:bg-slate-100 rounded-2xl transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-10 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center gap-3 disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+              Publicar Propiedad
+            </button>
+          </div>
         </form>
       </div>
     </div>
