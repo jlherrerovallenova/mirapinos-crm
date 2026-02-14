@@ -2,12 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Search, 
-  Plus, 
-  Filter, 
-  MoreHorizontal, 
   Mail, 
   Phone, 
-  Calendar,
   ChevronRight,
   UserPlus,
   Loader2
@@ -19,7 +15,6 @@ import { AppNotification } from '../components/Shared';
 import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
-type Document = Database['public']['Tables']['documents']['Row'];
 
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -27,7 +22,6 @@ export default function Leads() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [emailLead, setEmailLead] = useState<Lead | null>(null);
@@ -40,12 +34,16 @@ export default function Leads() {
   }>({ show: false, title: '', message: '', type: 'success' });
 
   useEffect(() => {
-    fetchLeads();
-    fetchDocuments();
+    fetchInitialData();
   }, []);
 
-  async function fetchLeads() {
+  async function fetchInitialData() {
     setLoading(true);
+    await Promise.all([fetchLeads(), fetchDocuments()]);
+    setLoading(false);
+  }
+
+  async function fetchLeads() {
     try {
       const { data, error } = await supabase
         .from('leads')
@@ -56,37 +54,37 @@ export default function Leads() {
       if (data) setLeads(data);
     } catch (error) {
       console.error('Error fetching leads:', error);
-    } finally {
-      setLoading(false);
     }
   }
 
   async function fetchDocuments() {
     try {
+      // Corregido: Usamos 'url' en lugar de 'file_url' para coincidir con Settings.tsx
       const { data, error } = await supabase
         .from('documents')
-        .select('name, file_url')
+        .select('name, url') 
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
       if (data) {
-        const formattedDocs = data.map(doc => ({
+        setAvailableDocs(data.map(doc => ({
           name: doc.name,
-          url: doc.file_url
-        }));
-        setAvailableDocs(formattedDocs);
+          url: doc.url
+        })));
       }
     } catch (error) {
       console.error('Error fetching documents:', error);
     }
   }
 
-  const filteredLeads = leads.filter(lead => 
-    lead.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filtrado robusto para evitar el error de 'toLowerCase'
+  const filteredLeads = leads.filter(lead => {
+    const search = searchTerm.toLowerCase();
+    const name = lead.name?.toLowerCase() || ""; // Usamos .name que es lo que existe en App.tsx/Leads.tsx original
+    const email = lead.email?.toLowerCase() || "";
+    return name.includes(search) || email.includes(search);
+  });
 
   const showNotif = (title: string, message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ show: true, title, message, type });
@@ -96,12 +94,12 @@ export default function Leads() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <p className="text-emerald-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2 text-center md:text-left">Gestión de Prospectos</p>
-          <h1 className="text-4xl font-display font-bold text-slate-900 tracking-tight text-center md:text-left">Leads</h1>
+          <p className="text-emerald-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">Gestión de Prospectos</p>
+          <h1 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Leads</h1>
         </div>
         <button 
           onClick={() => setIsCreateModalOpen(true)}
-          className="px-8 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-200 hover:shadow-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3 active:scale-95"
+          className="px-8 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3 active:scale-95"
         >
           <UserPlus size={20} /> NUEVO LEAD
         </button>
@@ -120,17 +118,9 @@ export default function Leads() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            
-            <nav className="space-y-1">
-              <button className="w-full flex items-center justify-between p-3 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-sm transition-all">
-                Todos los Leads
-                <span className="bg-emerald-200 px-2 py-0.5 rounded-lg text-[10px]">{leads.length}</span>
-              </button>
-              <button className="w-full flex items-center justify-between p-3 rounded-xl text-slate-500 hover:bg-slate-50 font-medium text-sm transition-all">
-                Nuevos hoy
-                <span className="bg-slate-100 px-2 py-0.5 rounded-lg text-[10px]">0</span>
-              </button>
-            </nav>
+            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-sm flex justify-between">
+              Total Leads <span>{leads.length}</span>
+            </div>
           </div>
         </aside>
 
@@ -149,81 +139,50 @@ export default function Leads() {
                   onClick={() => setSelectedLead(lead)}
                 >
                   <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 bg-gradient-to-br from-slate-100 to-slate-50 rounded-2xl flex items-center justify-center text-slate-400 font-bold text-xl border border-slate-50 group-hover:from-emerald-500 group-hover:to-emerald-600 group-hover:text-white transition-all duration-300">
-                      {lead.first_name[0]}{lead.last_name[0]}
+                    <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center text-emerald-600 font-bold text-xl group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                      {lead.name?.substring(0, 2).toUpperCase() || "L"}
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-800 text-lg group-hover:text-emerald-700 transition-colors">{lead.first_name} {lead.last_name}</h3>
-                      <div className="flex items-center gap-4 mt-1 text-slate-400 text-sm font-medium">
-                        <span className="flex items-center gap-1.5"><Mail size={14}/> {lead.email}</span>
+                      <h3 className="font-bold text-slate-800 text-lg">{lead.name}</h3>
+                      <div className="flex items-center gap-4 mt-1 text-slate-400 text-sm">
+                        <span className="flex items-center gap-1.5"><Mail size={14}/> {lead.email || 'Sin email'}</span>
                         {lead.phone && <span className="flex items-center gap-1.5"><Phone size={14}/> {lead.phone}</span>}
                       </div>
                     </div>
                   </div>
-
                   <div className="flex items-center gap-2">
                     <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEmailLead(lead);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); setEmailLead(lead); }}
                       className="p-3 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
-                      title="Enviar email"
                     >
                       <Mail size={20} />
                     </button>
-                    <button className="p-3 text-slate-400 hover:bg-slate-50 hover:text-slate-600 rounded-xl transition-all">
-                      <ChevronRight size={20} />
-                    </button>
+                    <ChevronRight size={20} className="text-slate-300" />
                   </div>
                 </div>
               ))}
-
-              {filteredLeads.length === 0 && (
-                <div className="text-center py-20 bg-slate-50 rounded-[40px] border-2 border-dashed border-slate-200">
-                  <p className="text-slate-400 font-medium italic">No se encontraron prospectos que coincidan con la búsqueda.</p>
-                </div>
-              )}
             </div>
           )}
         </main>
       </div>
 
-      {/* Modales */}
-      <CreateLeadModal 
-        isOpen={isCreateModalOpen} 
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={() => {
-          fetchLeads();
-          showNotif("PROSPECTO CREADO", "El nuevo lead se ha registrado correctamente.");
-        }}
-      />
-
-      {selectedLead && (
-        <LeadDetailModal 
-          lead={selectedLead}
-          isOpen={!!selectedLead}
-          onClose={() => setSelectedLead(null)}
-          onUpdate={fetchLeads}
-        />
-      )}
-
+      <CreateLeadModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSuccess={fetchLeads} />
+      {selectedLead && <LeadDetailModal lead={selectedLead} onClose={() => setSelectedLead(null)} onUpdate={fetchLeads} />}
       {emailLead && (
         <EmailComposerModal
           isOpen={!!emailLead}
           onClose={() => setEmailLead(null)}
-          leadName={`${emailLead.first_name} ${emailLead.last_name}`}
+          leadName={emailLead.name}
           leadEmail={emailLead.email}
           availableDocs={availableDocs}
         />
       )}
-
       {notification.show && (
         <AppNotification 
-          title={notification.title}
-          message={notification.message}
-          type={notification.type}
-          onClose={() => setNotification({ ...notification, show: false })}
+          title={notification.title} 
+          message={notification.message} 
+          type={notification.type} 
+          onClose={() => setNotification({ ...notification, show: false })} 
         />
       )}
     </div>
