@@ -11,7 +11,8 @@ import {
   Loader2, 
   Send, 
   Clock,
-  Compass
+  Compass,
+  MessageCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import EmailComposerModal from './EmailComposerModal';
@@ -35,7 +36,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     email: lead.email || '',
     phone: lead.phone || '',
     status: lead.status || 'new',
-    source: lead.source || '', // Restaurado el origen
+    source: lead.source || '',
     notes: lead.notes || ''
   });
 
@@ -92,7 +93,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           email: formData.email,
           phone: formData.phone,
           status: formData.status as Lead['status'],
-          source: formData.source, // Guardar el origen
+          source: formData.source,
           notes: formData.notes
         })
         .eq('id', lead.id);
@@ -149,12 +150,21 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
           {/* Acciones Rápidas */}
           <div className="px-8 pt-6">
-            <button 
-              onClick={() => setIsEmailModalOpen(true)}
-              className="w-full p-4 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors"
-            >
-              <Send size={18} /> Enviar Documentación (WhatsApp / Email)
-            </button>
+            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between">
+              <div className="flex items-center gap-3 text-emerald-800">
+                <Send size={18} className="text-emerald-600" />
+                <span className="text-sm font-bold">Enviar Documentación</span>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsEmailModalOpen(true)}
+                  className="px-4 py-2 bg-white text-emerald-600 border border-emerald-200 rounded-xl text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-2"
+                >
+                  <MessageCircle size={14} /> WhatsApp / Email
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Formulario de Datos */}
@@ -177,7 +187,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       name="source" 
                       value={formData.source} 
                       onChange={handleChange} 
-                      placeholder="Ej: Web, Recomendación, Instagram..." 
+                      placeholder="Ej: Web, Instagram..." 
                       className="w-full mt-1 pl-10 pr-4 py-3 bg-slate-50 rounded-xl outline-none text-sm font-medium" 
                     />
                   </div>
@@ -218,17 +228,23 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                 ) : (
                   sentHistory.map((item) => (
                     <div key={item.id} className="bg-white p-3 rounded-xl border border-slate-100 flex items-center justify-between shadow-sm">
-                      <div>
+                      <div className="flex flex-col">
                         <p className="text-sm font-bold text-slate-700">{item.doc_name}</p>
                         <p className="text-[10px] text-slate-400 font-bold">
                           {new Date(item.sent_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
                         </p>
                       </div>
-                      <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${
-                        item.method === 'whatsapp' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
-                      }`}>
-                        {item.method}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {item.method === 'whatsapp' ? (
+                          <span className="bg-emerald-100 text-emerald-600 px-2 py-1 rounded-lg text-[9px] font-black uppercase flex items-center gap-1">
+                            <MessageCircle size={10} /> {item.method}
+                          </span>
+                        ) : (
+                          <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded-lg text-[9px] font-black uppercase flex items-center gap-1">
+                            <Mail size={10} /> {item.method}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}
