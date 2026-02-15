@@ -6,13 +6,12 @@ import {
   Mail, 
   Phone, 
   Tag, 
-  FileText,
-  Save,
-  Trash2,
-  Loader2,
-  Send,
-  MessageCircle,
-  Clock
+  Save, 
+  Trash2, 
+  Loader2, 
+  Send, 
+  Clock,
+  Compass
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import EmailComposerModal from './EmailComposerModal';
@@ -36,6 +35,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     email: lead.email || '',
     phone: lead.phone || '',
     status: lead.status || 'new',
+    source: lead.source || '', // Restaurado el origen
     notes: lead.notes || ''
   });
 
@@ -92,6 +92,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           email: formData.email,
           phone: formData.phone,
           status: formData.status as Lead['status'],
+          source: formData.source, // Guardar el origen
           notes: formData.notes
         })
         .eq('id', lead.id);
@@ -161,12 +162,25 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase ml-1">Nombre</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1">Nombre completo</label>
                   <input name="name" value={formData.name} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-xl outline-none text-sm font-medium" required />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-400 uppercase ml-1">Email</label>
                   <input name="email" value={formData.email} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-xl outline-none text-sm font-medium" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1">Origen del Lead</label>
+                  <div className="relative">
+                    <Compass className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input 
+                      name="source" 
+                      value={formData.source} 
+                      onChange={handleChange} 
+                      placeholder="Ej: Web, Recomendación, Instagram..." 
+                      className="w-full mt-1 pl-10 pr-4 py-3 bg-slate-50 rounded-xl outline-none text-sm font-medium" 
+                    />
+                  </div>
                 </div>
               </div>
 
