@@ -7,7 +7,8 @@ import {
   Phone, 
   ChevronRight,
   UserPlus,
-  Loader2
+  Loader2,
+  MessageCircle
 } from 'lucide-react';
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
@@ -17,7 +18,6 @@ import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 
-// Estilos visuales para los estados del lead
 const getStatusStyles = (status: Lead['status']) => {
   const styles = {
     new: 'bg-blue-50 text-blue-700 border-blue-100',
@@ -40,6 +40,7 @@ export default function Leads() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [emailLead, setEmailLead] = useState<Lead | null>(null);
+  const [initialMethod, setInitialMethod] = useState<'email' | 'whatsapp'>('email');
   
   const [notification, setNotification] = useState<{
     show: boolean;
@@ -91,6 +92,11 @@ export default function Leads() {
       console.error('Error fetching documents:', error);
     }
   }
+
+  const openComposer = (lead: Lead, method: 'email' | 'whatsapp') => {
+    setInitialMethod(method);
+    setEmailLead(lead);
+  };
 
   const filteredLeads = leads.filter(lead => {
     const search = searchTerm.toLowerCase();
@@ -166,13 +172,22 @@ export default function Leads() {
                   </div>
                   
                   <div className="flex items-center justify-end gap-2 border-t md:border-t-0 pt-3 md:pt-0">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setEmailLead(lead); }}
-                      className="p-3 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
-                      title="Enviar Documentación"
-                    >
-                      <Mail size={20} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); openComposer(lead, 'whatsapp'); }}
+                        className="p-3 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
+                        title="Enviar WhatsApp"
+                      >
+                        <MessageCircle size={20} />
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); openComposer(lead, 'email'); }}
+                        className="p-3 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all"
+                        title="Enviar Email"
+                      >
+                        <Mail size={20} />
+                      </button>
+                    </div>
                     <div className="h-8 w-px bg-slate-100 mx-2 hidden md:block"></div>
                     <ChevronRight size={20} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
                   </div>
@@ -212,6 +227,7 @@ export default function Leads() {
           leadPhone={emailLead.phone}
           availableDocs={availableDocs}
           onSentSuccess={fetchLeads}
+          initialMethod={initialMethod}
         />
       )}
       
