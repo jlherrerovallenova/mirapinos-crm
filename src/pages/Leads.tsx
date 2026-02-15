@@ -74,7 +74,7 @@ export default function Leads() {
       if (data) setLeads(data);
     } catch (error) {
       console.error('Error fetching leads:', error);
-      showMsg('error', 'Error de conexión', 'No se pudieron cargar los prospectos correctamente.');
+      showMsg('error', 'Error de conexión', 'No se pudieron cargar los prospectos.');
     }
   }
 
@@ -95,7 +95,6 @@ export default function Leads() {
       }
     } catch (error) {
       console.error('Error fetching documents:', error);
-      showMsg('error', 'Error de archivos', 'No se pudo sincronizar la biblioteca de documentos.');
     }
   }
 
@@ -214,7 +213,7 @@ export default function Leads() {
         onClose={() => setIsCreateModalOpen(false)} 
         onSuccess={() => {
           fetchLeads();
-          showMsg('success', 'Lead Creado', 'El prospecto ha sido registrado exitosamente.');
+          showMsg('success', '¡Completado!', 'El nuevo lead ha sido creado con éxito.');
         }} 
       />
       
@@ -222,9 +221,13 @@ export default function Leads() {
         <LeadDetailModal 
           lead={selectedLead} 
           onClose={() => setSelectedLead(null)} 
-          onUpdate={() => {
+          onUpdate={(deleted?: boolean) => {
             fetchLeads();
-            showMsg('info', 'Actualización', 'Los datos del lead han sido actualizados.');
+            if (deleted) {
+              showMsg('success', 'Lead eliminado', 'El cliente ha sido borrado de la base de datos.');
+            } else {
+              showMsg('info', 'Lead actualizado', 'Los cambios se han guardado correctamente.');
+            }
           }} 
         />
       )}
@@ -240,7 +243,7 @@ export default function Leads() {
           availableDocs={availableDocs}
           onSentSuccess={() => {
             fetchLeads();
-            showMsg('success', 'Mensaje Enviado', 'La comunicación se ha procesado correctamente.');
+            showMsg('success', 'Mensaje enviado', 'La comunicación se ha registrado correctamente.');
           }}
           initialMethod={initialMethod}
         />
