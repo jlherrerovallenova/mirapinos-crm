@@ -7,9 +7,7 @@ import {
   Phone, 
   ChevronRight,
   UserPlus,
-  Loader2,
-  DollarSign,
-  Tag
+  Loader2
 } from 'lucide-react';
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
@@ -19,7 +17,7 @@ import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 
-// Función auxiliar para los colores de los estados
+// Estilos visuales para los estados del lead
 const getStatusStyles = (status: Lead['status']) => {
   const styles = {
     new: 'bg-blue-50 text-blue-700 border-blue-100',
@@ -129,13 +127,8 @@ export default function Leads() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-sm flex justify-between">
-                Total Leads <span>{leads.length}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 text-slate-600 font-bold text-sm flex justify-between">
-                Valor Total <span>{new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(leads.reduce((acc, curr) => acc + (curr.value || 0), 0))}</span>
-              </div>
+            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-sm flex justify-between">
+              Total Leads <span>{leads.length}</span>
             </div>
           </div>
         </aside>
@@ -168,11 +161,6 @@ export default function Leads() {
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-slate-400 text-sm">
                         <span className="flex items-center gap-1.5"><Mail size={14}/> {lead.email || 'Sin email'}</span>
                         {lead.phone && <span className="flex items-center gap-1.5"><Phone size={14}/> {lead.phone}</span>}
-                        {lead.value && (
-                          <span className="flex items-center gap-1.5 text-slate-600 font-semibold">
-                            <DollarSign size={14}/> {new Intl.NumberFormat('es-ES').format(lead.value)}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -181,7 +169,7 @@ export default function Leads() {
                     <button 
                       onClick={(e) => { e.stopPropagation(); setEmailLead(lead); }}
                       className="p-3 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
-                      title="Enviar Email"
+                      title="Enviar Documentación"
                     >
                       <Mail size={20} />
                     </button>
@@ -200,17 +188,33 @@ export default function Leads() {
         </main>
       </div>
 
-      <CreateLeadModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSuccess={fetchLeads} />
-      {selectedLead && <LeadDetailModal lead={selectedLead} onClose={() => setSelectedLead(null)} onUpdate={fetchLeads} />}
+      <CreateLeadModal 
+        isOpen={isCreateModalOpen} 
+        onClose={() => setIsCreateModalOpen(false)} 
+        onSuccess={fetchLeads} 
+      />
+      
+      {selectedLead && (
+        <LeadDetailModal 
+          lead={selectedLead} 
+          onClose={() => setSelectedLead(null)} 
+          onUpdate={fetchLeads} 
+        />
+      )}
+      
       {emailLead && (
         <EmailComposerModal
           isOpen={!!emailLead}
           onClose={() => setEmailLead(null)}
+          leadId={emailLead.id}
           leadName={emailLead.name}
           leadEmail={emailLead.email}
+          leadPhone={emailLead.phone}
           availableDocs={availableDocs}
+          onSentSuccess={fetchLeads}
         />
       )}
+      
       {notification.show && (
         <AppNotification 
           title={notification.title} 
