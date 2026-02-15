@@ -1,255 +1,293 @@
+// src/components/leads/LeadDetailModal.tsx
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Phone, Calendar, Clock, MapPin, User, Tag, MessageSquare, Plus, Trash2, CheckCircle2, Circle } from 'lucide-react';
+import { 
+  X, User, Mail, Phone, Save, Trash2, Loader2, Send, 
+  Clock, Compass, MessageCircle, Calendar as CalendarIcon,
+  CheckCircle, Circle, Plus, AlertCircle 
+} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import type { Lead, Appointment, Task } from '../../types/supabase';
-import CreateAppointmentModal from '../CreateAppointmentModal';
+import EmailComposerModal from './EmailComposerModal';
+import type { Database } from '../../types/supabase';
 
-interface LeadDetailModalProps {
+type Lead = Database['public']['Tables']['leads']['Row'];
+
+interface Props {
   lead: Lead;
   onClose: () => void;
   onUpdate: () => void;
 }
 
-const LeadDetailModal: React.FC<LeadDetailModalProps> = ({ lead, onClose, onUpdate }) => {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'appointments' | 'tasks'>('appointments');
+export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
+  const [loading, setLoading] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [availableDocs, setAvailableDocs] = useState<{name: string, url: string}[]>([]);
+  const [sentHistory, setSentHistory] = useState<any[]>([]);
+  const [agenda, setAgenda] = useState<any[]>([]);
+  
+  const [newAction, setNewAction] = useState({ 
+    type: 'Llamada', 
+    title: '', 
+    due_date: new Date().toISOString().slice(0, 16) 
+  });
+
+  const [formData, setFormData] = useState({
+    name: lead.name || '',
+    email: lead.email || '',
+    phone: lead.phone || '',
+    status: lead.status || 'new',
+    source: lead.source || '',
+    notes: lead.notes || ''
+  });
 
   useEffect(() => {
-    fetchLeadData();
+    fetchDocuments();
+    fetchHistory();
+    fetchAgenda();
   }, [lead.id]);
 
-  const fetchLeadData = async () => {
-    try {
-      setLoading(true);
-      const [appointmentsRes, tasksRes] = await Promise.all([
-        supabase
-          .from('appointments')
-          .select('*')
-          .eq('lead_id', lead.id)
-          .order('start_time', { ascending: true }),
-        supabase
-          .from('tasks')
-          .select('*')
-          .eq('lead_id', lead.id)
-          .order('created_at', { ascending: false })
-      ]);
+  async function fetchDocuments() {
+    const { data } = await supabase.from('documents').select('name, url').order('created_at', { ascending: false });
+    if (data) setAvailableDocs(data);
+  }
 
-      if (appointmentsRes.data) setAppointments(appointmentsRes.data);
-      if (tasksRes.data) setTasks(tasksRes.data);
-    } catch (error) {
-      console.error('Error fetching lead data:', error);
-    } finally {
-      setLoading(false);
+  async function fetchHistory() {
+    const { data } = await supabase.from('sent_documents').select('*').eq('lead_id', lead.id).order('sent_at', { ascending: false });
+    if (data) setSentHistory(data);
+  }
+
+  async function fetchAgenda() {
+    const { data } = await supabase.from('agenda').select('*').eq('lead_id', lead.id).order('due_date', { ascending: true });
+    if (data) setAgenda(data);
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const addAgendaItem = async () => {
+    if (!newAction.title) return;
+    const { error } = await supabase.from('agenda').insert([{
+      lead_id: lead.id,
+      ...newAction
+    }]);
+    if (!error) {
+      setNewAction({ ...newAction, title: '', type: 'Llamada', due_date: new Date().toISOString().slice(0, 16) });
+      fetchAgenda();
     }
   };
 
-  const toggleTaskStatus = async (task: Task) => {
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ status: task.status === 'completed' ? 'pending' : 'completed' })
-        .eq('id', task.id);
+  const toggleTask = async (id: string, currentStatus: boolean) => {
+    await supabase.from('agenda').update({ completed: !currentStatus }).eq('id', id);
+    fetchAgenda();
+  };
 
-      if (error) throw error;
-      fetchLeadData();
-    } catch (error) {
-      console.error('Error updating task:', error);
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.from('leads').update(formData).eq('id', lead.id);
+    if (!error) {
+      onUpdate();
+      onClose();
     }
+    setLoading(false);
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('¿Eliminar este cliente?')) return;
+    setLoading(true);
+    await supabase.from('leads').delete().eq('id', lead.id);
+    onUpdate();
+    onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-md w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-        {/* Header */}
-        <div className="p-6 border-b flex justify-between items-center bg-gray-50">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              {lead.first_name} {lead.last_name}
-            </h2>
-            <div className="flex gap-2 mt-1">
-              <span className={`px-2 py-1 rounded-md text-xs font-medium ${
-                lead.status === 'new' ? 'bg-blue-100 text-blue-800' :
-                lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
-                lead.status === 'qualified' ? 'bg-green-100 text-green-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
-                {lead.status.toUpperCase()}
-              </span>
-            </div>
-          </div>
-          <button 
-            onClick={onClose} 
-            className="p-2 hover:bg-gray-200 rounded-md transition-colors"
-          >
-            <X className="w-6 h-6 text-gray-500" />
-          </button>
-        </div>
-
-        {/* Body Content - Two Columns */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            
-            {/* Columna Izquierda: Datos del Lead */}
-            <div className="space-y-6">
-              <section>
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <User className="w-4 h-4" /> Información Personal
-                </h3>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-md border border-gray-100">
-                    <Mail className="w-5 h-5 text-indigo-600" />
-                    <div>
-                      <p className="text-xs text-gray-500">Email</p>
-                      <p className="text-sm font-medium">{lead.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-md border border-gray-100">
-                    <Phone className="w-5 h-5 text-indigo-600" />
-                    <div>
-                      <p className="text-xs text-gray-500">Teléfono</p>
-                      <p className="text-sm font-medium">{lead.phone || 'No disponible'}</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section>
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <Tag className="w-4 h-4" /> Detalles de Interés
-                </h3>
-                <div className="bg-gray-50 p-4 rounded-md border border-gray-100 space-y-4">
-                  <div>
-                    <p className="text-xs text-gray-500">Origen del lead</p>
-                    <p className="text-sm font-medium capitalize mt-1">{lead.source}</p>
-                  </div>
-                  {lead.notes && (
-                    <div className="border-t border-gray-200 pt-4">
-                      <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-                        <MessageSquare className="w-3 h-3" /> Notas
-                      </p>
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap bg-white p-3 rounded-md border border-gray-100 italic">
-                        "{lead.notes}"
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </section>
-            </div>
-
-            {/* Columna Derecha: Agenda (Citas y Tareas) */}
-            <div className="bg-gray-50 rounded-md p-6 border border-gray-200 flex flex-col h-full min-h-[400px]">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex gap-4">
-                  <button 
-                    onClick={() => setActiveTab('appointments')}
-                    className={`pb-2 text-sm font-bold transition-colors ${
-                      activeTab === 'appointments' 
-                        ? 'text-indigo-600 border-b-2 border-indigo-600' 
-                        : 'text-gray-400 hover:text-gray-600'
-                    }`}
-                  >
-                    Citas
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab('tasks')}
-                    className={`pb-2 text-sm font-bold transition-colors ${
-                      activeTab === 'tasks' 
-                        ? 'text-indigo-600 border-b-2 border-indigo-600' 
-                        : 'text-gray-400 hover:text-gray-600'
-                    }`}
-                  >
-                    Tareas
-                  </button>
-                </div>
-                <button 
-                  onClick={() => setShowAppointmentModal(true)}
-                  className="flex items-center gap-1 text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700 transition-shadow shadow-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  Nueva
-                </button>
+    <>
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        {/* Modal con bordes menos redondeados (rounded-lg) */}
+        <div className="bg-white w-full max-w-6xl rounded-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
+          
+          {/* Header */}
+          <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-lg flex items-center justify-center font-bold text-xl">
+                {formData.name.charAt(0).toUpperCase()}
               </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 leading-tight">Ficha del Cliente</h2>
+                <p className="text-sm text-slate-500 font-medium">{formData.name}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-md transition-colors text-slate-400">
+              <X size={20} />
+            </button>
+          </div>
 
-              {loading ? (
-                <div className="flex-1 flex justify-center items-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                </div>
-              ) : (
-                <div className="flex-1 space-y-3 overflow-y-auto">
-                  {activeTab === 'appointments' ? (
-                    appointments.length > 0 ? (
-                      appointments.map((appointment) => (
-                        <div key={appointment.id} className="bg-white p-4 rounded-md shadow-sm border border-gray-200 hover:border-indigo-300 transition-colors">
-                          <h4 className="font-semibold text-gray-900 text-sm">{appointment.title}</h4>
-                          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5" />
-                              {new Date(appointment.start_time).toLocaleDateString()}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5" />
-                              {new Date(appointment.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-gray-400 italic py-10">
-                        <Calendar className="w-10 h-10 mb-2 opacity-20" />
-                        <p className="text-sm">No hay citas programadas</p>
+          <div className="flex-1 overflow-y-auto p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* PARTE IZQUIERDA: Datos y Formulario */}
+              <div className="space-y-8">
+                <button 
+                  onClick={() => setIsEmailModalOpen(true)}
+                  className="w-full p-4 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 transition-all"
+                >
+                  <Send size={18} /> Enviar Documentación (WhatsApp / Email)
+                </button>
+
+                <form onSubmit={handleUpdate} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre</label>
+                        <input name="name" value={formData.name} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-lg outline-none text-sm font-bold border border-transparent focus:border-slate-200" required />
                       </div>
-                    )
-                  ) : (
-                    tasks.length > 0 ? (
-                      tasks.map((task) => (
-                        <div 
-                          key={task.id} 
-                          className="bg-white p-3 rounded-md shadow-sm border border-gray-200 flex items-center justify-between group hover:border-indigo-300 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <button onClick={() => toggleTaskStatus(task)} className="focus:outline-none">
-                              {task.status === 'completed' ? (
-                                <CheckCircle2 className="w-5 h-5 text-green-500" />
-                              ) : (
-                                <Circle className="w-5 h-5 text-gray-300 hover:text-indigo-400" />
-                              )}
-                            </button>
-                            <span className={`text-sm ${task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                              {task.title}
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
+                        <input name="email" value={formData.email} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-lg outline-none text-sm font-medium border border-transparent focus:border-slate-200" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Origen</label>
+                        <div className="relative">
+                          <Compass className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <input name="source" value={formData.source} onChange={handleChange} placeholder="Web, Insta..." className="w-full mt-1 pl-10 pr-4 py-3 bg-slate-50 rounded-lg outline-none text-sm font-medium border border-transparent focus:border-slate-200" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estado</label>
+                        <select name="status" value={formData.status} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-lg outline-none text-sm font-bold text-emerald-600 border border-transparent focus:border-slate-200">
+                          <option value="new">Nuevo</option>
+                          <option value="contacted">Contactado</option>
+                          <option value="qualified">Cualificado</option>
+                          <option value="proposal">Propuesta</option>
+                          <option value="negotiation">Negociación</option>
+                          <option value="closed">Cerrado</option>
+                          <option value="lost">Perdido</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <input name="phone" value={formData.phone} onChange={handleChange} placeholder="600..." className="w-full mt-1 pl-10 pr-4 py-3 bg-slate-50 rounded-lg outline-none text-sm font-bold border border-transparent focus:border-slate-200" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Notas Internas</label>
+                    <textarea name="notes" rows={3} value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-lg outline-none text-sm font-medium resize-none border border-transparent focus:border-slate-200" />
+                  </div>
+
+                  {/* HISTORIAL DE DOCUMENTOS (Dentro de la parte de datos) */}
+                  <div className="bg-slate-50 rounded-lg p-6 border border-slate-100">
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <Clock size={14} /> Documentación Enviada
+                    </h3>
+                    <div className="space-y-2">
+                      {sentHistory.length === 0 ? (
+                        <p className="text-[11px] text-slate-400 italic">No hay envíos registrados.</p>
+                      ) : (
+                        sentHistory.slice(0, 4).map((item) => (
+                          <div key={item.id} className="bg-white p-3 rounded-lg border border-slate-100 flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700">{item.doc_name}</span>
+                            <span className={`text-[9px] font-black px-2 py-1 rounded-md uppercase ${item.method === 'whatsapp' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+                              {item.method}
                             </span>
                           </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-gray-400 italic py-10">
-                        <Clock className="w-10 h-10 mb-2 opacity-20" />
-                        <p className="text-sm">No hay tareas pendientes</p>
-                      </div>
-                    )
-                  )}
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4">
+                    <button type="button" onClick={handleDelete} className="text-red-500 font-bold text-xs flex items-center gap-2 px-4 py-2 hover:bg-red-50 rounded-lg transition-all">
+                      <Trash2 size={16} /> ELIMINAR LEAD
+                    </button>
+                    <div className="flex gap-3">
+                      <button type="submit" disabled={loading} className="px-8 py-3 bg-slate-900 text-white font-bold rounded-lg flex items-center gap-2 shadow-xl hover:bg-slate-800 transition-all">
+                        {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} GUARDAR CAMBIOS
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+
+              {/* PARTE DERECHA: Agenda de Acciones */}
+              <div className="bg-slate-900 rounded-lg p-6 text-white shadow-xl flex flex-col h-full">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-400">
+                  <CalendarIcon size={14} /> Agenda de Acciones
+                </h3>
+                
+                <div className="grid grid-cols-1 gap-2 mb-6">
+                  <div className="flex gap-2">
+                    <select 
+                      name="type"
+                      value={newAction.type}
+                      onChange={(e) => setNewAction({...newAction, type: e.target.value})}
+                      className="bg-slate-800 border-none rounded-lg text-[11px] font-bold p-2.5 outline-none"
+                    >
+                      {['Llamada', 'Email', 'Whatsapp', 'Visita', 'Venta'].map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <input 
+                      type="datetime-local"
+                      value={newAction.due_date}
+                      onChange={(e) => setNewAction({...newAction, due_date: e.target.value})}
+                      className="flex-1 bg-slate-800 border-none rounded-lg text-[11px] p-2.5 outline-none"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      placeholder="Nueva tarea pendiente..."
+                      value={newAction.title}
+                      onChange={(e) => setNewAction({...newAction, title: e.target.value})}
+                      className="flex-1 bg-slate-800 border-none rounded-lg text-xs p-2.5 outline-none"
+                    />
+                    <button onClick={addAgendaItem} className="bg-emerald-500 px-4 rounded-lg hover:bg-emerald-400 transition-colors">
+                      <Plus size={18} />
+                    </button>
+                  </div>
                 </div>
-              )}
+
+                <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
+                  {agenda.length === 0 && <p className="text-[11px] text-slate-500 italic">No hay tareas programadas.</p>}
+                  {agenda.map((item) => (
+                    <div key={item.id} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${item.completed ? 'bg-slate-800/30 border-transparent opacity-40' : 'bg-slate-800 border-slate-700'}`}>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => toggleTask(item.id, item.completed)} className="text-emerald-400 hover:scale-110 transition-transform">
+                          {item.completed ? <CheckCircle size={20} /> : <Circle size={20} />}
+                        </button>
+                        <div>
+                          <p className={`text-xs font-bold ${item.completed ? 'line-through' : 'text-white'}`}>{item.title}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase">{item.type} • {new Date(item.due_date).toLocaleString('es-ES')}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
       </div>
 
-      {showAppointmentModal && (
-        <CreateAppointmentModal
+      {isEmailModalOpen && (
+        <EmailComposerModal
+          isOpen={isEmailModalOpen}
+          onClose={() => setIsEmailModalOpen(false)}
           leadId={lead.id}
-          onClose={() => setShowAppointmentModal(false)}
-          onSuccess={() => {
-            setShowAppointmentModal(false);
-            fetchLeadData();
-            onUpdate();
-          }}
+          leadName={formData.name}
+          leadEmail={formData.email}
+          leadPhone={formData.phone}
+          availableDocs={availableDocs}
+          onSentSuccess={fetchHistory}
         />
       )}
-    </div>
+    </>
   );
-};
-
-export default LeadDetailModal;
+}
