@@ -157,7 +157,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
               </div>
               <div className="flex gap-2">
                 <button 
-                  type="button"
                   onClick={() => setIsEmailModalOpen(true)}
                   className="px-4 py-2 bg-white text-emerald-600 border border-emerald-200 rounded-xl text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-2"
                 >
