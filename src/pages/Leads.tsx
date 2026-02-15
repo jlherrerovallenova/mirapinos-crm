@@ -13,7 +13,7 @@ import {
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
 import EmailComposerModal from '../components/leads/EmailComposerModal';
-import { AppNotification } from '../components/Shared';
+import { AppNotification } from '../components/AppNotification';
 import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
@@ -53,6 +53,10 @@ export default function Leads() {
     fetchInitialData();
   }, []);
 
+  const showMsg = (type: 'success' | 'error' | 'info', title: string, message: string) => {
+    setNotification({ show: true, type, title, message });
+  };
+
   async function fetchInitialData() {
     setLoading(true);
     await Promise.all([fetchLeads(), fetchDocuments()]);
@@ -70,6 +74,7 @@ export default function Leads() {
       if (data) setLeads(data);
     } catch (error) {
       console.error('Error fetching leads:', error);
+      showMsg('error', 'Error de conexión', 'No se pudieron cargar los prospectos correctamente.');
     }
   }
 
@@ -90,6 +95,7 @@ export default function Leads() {
       }
     } catch (error) {
       console.error('Error fetching documents:', error);
+      showMsg('error', 'Error de archivos', 'No se pudo sincronizar la biblioteca de documentos.');
     }
   }
 
@@ -206,14 +212,20 @@ export default function Leads() {
       <CreateLeadModal 
         isOpen={isCreateModalOpen} 
         onClose={() => setIsCreateModalOpen(false)} 
-        onSuccess={fetchLeads} 
+        onSuccess={() => {
+          fetchLeads();
+          showMsg('success', 'Lead Creado', 'El prospecto ha sido registrado exitosamente.');
+        }} 
       />
       
       {selectedLead && (
         <LeadDetailModal 
           lead={selectedLead} 
           onClose={() => setSelectedLead(null)} 
-          onUpdate={fetchLeads} 
+          onUpdate={() => {
+            fetchLeads();
+            showMsg('info', 'Actualización', 'Los datos del lead han sido actualizados.');
+          }} 
         />
       )}
       
@@ -226,7 +238,10 @@ export default function Leads() {
           leadEmail={emailLead.email}
           leadPhone={emailLead.phone}
           availableDocs={availableDocs}
-          onSentSuccess={fetchLeads}
+          onSentSuccess={() => {
+            fetchLeads();
+            showMsg('success', 'Mensaje Enviado', 'La comunicación se ha procesado correctamente.');
+          }}
           initialMethod={initialMethod}
         />
       )}
