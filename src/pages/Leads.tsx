@@ -8,7 +8,8 @@ import {
   ChevronRight,
   UserPlus,
   Loader2,
-  MessageCircle
+  MessageCircle,
+  Calendar
 } from 'lucide-react';
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
@@ -172,6 +173,7 @@ export default function Leads() {
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-slate-400 text-sm">
                         <span className="flex items-center gap-1.5"><Mail size={14}/> {lead.email || 'Sin email'}</span>
                         {lead.phone && <span className="flex items-center gap-1.5"><Phone size={14}/> {lead.phone}</span>}
+                        <span className="flex items-center gap-1.5"><Calendar size={14}/> Alta: {new Date(lead.created_at).toLocaleDateString('es-ES')}</span>
                       </div>
                     </div>
                   </div>
