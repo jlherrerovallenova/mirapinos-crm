@@ -69,7 +69,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     if (!newAction.title) return;
 
     if (editingActionId) {
-      // Actualizar tarea existente
       const { error } = await supabase
         .from('agenda')
         .update({
@@ -83,7 +82,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
         setEditingActionId(null);
       }
     } else {
-      // Crear nueva tarea
       await supabase.from('agenda').insert([{
         lead_id: lead.id,
         ...newAction
@@ -133,6 +131,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     onClose();
   };
 
+  // Generación de URLs de contacto rápido
+  const cleanPhone = formData.phone.replace(/\D/g, '');
+  const whatsappUrl = cleanPhone ? `https://wa.me/${cleanPhone}` : '#';
+  const mailtoUrl = formData.email 
+    ? `mailto:${formData.email}?subject=${encodeURIComponent('FINCA MIRAPINOS')}` 
+    : '#';
+
   return (
     <>
       <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -145,7 +150,31 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-900 leading-tight">Ficha del Cliente</h2>
-                <p className="text-sm text-slate-500 font-medium">{formData.name}</p>
+                <div className="flex items-center gap-3">
+                  <p className="text-sm text-slate-500 font-medium">{formData.name}</p>
+                  <div className="flex gap-2 ml-2">
+                    {formData.phone && (
+                      <a 
+                        href={whatsappUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-1.5 bg-emerald-500 text-white rounded-full hover:bg-emerald-600 transition-colors shadow-sm"
+                        title="Abrir WhatsApp"
+                      >
+                        <MessageCircle size={14} />
+                      </a>
+                    )}
+                    {formData.email && (
+                      <a 
+                        href={mailtoUrl}
+                        className="p-1.5 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors shadow-sm"
+                        title="Enviar Email"
+                      >
+                        <Mail size={14} />
+                      </a>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-md transition-colors text-slate-400">
