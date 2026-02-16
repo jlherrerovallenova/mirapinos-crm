@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, User, Mail, Phone, Save, Trash2, Loader2, Send, 
   Clock, Compass, MessageCircle, Calendar as CalendarIcon,
-  CheckCircle, Circle, Plus, AlertCircle 
+  CheckCircle, Circle, Plus, AlertCircle, Pencil, RotateCcw
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import EmailComposerModal from './EmailComposerModal';
@@ -23,6 +23,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const [availableDocs, setAvailableDocs] = useState<{name: string, url: string}[]>([]);
   const [sentHistory, setSentHistory] = useState<any[]>([]);
   const [agenda, setAgenda] = useState<any[]>([]);
+  const [editingActionId, setEditingActionId] = useState<string | null>(null);
   
   const [newAction, setNewAction] = useState({ 
     type: 'Llamada', 
@@ -66,14 +67,46 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
   const addAgendaItem = async () => {
     if (!newAction.title) return;
-    const { error } = await supabase.from('agenda').insert([{
-      lead_id: lead.id,
-      ...newAction
-    }]);
-    if (!error) {
-      setNewAction({ ...newAction, title: '', type: 'Llamada', due_date: new Date().toISOString().slice(0, 16) });
-      fetchAgenda();
+
+    if (editingActionId) {
+      // Actualizar tarea existente
+      const { error } = await supabase
+        .from('agenda')
+        .update({
+          type: newAction.type,
+          title: newAction.title,
+          due_date: newAction.due_date
+        })
+        .eq('id', editingActionId);
+
+      if (!error) {
+        setEditingActionId(null);
+      }
+    } else {
+      // Crear nueva tarea
+      await supabase.from('agenda').insert([{
+        lead_id: lead.id,
+        ...newAction
+      }]);
     }
+
+    setNewAction({ type: 'Llamada', title: '', due_date: new Date().toISOString().slice(0, 16) });
+    fetchAgenda();
+  };
+
+  const deleteAgendaItem = async (id: string) => {
+    if (!window.confirm('¿Eliminar esta tarea de la agenda?')) return;
+    const { error } = await supabase.from('agenda').delete().eq('id', id);
+    if (!error) fetchAgenda();
+  };
+
+  const startEditingTask = (item: any) => {
+    setEditingActionId(item.id);
+    setNewAction({
+      type: item.type,
+      title: item.title,
+      due_date: new Date(item.due_date).toISOString().slice(0, 16)
+    });
   };
 
   const toggleTask = async (id: string, currentStatus: boolean) => {
@@ -248,13 +281,28 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   <div className="flex gap-2">
                     <input 
                       type="text"
-                      placeholder="Nueva tarea pendiente..."
+                      placeholder={editingActionId ? "Editando tarea..." : "Nueva tarea pendiente..."}
                       value={newAction.title}
                       onChange={(e) => setNewAction({...newAction, title: e.target.value})}
                       className="flex-1 bg-slate-800 border-none rounded-lg text-xs p-2.5 outline-none"
                     />
-                    <button onClick={addAgendaItem} className="bg-emerald-500 px-4 rounded-lg hover:bg-emerald-400 transition-colors">
-                      <Plus size={18} />
+                    {editingActionId && (
+                      <button 
+                        onClick={() => {
+                          setEditingActionId(null);
+                          setNewAction({ type: 'Llamada', title: '', due_date: new Date().toISOString().slice(0, 16) });
+                        }} 
+                        className="bg-slate-700 px-3 rounded-lg hover:bg-slate-600 transition-colors text-slate-300"
+                        title="Cancelar edición"
+                      >
+                        <RotateCcw size={16} />
+                      </button>
+                    )}
+                    <button 
+                      onClick={addAgendaItem} 
+                      className={`${editingActionId ? 'bg-blue-500 hover:bg-blue-400' : 'bg-emerald-500 hover:bg-emerald-400'} px-4 rounded-lg transition-colors`}
+                    >
+                      {editingActionId ? <Save size={18} /> : <Plus size={18} />}
                     </button>
                   </div>
                 </div>
@@ -262,7 +310,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                 <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
                   {agenda.length === 0 && <p className="text-[11px] text-slate-500 italic">No hay tareas programadas.</p>}
                   {agenda.map((item) => (
-                    <div key={item.id} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${item.completed ? 'bg-slate-800/30 border-transparent opacity-40' : 'bg-slate-800 border-slate-700'}`}>
+                    <div key={item.id} className={`group flex items-center justify-between p-3 rounded-lg border transition-all ${item.completed ? 'bg-slate-800/30 border-transparent opacity-40' : 'bg-slate-800 border-slate-700'}`}>
                       <div className="flex items-center gap-3">
                         <button onClick={() => toggleTask(item.id, item.completed)} className="text-emerald-400 hover:scale-110 transition-transform">
                           {item.completed ? <CheckCircle size={20} /> : <Circle size={20} />}
@@ -271,6 +319,23 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                           <p className={`text-xs font-bold ${item.completed ? 'line-through' : 'text-white'}`}>{item.title}</p>
                           <p className="text-[10px] text-slate-400 font-bold uppercase">{item.type} • {new Date(item.due_date).toLocaleString('es-ES')}</p>
                         </div>
+                      </div>
+                      
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => startEditingTask(item)}
+                          className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-blue-400 transition-colors"
+                          title="Editar"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button 
+                          onClick={() => deleteAgendaItem(item.id)}
+                          className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-red-400 transition-colors"
+                          title="Borrar"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
                   ))}
