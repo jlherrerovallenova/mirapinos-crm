@@ -103,10 +103,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   return (
     <>
       <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        {/* Modal con bordes menos redondeados (rounded-lg) */}
         <div className="bg-white w-full max-w-6xl rounded-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
           
-          {/* Header */}
           <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-lg flex items-center justify-center font-bold text-xl">
@@ -125,7 +123,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           <div className="flex-1 overflow-y-auto p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
-              {/* PARTE IZQUIERDA: Datos y Formulario */}
               <div className="space-y-8">
                 <button 
                   onClick={() => setIsEmailModalOpen(true)}
@@ -174,6 +171,17 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                           <input name="phone" value={formData.phone} onChange={handleChange} placeholder="600..." className="w-full mt-1 pl-10 pr-4 py-3 bg-slate-50 rounded-lg outline-none text-sm font-bold border border-transparent focus:border-slate-200" />
                         </div>
                       </div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fecha de Alta</label>
+                        <div className="relative">
+                          <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <input 
+                            readOnly 
+                            value={new Date(lead.created_at).toLocaleString('es-ES')} 
+                            className="w-full mt-1 pl-10 pr-4 py-3 bg-slate-100 rounded-lg outline-none text-sm font-medium text-slate-500 border border-transparent cursor-default" 
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -182,7 +190,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     <textarea name="notes" rows={3} value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-lg outline-none text-sm font-medium resize-none border border-transparent focus:border-slate-200" />
                   </div>
 
-                  {/* HISTORIAL DE DOCUMENTOS (Dentro de la parte de datos) */}
                   <div className="bg-slate-50 rounded-lg p-6 border border-slate-100">
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                       <Clock size={14} /> Documentación Enviada
@@ -216,7 +223,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                 </form>
               </div>
 
-              {/* PARTE DERECHA: Agenda de Acciones */}
               <div className="bg-slate-900 rounded-lg p-6 text-white shadow-xl flex flex-col h-full">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-400">
                   <CalendarIcon size={14} /> Agenda de Acciones
