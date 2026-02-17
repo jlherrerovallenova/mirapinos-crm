@@ -110,43 +110,37 @@ export interface Database {
           image_url?: string | null
         }
       }
-      // NUEVA TABLA AÑADIDA
-      tasks: {
+      // TABLA AGENDA ACTUALIZADA
+      agenda: {
         Row: {
           id: number
           created_at: string
+          lead_id: string | null
           title: string
-          contact_name: string | null
-          due_date: string
-          due_time: string | null
-          type: 'call' | 'visit' | 'email' | 'meeting'
-          priority: 'high' | 'medium' | 'low'
-          status: 'pending' | 'completed'
-          user_id: string
+          type: string
+          due_date: string // Timestamp (fecha + hora)
+          completed: boolean
+          user_id: string | null
         }
         Insert: {
           id?: number
           created_at?: string
+          lead_id?: string | null
           title: string
-          contact_name?: string | null
+          type: string
           due_date: string
-          due_time?: string | null
-          type: 'call' | 'visit' | 'email' | 'meeting'
-          priority: 'high' | 'medium' | 'low'
-          status?: 'pending' | 'completed'
-          user_id?: string
+          completed?: boolean
+          user_id?: string | null
         }
         Update: {
           id?: number
           created_at?: string
+          lead_id?: string | null
           title?: string
-          contact_name?: string | null
+          type?: string
           due_date?: string
-          due_time?: string | null
-          type?: 'call' | 'visit' | 'email' | 'meeting'
-          priority?: 'high' | 'medium' | 'low'
-          status?: 'pending' | 'completed'
-          user_id?: string
+          completed?: boolean
+          user_id?: string | null
         }
       }
     }
