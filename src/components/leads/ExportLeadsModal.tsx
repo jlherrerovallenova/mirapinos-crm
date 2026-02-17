@@ -1,7 +1,9 @@
 // src/components/leads/ExportLeadsModal.tsx
 import { useState } from 'react';
-import { X, Download, FileSpreadsheet, Loader2, Calendar } from 'lucide-react';
+import { X, FileText, Loader2, Calendar } from 'lucide-react'; // Cambiado icono a FileText
 import { supabase } from '../../lib/supabase';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Props {
   isOpen: boolean;
@@ -21,7 +23,7 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
       let query = supabase
         .from('leads')
         .select('*')
-        // CLAVE: Ordenamos por 'source' para que salgan clasificados por origen
+        // Ordenamos por 'source' para mantener la clasificación solicitada
         .order('source', { ascending: true })
         .order('created_at', { ascending: false });
 
@@ -43,8 +45,8 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
         return;
       }
 
-      // Generar CSV
-      generateCSV(data);
+      // Generar PDF
+      generatePDF(data);
       onClose();
 
     } catch (error) {
@@ -55,38 +57,67 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
     }
   };
 
-  const generateCSV = (data: any[]) => {
-    // Definir cabeceras
-    const headers = ['ID', 'Nombre', 'Email', 'Teléfono', 'Empresa', 'Origen', 'Estado', 'Fecha Creación', 'Notas'];
-    
-    // Convertir datos a formato CSV
-    const csvContent = [
-      headers.join(','),
-      ...data.map(lead => {
-        const row = [
-          lead.id,
-          `"${lead.name || ''}"`,
-          lead.email || '',
-          lead.phone || '',
-          `"${lead.company || ''}"`,
-          `"${lead.source || 'Desconocido'}"`, // Importante para la clasificación
-          lead.status,
-          new Date(lead.created_at).toLocaleDateString('es-ES'),
-          `"${(lead.notes || '').replace(/"/g, '""')}"` // Escapar comillas en notas
-        ];
-        return row.join(',');
-      })
-    ].join('\n');
+  const generatePDF = (data: any[]) => {
+    // 1. Inicializar documento PDF (Orientación horizontal para que quepan las columnas)
+    const doc = new jsPDF({ orientation: 'landscape' });
 
-    // Crear Blob y descargar
-    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' }); // \uFEFF para BOM (UTF-8 Excel)
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `leads_mirapinos_${filterType === 'month' ? selectedMonth : 'todos'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // 2. Título y Metadatos del documento
+    const title = 'Listado de Clientes - MIRAPINOS';
+    const subtitle = filterType === 'month' 
+      ? `Filtrado por mes: ${selectedMonth}` 
+      : 'Histórico completo';
+    
+    doc.setFontSize(18);
+    doc.text(title, 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(subtitle, 14, 30);
+    doc.text(`Fecha de exportación: ${new Date().toLocaleDateString('es-ES')}`, 14, 36);
+
+    // 3. Definir columnas
+    const tableColumn = ["Nombre", "Email", "Teléfono", "Empresa", "Origen", "Estado", "Fecha Alta"];
+    
+    // 4. Mapear datos a filas
+    const tableRows: any[] = [];
+
+    data.forEach(lead => {
+      const leadData = [
+        lead.name || 'Sin nombre',
+        lead.email || '',
+        lead.phone || '',
+        lead.company || '',
+        lead.source || 'Desconocido', // Importante: Clasificación visible
+        lead.status?.toUpperCase() || 'NUEVO',
+        new Date(lead.created_at).toLocaleDateString('es-ES'),
+      ];
+      tableRows.push(leadData);
+    });
+
+    // 5. Generar tabla con autoTable
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 45, // Empezar debajo del título
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [16, 185, 129], // Color Emerald-500 para la cabecera
+        textColor: 255,
+        fontStyle: 'bold'
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold' }, // Nombre en negrita
+        4: { fontStyle: 'bold', textColor: [80, 80, 80] } // Origen destacado
+      },
+      // Agrupar visualmente o colorear filas alternas es automático
+    });
+
+    // 6. Guardar archivo
+    const fileName = `leads_mirapinos_${filterType === 'month' ? selectedMonth : 'todos'}.pdf`;
+    doc.save(fileName);
   };
 
   return (
@@ -95,8 +126,8 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
         
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <FileSpreadsheet className="text-emerald-600" size={20} />
-            Exportar Clientes
+            <FileText className="text-red-600" size={20} /> {/* Icono rojo para PDF */}
+            Exportar PDF
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={20} />
@@ -105,7 +136,7 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
 
         <div className="p-6 space-y-6">
           <p className="text-sm text-slate-500">
-            Selecciona el rango de fechas para generar el listado. El archivo estará <strong>clasificado por Origen</strong>.
+            Selecciona el rango de fechas. Se generará un documento <strong>PDF</strong> clasificado por Origen.
           </p>
 
           <div className="space-y-3">
@@ -154,10 +185,10 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
             <button
               onClick={handleExport}
               disabled={loading}
-              className="flex-1 px-4 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-2 text-xs"
+              className="flex-1 px-4 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-2 text-xs"
             >
-              {loading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
-              Descargar CSV
+              {loading ? <Loader2 className="animate-spin" size={16} /> : <FileText size={16} />}
+              Descargar PDF
             </button>
           </div>
         </div>
