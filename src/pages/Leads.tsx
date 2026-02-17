@@ -9,7 +9,10 @@ import {
   UserPlus,
   Loader2,
   MessageCircle,
-  Calendar
+  Calendar,
+  Filter,
+  Building2,
+  MoreVertical
 } from 'lucide-react';
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
@@ -19,17 +22,23 @@ import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 
-const getStatusStyles = (status: Lead['status']) => {
+// Estilos de estado actualizados (más sutiles)
+const getStatusBadge = (status: Lead['status']) => {
   const styles = {
-    new: 'bg-blue-50 text-blue-700 border-blue-100',
-    contacted: 'bg-purple-50 text-purple-700 border-purple-100',
-    qualified: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    proposal: 'bg-amber-50 text-amber-700 border-amber-100',
-    negotiation: 'bg-orange-50 text-orange-700 border-orange-100',
-    closed: 'bg-slate-900 text-white border-slate-900',
-    lost: 'bg-red-50 text-red-700 border-red-100',
+    new: 'bg-blue-100 text-blue-700 ring-blue-600/20',
+    contacted: 'bg-purple-100 text-purple-700 ring-purple-600/20',
+    qualified: 'bg-emerald-100 text-emerald-700 ring-emerald-600/20',
+    proposal: 'bg-amber-100 text-amber-700 ring-amber-600/20',
+    negotiation: 'bg-orange-100 text-orange-700 ring-orange-600/20',
+    closed: 'bg-slate-900 text-slate-100 ring-slate-600/20',
+    lost: 'bg-red-100 text-red-700 ring-red-600/20',
   };
-  return styles[status || 'new'];
+  const label = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'New';
+  return (
+    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${styles[status || 'new']}`}>
+      {label}
+    </span>
+  );
 };
 
 export default function Leads() {
@@ -87,13 +96,7 @@ export default function Leads() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
-      if (data) {
-        setAvailableDocs(data.map(doc => ({
-          name: doc.name,
-          url: doc.url
-        })));
-      }
+      if (data) setAvailableDocs(data.map(doc => ({ name: doc.name, url: doc.url })));
     } catch (error) {
       console.error('Error fetching documents:', error);
     }
@@ -108,108 +111,147 @@ export default function Leads() {
     const search = searchTerm.toLowerCase();
     const name = lead.name?.toLowerCase() || "";
     const email = lead.email?.toLowerCase() || "";
-    return name.includes(search) || email.includes(search);
+    const phone = lead.phone || "";
+    return name.includes(search) || email.includes(search) || phone.includes(search);
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
+      
+      {/* HEADER SUPERIOR CON BARRA DE HERRAMIENTAS */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-10">
         <div>
-          <p className="text-emerald-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">Gestión de Prospectos</p>
-          <h1 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Leads</h1>
+          <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Leads</h1>
+          <p className="text-slate-500 text-xs font-medium">{leads.length} prospectos totales</p>
         </div>
-        <button 
-          onClick={() => setIsCreateModalOpen(true)}
-          className="px-8 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3 active:scale-95"
-        >
-          <UserPlus size={20} /> NUEVO LEAD
-        </button>
-      </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <aside className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-            <div className="relative mb-6">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text"
-                placeholder="Buscar lead..."
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+        <div className="flex flex-1 max-w-2xl items-center gap-3">
+            <div className="relative flex-1 group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={18} />
+                <input 
+                    type="text"
+                    placeholder="Buscar por nombre, email o teléfono..."
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
             </div>
-            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-sm flex justify-between">
-              Total Leads <span>{leads.length}</span>
-            </div>
-          </div>
-        </aside>
+            
+            <button className="p-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100 transition-colors hidden sm:flex">
+                <Filter size={18} />
+            </button>
 
-        <main className="lg:col-span-3">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-4">
-              <Loader2 className="animate-spin" size={40} />
-              <p className="font-medium animate-pulse">Cargando base de datos...</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {filteredLeads.map((lead) => (
-                <div 
-                  key={lead.id}
-                  className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group flex flex-col md:flex-row md:items-center justify-between cursor-pointer gap-4"
-                  onClick={() => setSelectedLead(lead)}
-                >
-                  <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center text-emerald-600 font-bold text-xl group-hover:bg-emerald-600 group-hover:text-white transition-all shrink-0">
-                      {lead.name?.substring(0, 2).toUpperCase() || "L"}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-bold text-slate-800 text-lg">{lead.name}</h3>
-                        <span className={`text-[10px] uppercase font-black px-2.5 py-1 rounded-full border ${getStatusStyles(lead.status)}`}>
-                          {lead.status}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-slate-400 text-sm">
-                        <span className="flex items-center gap-1.5"><Mail size={14}/> {lead.email || 'Sin email'}</span>
-                        {lead.phone && <span className="flex items-center gap-1.5"><Phone size={14}/> {lead.phone}</span>}
-                        <span className="flex items-center gap-1.5"><Calendar size={14}/> Alta: {new Date(lead.created_at).toLocaleDateString('es-ES')}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-end gap-2 border-t md:border-t-0 pt-3 md:pt-0">
-                    <div className="flex items-center gap-1">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); openComposer(lead, 'whatsapp'); }}
-                        className="p-3 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
-                        title="Enviar WhatsApp"
-                      >
-                        <MessageCircle size={20} />
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); openComposer(lead, 'email'); }}
-                        className="p-3 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all"
-                        title="Enviar Email"
-                      >
-                        <Mail size={20} />
-                      </button>
-                    </div>
-                    <div className="h-8 w-px bg-slate-100 mx-2 hidden md:block"></div>
-                    <ChevronRight size={20} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
-                  </div>
-                </div>
-              ))}
-              {filteredLeads.length === 0 && (
-                <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
-                  <p className="text-slate-400 font-medium">No se encontraron leads con ese criterio.</p>
-                </div>
-              )}
-            </div>
-          )}
-        </main>
+            <button 
+                onClick={() => setIsCreateModalOpen(true)}
+                className="px-5 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 shrink-0"
+            >
+                <UserPlus size={18} /> <span className="hidden sm:inline">Nuevo Lead</span>
+            </button>
+        </div>
       </div>
 
+      {/* LISTA PRINCIPAL (DISEÑO TIPO TABLA/ROW) */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px]">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-4">
+            <Loader2 className="animate-spin" size={40} />
+            <p className="font-medium animate-pulse">Cargando base de datos...</p>
+          </div>
+        ) : filteredLeads.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                <Search size={24} />
+            </div>
+            <p className="text-slate-500 font-medium">No se encontraron leads con ese criterio.</p>
+            <button onClick={() => setSearchTerm('')} className="text-emerald-600 font-bold text-sm mt-2 hover:underline">
+                Limpiar búsqueda
+            </button>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {/* Cabecera de tabla (Visible en desktop) */}
+            <div className="grid grid-cols-12 gap-4 p-4 bg-slate-50/50 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 hidden md:grid">
+                <div className="col-span-4 pl-2">Prospecto</div>
+                <div className="col-span-2">Estado</div>
+                <div className="col-span-3">Contacto</div>
+                <div className="col-span-2">Origen / Fecha</div>
+                <div className="col-span-1 text-right pr-4">Acciones</div>
+            </div>
+
+            {/* Filas de Leads */}
+            {filteredLeads.map((lead) => (
+              <div 
+                key={lead.id}
+                onClick={() => setSelectedLead(lead)}
+                className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center hover:bg-slate-50 transition-colors cursor-pointer group"
+              >
+                {/* Columna 1: Info Principal */}
+                <div className="md:col-span-4 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm shrink-0 shadow-sm">
+                        {lead.name?.substring(0, 2).toUpperCase() || "L"}
+                    </div>
+                    <div className="min-w-0">
+                        <h3 className="font-bold text-slate-900 text-sm truncate group-hover:text-emerald-700 transition-colors">{lead.name}</h3>
+                        {lead.company && (
+                            <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
+                                <Building2 size={10} /> {lead.company}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Columna 2: Estado */}
+                <div className="md:col-span-2">
+                    {getStatusBadge(lead.status)}
+                </div>
+
+                {/* Columna 3: Contacto */}
+                <div className="md:col-span-3 flex flex-col gap-1">
+                    <div className="flex items-center gap-2 text-xs text-slate-600 truncate">
+                        <Mail size={12} className="text-slate-400" />
+                        {lead.email || <span className="text-slate-300 italic">Sin email</span>}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-600 truncate">
+                        <Phone size={12} className="text-slate-400" />
+                        {lead.phone || <span className="text-slate-300 italic">Sin teléfono</span>}
+                    </div>
+                </div>
+
+                {/* Columna 4: Origen */}
+                <div className="md:col-span-2">
+                    <p className="text-xs font-medium text-slate-700">{lead.source || 'Directo'}</p>
+                    <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                        <Calendar size={10} /> {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                    </p>
+                </div>
+
+                {/* Columna 5: Acciones (Solo visibles en hover o siempre en móvil) */}
+                <div className="md:col-span-1 flex items-center justify-end gap-2">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); openComposer(lead, 'whatsapp'); }}
+                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                        title="WhatsApp"
+                    >
+                        <MessageCircle size={16} />
+                    </button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); openComposer(lead, 'email'); }}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        title="Email"
+                    >
+                        <Mail size={16} />
+                    </button>
+                    <button className="p-2 text-slate-300 group-hover:text-emerald-600 transition-colors">
+                        <ChevronRight size={16} />
+                    </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* MODALES */}
       <CreateLeadModal 
         isOpen={isCreateModalOpen} 
         onClose={() => setIsCreateModalOpen(false)} 
