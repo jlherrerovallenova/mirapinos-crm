@@ -1,5 +1,6 @@
 // src/pages/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // <--- IMPORTACIÓN AÑADIDA
 import { 
   Users, 
   TrendingUp, 
@@ -32,6 +33,7 @@ interface DashboardStats {
 
 export default function Dashboard() {
   const { session } = useAuth();
+  const navigate = useNavigate(); // <--- HOOK DE NAVEGACIÓN INICIALIZADO
   const [loading, setLoading] = useState(true);
   
   // Estado para los datos reales de Supabase
@@ -40,7 +42,7 @@ export default function Dashboard() {
     topSources: []
   });
 
-  // Estado local para manejar las actividades de la agenda (Mantenemos esto local/mock por ahora)
+  // Estado local para manejar las actividades (Mantenemos esto local por ahora)
   const [activities, setActivities] = useState([
     { id: 1, type: 'Llamada', contact: 'Juan Pérez', time: '10:30 AM', status: 'pending', priority: 'high' },
     { id: 2, type: 'Visita', contact: 'María García', time: '12:00 PM', status: 'completed', priority: 'medium' },
@@ -55,7 +57,7 @@ export default function Dashboard() {
     try {
       setLoading(true);
       
-      // 1. Obtenemos solo la columna 'source' de todos los leads para calcular estadísticas
+      // 1. Obtenemos solo la columna 'source' de todos los leads
       const { data: leads, error } = await supabase
         .from('leads')
         .select('source');
@@ -68,20 +70,19 @@ export default function Dashboard() {
         // 2. Agrupamos y contamos por origen
         const sourceCounts: Record<string, number> = {};
         leads.forEach(lead => {
-          // Normalizamos el origen (si es null, lo llamamos 'Desconocido')
           const source = lead.source ? lead.source.trim() : 'Desconocido';
           sourceCounts[source] = (sourceCounts[source] || 0) + 1;
         });
 
-        // 3. Convertimos a array, ordenamos por cantidad y calculamos porcentajes
+        // 3. Convertimos a array, ordenamos y calculamos porcentajes
         const sortedSources = Object.entries(sourceCounts)
           .map(([name, count]) => ({
             name,
             count,
             percentage: Math.round((count / total) * 100)
           }))
-          .sort((a, b) => b.count - a.count) // Orden descendente
-          .slice(0, 3); // Nos quedamos con los top 3
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 3);
 
         setStats({
           totalLeads: total,
@@ -105,7 +106,6 @@ export default function Dashboard() {
     }
   };
 
-  // Función auxiliar para elegir icono según el origen
   const getSourceIcon = (sourceName: string) => {
     const lower = sourceName.toLowerCase();
     if (lower.includes('web') || lower.includes('google')) return <Globe className="text-blue-600" size={20} />;
@@ -125,27 +125,23 @@ export default function Dashboard() {
         <p className="text-slate-500">Resumen de tus contactos y fuentes de captación.</p>
       </div>
 
-      {/* TARJETAS DE MÉTRICAS (WIDGETS ACTUALIZADOS) */}
+      {/* TARJETAS DE MÉTRICAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loading ? (
-           // Skeleton loading state
            Array(4).fill(0).map((_, i) => (
              <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-32 animate-pulse" />
            ))
         ) : (
           <>
-            {/* Widget 1: Total Global */}
             <StatCard 
               title="Total Contactos" 
               value={stats.totalLeads.toString()} 
-              // Usamos un valor fijo o calculado si tuviéramos histórico
               change="Total histórico" 
               isPositive={true} 
               icon={<Users className="text-slate-900" size={20} />} 
               trendIcon={false}
             />
 
-            {/* Widget 2, 3, 4: Top 3 Fuentes */}
             {stats.topSources.map((source, index) => (
               <StatCard 
                 key={index}
@@ -158,7 +154,6 @@ export default function Dashboard() {
               />
             ))}
 
-            {/* Relleno si hay menos de 3 fuentes para mantener la grilla */}
             {stats.topSources.length < 3 && Array(3 - stats.topSources.length).fill(0).map((_, i) => (
               <div key={`empty-${i}`} className="bg-slate-50 p-6 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
                 <p className="text-sm font-medium">Sin más datos de origen</p>
@@ -204,7 +199,6 @@ export default function Dashboard() {
                     {activity.priority}
                   </span>
                   
-                  {/* BOTONES DE ACCIÓN */}
                   <div className="flex items-center gap-1 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => handleEdit(activity.id)}
@@ -227,7 +221,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ÚLTIMOS LEADS (Estático/Mock para mantener diseño, se puede conectar igual que los widgets) */}
+        {/* ÚLTIMOS LEADS */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100">
             <h3 className="font-bold text-slate-800">Leads Recientes</h3>
@@ -236,7 +230,12 @@ export default function Dashboard() {
             <RecentLead name="Ana Martínez" source="Instagram" time="hace 10 min" />
             <RecentLead name="Carlos Ruiz" source="Web" time="hace 45 min" />
             <RecentLead name="Elena Soler" source="Referido" time="hace 2 horas" />
-            <button className="w-full py-2.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+            
+            {/* BOTÓN CORREGIDO: AHORA NAVEGA A /LEADS */}
+            <button 
+              onClick={() => navigate('/leads')}
+              className="w-full py-2.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
+            >
               Gestionar todos los leads
             </button>
           </div>
@@ -246,7 +245,6 @@ export default function Dashboard() {
   );
 }
 
-// Componentes auxiliares internos
 function StatCard({ title, value, change, isPositive, icon, trendIcon = true }: { 
   title: string, value: string, change: string, isPositive: boolean, icon: React.ReactNode, trendIcon?: boolean
 }) {
