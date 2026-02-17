@@ -8,18 +8,34 @@ import {
   MoreVertical, 
   Plus,
   Search,
-  Filter
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 
 export default function Agenda() {
-  // Datos de ejemplo (Mock Data)
+  // Datos de ejemplo (extendidos para probar paginación)
   const [tasks] = useState([
     { id: 1, title: 'Llamada de seguimiento', contact: 'Juan Pérez', date: 'Hoy', time: '10:30 AM', type: 'call', status: 'pending', priority: 'high' },
     { id: 2, title: 'Visita a propiedad', contact: 'María García', date: 'Hoy', time: '12:00 PM', type: 'visit', status: 'completed', priority: 'medium' },
     { id: 3, title: 'Enviar contrato', contact: 'Roberto Carlos', date: 'Hoy', time: '04:15 PM', type: 'email', status: 'pending', priority: 'low' },
     { id: 4, title: 'Reunión de equipo', contact: 'Staff Mirapinos', date: 'Mañana', time: '09:00 AM', type: 'meeting', status: 'pending', priority: 'medium' },
     { id: 5, title: 'Llamada nuevo lead', contact: 'Ana Torres', date: 'Mañana', time: '11:00 AM', type: 'call', status: 'pending', priority: 'high' },
+    { id: 6, title: 'Firma notaría', contact: 'Pedro Luis', date: 'Jueves', time: '10:00 AM', type: 'visit', status: 'pending', priority: 'high' },
+    { id: 7, title: 'Revisión fotos', contact: 'Fotógrafo', date: 'Viernes', time: '05:00 PM', type: 'meeting', status: 'pending', priority: 'low' },
+    { id: 8, title: 'Entrega llaves', contact: 'Laura M.', date: 'Lunes', time: '09:30 AM', type: 'visit', status: 'pending', priority: 'medium' },
   ]);
+
+  // Lógica de Paginación Local
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentTasks = tasks.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(tasks.length / itemsPerPage);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -58,25 +74,22 @@ export default function Agenda() {
         </div>
       </header>
 
-      {/* Lista de Tareas */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Lista de Tareas con Paginación */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
         <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
             <h3 className="font-bold text-slate-700">Próximas Actividades</h3>
-            <span className="text-xs font-medium text-slate-400">5 tareas pendientes</span>
+            <span className="text-xs font-medium text-slate-400">{tasks.length} tareas totales</span>
         </div>
         
-        <div className="divide-y divide-slate-100">
-            {tasks.map((task) => (
+        <div className="divide-y divide-slate-100 flex-1">
+            {currentTasks.map((task) => (
                 <div key={task.id} className="p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group cursor-pointer">
-                    {/* Checkbox State */}
                     <button className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${task.status === 'completed' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-emerald-500'}`}>
                         {task.status === 'completed' && <CheckCircle2 size={14} />}
                     </button>
 
-                    {/* Icono Tipo */}
                     {getTypeIcon(task.type)}
 
-                    {/* Info */}
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                             <span className="font-bold text-slate-800">{task.title}</span>
@@ -89,7 +102,6 @@ export default function Agenda() {
                         </p>
                     </div>
 
-                    {/* Fecha y Acciones */}
                     <div className="text-right">
                         <p className="text-sm font-bold text-slate-700">{task.date}</p>
                         <button className="text-slate-300 hover:text-slate-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -98,6 +110,43 @@ export default function Agenda() {
                     </div>
                 </div>
             ))}
+        </div>
+
+        {/* Controles de Paginación */}
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+            <span className="text-xs text-slate-500 font-medium">
+                Página {currentPage} de {totalPages}
+            </span>
+            <div className="flex gap-2">
+                <button 
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed text-slate-500"
+                >
+                    <ChevronsLeft size={16} />
+                </button>
+                <button 
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed text-slate-500"
+                >
+                    <ChevronLeft size={16} />
+                </button>
+                <button 
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed text-slate-500"
+                >
+                    <ChevronRight size={16} />
+                </button>
+                <button 
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed text-slate-500"
+                >
+                    <ChevronsRight size={16} />
+                </button>
+            </div>
         </div>
       </div>
     </div>
