@@ -12,17 +12,17 @@ import {
   Calendar,
   Filter,
   Building2,
-  MoreVertical
+  Download // <--- Nuevo icono importado
 } from 'lucide-react';
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
 import EmailComposerModal from '../components/leads/EmailComposerModal';
+import ExportLeadsModal from '../components/leads/ExportLeadsModal'; // <--- Importación del nuevo modal
 import { AppNotification } from '../components/AppNotification';
 import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 
-// Estilos de estado actualizados (más sutiles)
 const getStatusBadge = (status: Lead['status']) => {
   const styles = {
     new: 'bg-blue-100 text-blue-700 ring-blue-600/20',
@@ -47,7 +47,9 @@ export default function Leads() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false); // <--- Nuevo estado
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [emailLead, setEmailLead] = useState<Lead | null>(null);
   const [initialMethod, setInitialMethod] = useState<'email' | 'whatsapp'>('email');
@@ -137,8 +139,14 @@ export default function Leads() {
                 />
             </div>
             
-            <button className="p-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100 transition-colors hidden sm:flex">
-                <Filter size={18} />
+            {/* BOTÓN EXPORTAR NUEVO */}
+            <button 
+                onClick={() => setIsExportModalOpen(true)}
+                className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-emerald-600 transition-colors shadow-sm hidden sm:flex items-center gap-2"
+                title="Exportar Listado"
+            >
+                <Download size={18} />
+                <span className="hidden lg:inline text-xs font-bold">Exportar</span>
             </button>
 
             <button 
@@ -150,7 +158,7 @@ export default function Leads() {
         </div>
       </div>
 
-      {/* LISTA PRINCIPAL (DISEÑO TIPO TABLA/ROW) */}
+      {/* LISTA PRINCIPAL */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px]">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-4">
@@ -169,7 +177,7 @@ export default function Leads() {
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {/* Cabecera de tabla (Visible en desktop) */}
+            {/* Cabecera de tabla */}
             <div className="grid grid-cols-12 gap-4 p-4 bg-slate-50/50 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 hidden md:grid">
                 <div className="col-span-4 pl-2">Prospecto</div>
                 <div className="col-span-2">Estado</div>
@@ -178,14 +186,13 @@ export default function Leads() {
                 <div className="col-span-1 text-right pr-4">Acciones</div>
             </div>
 
-            {/* Filas de Leads */}
+            {/* Filas */}
             {filteredLeads.map((lead) => (
               <div 
                 key={lead.id}
                 onClick={() => setSelectedLead(lead)}
                 className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center hover:bg-slate-50 transition-colors cursor-pointer group"
               >
-                {/* Columna 1: Info Principal */}
                 <div className="md:col-span-4 flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm shrink-0 shadow-sm">
                         {lead.name?.substring(0, 2).toUpperCase() || "L"}
@@ -200,12 +207,10 @@ export default function Leads() {
                     </div>
                 </div>
 
-                {/* Columna 2: Estado */}
                 <div className="md:col-span-2">
                     {getStatusBadge(lead.status)}
                 </div>
 
-                {/* Columna 3: Contacto */}
                 <div className="md:col-span-3 flex flex-col gap-1">
                     <div className="flex items-center gap-2 text-xs text-slate-600 truncate">
                         <Mail size={12} className="text-slate-400" />
@@ -217,7 +222,6 @@ export default function Leads() {
                     </div>
                 </div>
 
-                {/* Columna 4: Origen */}
                 <div className="md:col-span-2">
                     <p className="text-xs font-medium text-slate-700">{lead.source || 'Directo'}</p>
                     <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
@@ -225,7 +229,6 @@ export default function Leads() {
                     </p>
                 </div>
 
-                {/* Columna 5: Acciones (Solo visibles en hover o siempre en móvil) */}
                 <div className="md:col-span-1 flex items-center justify-end gap-2">
                     <button 
                         onClick={(e) => { e.stopPropagation(); openComposer(lead, 'whatsapp'); }}
@@ -251,7 +254,14 @@ export default function Leads() {
         )}
       </div>
 
-      {/* MODALES */}
+      {/* --- MODALES --- */}
+      
+      {/* Nuevo Modal de Exportación */}
+      <ExportLeadsModal 
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+      />
+
       <CreateLeadModal 
         isOpen={isCreateModalOpen} 
         onClose={() => setIsCreateModalOpen(false)} 
