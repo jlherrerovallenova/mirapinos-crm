@@ -12,16 +12,21 @@ import {
   Calendar,
   Filter,
   Building2,
-  Download // <--- Nuevo icono importado
+  Download,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
 import EmailComposerModal from '../components/leads/EmailComposerModal';
-import ExportLeadsModal from '../components/leads/ExportLeadsModal'; // <--- Importación del nuevo modal
+import ExportLeadsModal from '../components/leads/ExportLeadsModal';
 import { AppNotification } from '../components/AppNotification';
 import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
+
+const ITEMS_PER_PAGE = 10; // Cantidad de leads por página
 
 const getStatusBadge = (status: Lead['status']) => {
   const styles = {
@@ -47,9 +52,13 @@ export default function Leads() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Estados de Paginación
+  const [page, setPage] = useState(1);
+  const [totalLeads, setTotalLeads] = useState(0);
+
   // Modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false); // <--- Nuevo estado
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [emailLead, setEmailLead] = useState<Lead | null>(null);
   const [initialMethod, setInitialMethod] = useState<'email' | 'whatsapp'>('email');
@@ -61,46 +70,61 @@ export default function Leads() {
     type: 'success' | 'error' | 'info';
   }>({ show: false, title: '', message: '', type: 'success' });
 
+  // Recargar datos cuando cambia la página o el término de búsqueda
   useEffect(() => {
-    fetchInitialData();
+    fetchLeads();
+  }, [page, searchTerm]); 
+
+  // Cargar documentos solo una vez al inicio
+  useEffect(() => {
+    fetchDocuments();
   }, []);
 
   const showMsg = (type: 'success' | 'error' | 'info', title: string, message: string) => {
     setNotification({ show: true, type, title, message });
   };
 
-  async function fetchInitialData() {
-    setLoading(true);
-    await Promise.all([fetchLeads(), fetchDocuments()]);
-    setLoading(false);
-  }
-
   async function fetchLeads() {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      
+      // Calcular rango para paginación (0-9, 10-19, etc.)
+      const from = (page - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
+      let query = supabase
         .from('leads')
-        .select('*')
+        .select('*', { count: 'exact' }) // Solicitamos el conteo total exacto
         .order('created_at', { ascending: false });
 
+      // Si hay búsqueda, filtramos (Nota: la búsqueda en Supabase con 'or' y paginación puede ser compleja,
+      // para una app real grande se recomienda usar Full Text Search, aquí usamos ilike básico)
+      if (searchTerm) {
+        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
+      }
+
+      // Aplicamos paginación
+      const { data, error, count } = await query.range(from, to);
+
       if (error) throw error;
+      
       if (data) setLeads(data);
+      if (count !== null) setTotalLeads(count);
+
     } catch (error) {
       console.error('Error fetching leads:', error);
       showMsg('error', 'Error de conexión', 'No se pudieron cargar los prospectos.');
+    } finally {
+      setLoading(false);
     }
   }
 
   async function fetchDocuments() {
     try {
-      const { data, error } = await supabase
-        .from('documents')
-        .select('name, url') 
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const { data, error } = await supabase.from('documents').select('name, url');
       if (data) setAvailableDocs(data.map(doc => ({ name: doc.name, url: doc.url })));
     } catch (error) {
-      console.error('Error fetching documents:', error);
+      console.error('Error fetching docs:', error);
     }
   }
 
@@ -109,22 +133,23 @@ export default function Leads() {
     setEmailLead(lead);
   };
 
-  const filteredLeads = leads.filter(lead => {
-    const search = searchTerm.toLowerCase();
-    const name = lead.name?.toLowerCase() || "";
-    const email = lead.email?.toLowerCase() || "";
-    const phone = lead.phone || "";
-    return name.includes(search) || email.includes(search) || phone.includes(search);
-  });
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setPage(1); // Resetear a página 1 al buscar
+  };
+
+  const totalPages = Math.ceil(totalLeads / ITEMS_PER_PAGE);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
       
-      {/* HEADER SUPERIOR CON BARRA DE HERRAMIENTAS */}
+      {/* HEADER SUPERIOR */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-10">
         <div>
           <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Leads</h1>
-          <p className="text-slate-500 text-xs font-medium">{leads.length} prospectos totales</p>
+          <p className="text-slate-500 text-xs font-medium">
+            {totalLeads} prospectos totales {searchTerm && `(filtrado)`}
+          </p>
         </div>
 
         <div className="flex flex-1 max-w-2xl items-center gap-3">
@@ -135,11 +160,10 @@ export default function Leads() {
                     placeholder="Buscar por nombre, email o teléfono..."
                     className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={handleSearch}
                 />
             </div>
             
-            {/* BOTÓN EXPORTAR NUEVO */}
             <button 
                 onClick={() => setIsExportModalOpen(true)}
                 className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-emerald-600 transition-colors shadow-sm hidden sm:flex items-center gap-2"
@@ -159,24 +183,26 @@ export default function Leads() {
       </div>
 
       {/* LISTA PRINCIPAL */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px]">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-4">
+          <div className="flex-1 flex flex-col items-center justify-center py-20 text-slate-400 gap-4">
             <Loader2 className="animate-spin" size={40} />
             <p className="font-medium animate-pulse">Cargando base de datos...</p>
           </div>
-        ) : filteredLeads.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+        ) : leads.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-20">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-slate-300">
                 <Search size={24} />
             </div>
-            <p className="text-slate-500 font-medium">No se encontraron leads con ese criterio.</p>
-            <button onClick={() => setSearchTerm('')} className="text-emerald-600 font-bold text-sm mt-2 hover:underline">
-                Limpiar búsqueda
-            </button>
+            <p className="text-slate-500 font-medium">No se encontraron leads.</p>
+            {searchTerm && (
+                <button onClick={() => { setSearchTerm(''); setPage(1); }} className="text-emerald-600 font-bold text-sm mt-2 hover:underline">
+                    Limpiar búsqueda
+                </button>
+            )}
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 flex-1">
             {/* Cabecera de tabla */}
             <div className="grid grid-cols-12 gap-4 p-4 bg-slate-50/50 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 hidden md:grid">
                 <div className="col-span-4 pl-2">Prospecto</div>
@@ -187,7 +213,7 @@ export default function Leads() {
             </div>
 
             {/* Filas */}
-            {filteredLeads.map((lead) => (
+            {leads.map((lead) => (
               <div 
                 key={lead.id}
                 onClick={() => setSelectedLead(lead)}
@@ -252,23 +278,64 @@ export default function Leads() {
             ))}
           </div>
         )}
+
+        {/* --- BARRA DE PAGINACIÓN --- */}
+        {totalLeads > 0 && (
+          <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+            <span className="text-xs text-slate-500 font-medium">
+              Mostrando {leads.length} de {totalLeads} leads
+            </span>
+            
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setPage(1)} 
+                disabled={page === 1}
+                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Primera página"
+              >
+                <ChevronsLeft size={16} />
+              </button>
+              <button 
+                onClick={() => setPage(p => Math.max(1, p - 1))} 
+                disabled={page === 1}
+                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Anterior"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              
+              <span className="text-xs font-bold text-slate-700 px-2">
+                Página {page} de {totalPages || 1}
+              </span>
+
+              <button 
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+                disabled={page >= totalPages}
+                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Siguiente"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <button 
+                onClick={() => setPage(totalPages)} 
+                disabled={page >= totalPages}
+                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Última página"
+              >
+                <ChevronsRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* --- MODALES --- */}
+      <ExportLeadsModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} />
       
-      {/* Nuevo Modal de Exportación */}
-      <ExportLeadsModal 
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-      />
-
       <CreateLeadModal 
         isOpen={isCreateModalOpen} 
         onClose={() => setIsCreateModalOpen(false)} 
-        onSuccess={() => {
-          fetchLeads();
-          showMsg('success', '¡Completado!', 'El nuevo lead ha sido creado con éxito.');
-        }} 
+        onSuccess={() => { fetchLeads(); showMsg('success', '¡Completado!', 'El nuevo lead ha sido creado con éxito.'); }} 
       />
       
       {selectedLead && (
@@ -277,11 +344,8 @@ export default function Leads() {
           onClose={() => setSelectedLead(null)} 
           onUpdate={(deleted?: boolean) => {
             fetchLeads();
-            if (deleted) {
-              showMsg('success', 'Lead eliminado', 'El cliente ha sido borrado de la base de datos.');
-            } else {
-              showMsg('info', 'Lead actualizado', 'Los cambios se han guardado correctamente.');
-            }
+            if (deleted) showMsg('success', 'Lead eliminado', 'Cliente borrado.');
+            else showMsg('info', 'Lead actualizado', 'Cambios guardados.');
           }} 
         />
       )}
@@ -295,10 +359,7 @@ export default function Leads() {
           leadEmail={emailLead.email}
           leadPhone={emailLead.phone}
           availableDocs={availableDocs}
-          onSentSuccess={() => {
-            fetchLeads();
-            showMsg('success', 'Mensaje enviado', 'La comunicación se ha registrado correctamente.');
-          }}
+          onSentSuccess={() => { fetchLeads(); showMsg('success', 'Mensaje enviado', 'Registrado correctamente.'); }}
           initialMethod={initialMethod}
         />
       )}
