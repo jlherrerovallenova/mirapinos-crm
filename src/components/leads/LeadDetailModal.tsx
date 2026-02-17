@@ -11,7 +11,7 @@ import EmailComposerModal from './EmailComposerModal';
 import type { Database } from '../../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
-type Task = Database['public']['Tables']['tasks']['Row'];
+type AgendaItem = Database['public']['Tables']['agenda']['Row'];
 
 interface Props {
   lead: Lead;
@@ -26,13 +26,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const [availableDocs, setAvailableDocs] = useState<{name: string, url: string}[]>([]);
   const [sentHistory, setSentHistory] = useState<any[]>([]);
   
-  // Usamos 'tasks' en lugar de 'agenda'
-  const [tasks, setTasks] = useState<Task[]>([]);
+  // Tareas de la agenda
+  const [tasks, setTasks] = useState<AgendaItem[]>([]);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   
-  // Estado para nueva tarea (adaptado a la tabla tasks)
+  // Estado local para el formulario de nueva tarea
   const [newTask, setNewTask] = useState({ 
-    type: 'call', // valor por defecto compatible con DB
+    type: 'Llamada',
     title: '', 
     date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
     time: '10:00'
@@ -52,7 +52,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     fetchDocuments();
     fetchHistory();
     fetchTasks();
-  }, [lead.id, lead.name]);
+  }, [lead.id]);
 
   async function fetchDocuments() {
     const { data } = await supabase.from('documents').select('name, url').order('created_at', { ascending: false });
@@ -64,12 +64,12 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     if (data) setSentHistory(data);
   }
 
-  // Cargar tareas de la tabla GLOBAL 'tasks' filtrando por nombre de contacto
+  // Cargar tareas de la tabla agenda filtrando por ID del lead
   async function fetchTasks() {
     const { data } = await supabase
-      .from('tasks')
+      .from('agenda')
       .select('*')
-      .eq('contact_name', lead.name) // Enlazamos por nombre
+      .eq('lead_id', lead.id)
       .order('due_date', { ascending: true });
     
     if (data) setTasks(data);
@@ -82,75 +82,75 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const saveTask = async () => {
     if (!newTask.title || !session?.user.id) return;
 
+    // Combinar fecha y hora para crear un ISO String
+    const dateTimeString = `${newTask.date}T${newTask.time}:00`;
+    const finalDate = new Date(dateTimeString).toISOString();
+
     const taskData = {
       title: newTask.title,
-      type: newTask.type as any, // call, visit, etc.
-      due_date: newTask.date,
-      due_time: newTask.time,
-      contact_name: formData.name, // Importante: Guardamos el nombre actual
-      user_id: session.user.id,
-      priority: 'medium', // Valor por defecto
-      status: 'pending'
+      type: newTask.type,
+      due_date: finalDate,
+      lead_id: lead.id,          // Vinculación clave con el cliente
+      user_id: session.user.id,  // Vinculación clave con el usuario
+      completed: false
     };
 
-    if (editingTaskId) {
-      // Editar existente
-      const { error } = await supabase
-        .from('tasks')
-        .update({
-          title: taskData.title,
-          type: taskData.type,
-          due_date: taskData.due_date,
-          due_time: taskData.due_time
-        })
-        .eq('id', editingTaskId);
+    try {
+      if (editingTaskId) {
+        // Editar
+        const { error } = await supabase
+          .from('agenda')
+          .update({
+            title: taskData.title,
+            type: taskData.type,
+            due_date: finalDate
+          })
+          .eq('id', editingTaskId);
+        if (error) throw error;
+        setEditingTaskId(null);
+      } else {
+        // Insertar
+        const { error } = await supabase.from('agenda').insert([taskData]);
+        if (error) throw error;
+      }
 
-      if (!error) setEditingTaskId(null);
-    } else {
-      // Crear nueva
-      await supabase.from('tasks').insert([taskData]);
+      // Reset y recargar
+      setNewTask({ type: 'Llamada', title: '', date: new Date().toISOString().slice(0, 10), time: '10:00' });
+      fetchTasks();
+      
+    } catch (error) {
+      console.error("Error guardando tarea:", error);
+      alert("Error al guardar la tarea.");
     }
-
-    // Resetear form y recargar
-    setNewTask({ type: 'call', title: '', date: new Date().toISOString().slice(0, 10), time: '10:00' });
-    fetchTasks();
   };
 
   const deleteTask = async (id: number) => {
-    if (!window.confirm('¿Eliminar esta tarea de la agenda?')) return;
-    const { error } = await supabase.from('tasks').delete().eq('id', id);
+    if (!window.confirm('¿Eliminar esta tarea?')) return;
+    const { error } = await supabase.from('agenda').delete().eq('id', id);
     if (!error) fetchTasks();
   };
 
-  const startEditingTask = (task: Task) => {
+  const startEditingTask = (task: AgendaItem) => {
     setEditingTaskId(task.id);
+    const dateObj = new Date(task.due_date);
     setNewTask({
       type: task.type,
       title: task.title,
-      date: task.due_date,
-      time: task.due_time || '10:00'
+      date: dateObj.toISOString().slice(0, 10),
+      time: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
     });
   };
 
-  const toggleTaskStatus = async (task: Task) => {
-    const newStatus = task.status === 'pending' ? 'completed' : 'pending';
-    // Actualización optimista
-    setTasks(tasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
-    
-    await supabase.from('tasks').update({ status: newStatus }).eq('id', task.id);
-    fetchTasks(); // Sincronizar final
+  const toggleTaskStatus = async (task: AgendaItem) => {
+    const newStatus = !task.completed;
+    setTasks(tasks.map(t => t.id === task.id ? { ...t, completed: newStatus } : t));
+    await supabase.from('agenda').update({ completed: newStatus }).eq('id', task.id);
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.from('leads').update(formData).eq('id', lead.id);
-    
-    // Si cambió el nombre, actualizamos también las tareas asociadas (opcional pero recomendado)
-    if (!error && formData.name !== lead.name) {
-       await supabase.from('tasks').update({ contact_name: formData.name }).eq('contact_name', lead.name);
-    }
-
     if (!error) {
       onUpdate();
       onClose();
@@ -159,11 +159,11 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('¿Eliminar este cliente y todo su historial?')) return;
+    if (!window.confirm('¿Eliminar este cliente y su agenda?')) return;
     setLoading(true);
+    // Borrar tareas asociadas primero (por seguridad, si no hay cascade)
+    await supabase.from('agenda').delete().eq('lead_id', lead.id);
     await supabase.from('leads').delete().eq('id', lead.id);
-    // Opcional: Borrar tareas asociadas
-    // await supabase.from('tasks').delete().eq('contact_name', lead.name);
     onUpdate();
     onClose();
   };
@@ -310,13 +310,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                 </form>
               </div>
 
-              {/* COLUMNA DERECHA: AGENDA (CONECTADA A TASKS) */}
+              {/* COLUMNA DERECHA: AGENDA (CONECTADA A LA TABLA AGENDA) */}
               <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl flex flex-col h-full border border-slate-800">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-400">
                   <CalendarIcon size={14} /> Agenda de Acciones
                 </h3>
                 
-                {/* Formulario Inline para Tareas */}
+                {/* Formulario Inline */}
                 <div className="grid grid-cols-1 gap-3 mb-6 bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                   <div className="flex gap-2">
                     <select 
@@ -324,10 +324,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       onChange={(e) => setNewTask({...newTask, type: e.target.value})}
                       className="bg-slate-900 border border-slate-700 rounded-lg text-[11px] font-bold p-2.5 outline-none focus:border-emerald-500 text-slate-200"
                     >
-                      <option value="call">Llamada</option>
-                      <option value="email">Email</option>
-                      <option value="visit">Visita</option>
-                      <option value="meeting">Reunión</option>
+                      <option value="Llamada">Llamada</option>
+                      <option value="Email">Email</option>
+                      <option value="Visita">Visita</option>
+                      <option value="Reunión">Reunión</option>
                     </select>
                     <input 
                       type="date"
@@ -354,7 +354,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       <button 
                         onClick={() => {
                           setEditingTaskId(null);
-                          setNewTask({ type: 'call', title: '', date: new Date().toISOString().slice(0, 10), time: '10:00' });
+                          setNewTask({ type: 'Llamada', title: '', date: new Date().toISOString().slice(0, 10), time: '10:00' });
                         }} 
                         className="bg-slate-700 px-3 rounded-lg hover:bg-slate-600 transition-colors text-slate-300"
                         title="Cancelar edición"
@@ -376,19 +376,21 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   {tasks.length === 0 && (
                     <div className="text-center py-10 opacity-50">
                         <CalendarIcon size={32} className="mx-auto mb-2 text-slate-600" />
-                        <p className="text-xs text-slate-400 italic">No hay tareas programadas.</p>
+                        <p className="text-xs text-slate-400 italic">No hay tareas para este cliente.</p>
                     </div>
                   )}
-                  {tasks.map((task) => (
-                    <div key={task.id} className={`group flex items-center justify-between p-3 rounded-lg border transition-all ${task.status === 'completed' ? 'bg-slate-800/30 border-transparent opacity-40' : 'bg-slate-800 border-slate-700 hover:border-slate-600'}`}>
+                  {tasks.map((task) => {
+                    const dateObj = new Date(task.due_date);
+                    return (
+                    <div key={task.id} className={`group flex items-center justify-between p-3 rounded-lg border transition-all ${task.completed ? 'bg-slate-800/30 border-transparent opacity-40' : 'bg-slate-800 border-slate-700 hover:border-slate-600'}`}>
                       <div className="flex items-center gap-3">
                         <button onClick={() => toggleTaskStatus(task)} className="text-emerald-400 hover:scale-110 transition-transform">
-                          {task.status === 'completed' ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                          {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
                         </button>
                         <div>
-                          <p className={`text-xs font-bold ${task.status === 'completed' ? 'line-through text-slate-500' : 'text-white'}`}>{task.title}</p>
+                          <p className={`text-xs font-bold ${task.completed ? 'line-through text-slate-500' : 'text-white'}`}>{task.title}</p>
                           <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
-                             {task.type} • {new Date(task.due_date).toLocaleDateString()} {task.due_time && `• ${task.due_time.slice(0,5)}`}
+                             {task.type} • {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([],{hour:'2-digit', minute:'2-digit'})}
                           </p>
                         </div>
                       </div>
@@ -410,7 +412,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                         </button>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
 
