@@ -110,6 +110,45 @@ export interface Database {
           image_url?: string | null
         }
       }
+      // NUEVA TABLA AÑADIDA
+      tasks: {
+        Row: {
+          id: number
+          created_at: string
+          title: string
+          contact_name: string | null
+          due_date: string
+          due_time: string | null
+          type: 'call' | 'visit' | 'email' | 'meeting'
+          priority: 'high' | 'medium' | 'low'
+          status: 'pending' | 'completed'
+          user_id: string
+        }
+        Insert: {
+          id?: number
+          created_at?: string
+          title: string
+          contact_name?: string | null
+          due_date: string
+          due_time?: string | null
+          type: 'call' | 'visit' | 'email' | 'meeting'
+          priority: 'high' | 'medium' | 'low'
+          status?: 'pending' | 'completed'
+          user_id?: string
+        }
+        Update: {
+          id?: number
+          created_at?: string
+          title?: string
+          contact_name?: string | null
+          due_date?: string
+          due_time?: string | null
+          type?: 'call' | 'visit' | 'email' | 'meeting'
+          priority?: 'high' | 'medium' | 'low'
+          status?: 'pending' | 'completed'
+          user_id?: string
+        }
+      }
     }
   }
 }
