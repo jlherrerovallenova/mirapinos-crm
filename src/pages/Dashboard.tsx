@@ -1,82 +1,171 @@
 // src/pages/Dashboard.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
-  Calendar, 
   TrendingUp, 
   ArrowUpRight, 
   ArrowDownRight,
   Clock,
   CheckCircle2,
-  AlertCircle,
   Pencil,
-  Trash2
+  Trash2,
+  Globe,
+  Smartphone,
+  Megaphone,
+  HelpCircle,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
+
+// Definición de tipos para las estadísticas
+interface SourceStat {
+  name: string;
+  count: number;
+  percentage: number;
+}
+
+interface DashboardStats {
+  totalLeads: number;
+  topSources: SourceStat[];
+}
 
 export default function Dashboard() {
-  const { session } = useAuth(); //
+  const { session } = useAuth();
+  const [loading, setLoading] = useState(true);
   
-  // Estado local para manejar las actividades de la agenda
+  // Estado para los datos reales de Supabase
+  const [stats, setStats] = useState<DashboardStats>({
+    totalLeads: 0,
+    topSources: []
+  });
+
+  // Estado local para manejar las actividades de la agenda (Mantenemos esto local/mock por ahora)
   const [activities, setActivities] = useState([
     { id: 1, type: 'Llamada', contact: 'Juan Pérez', time: '10:30 AM', status: 'pending', priority: 'high' },
     { id: 2, type: 'Visita', contact: 'María García', time: '12:00 PM', status: 'completed', priority: 'medium' },
     { id: 3, type: 'Email', contact: 'Roberto Carlos', time: '04:15 PM', status: 'pending', priority: 'low' },
   ]);
 
-  // Función para editar una acción
-  const handleEdit = (id: number) => {
-    console.log("Editando actividad:", id);
-    // Aquí se integraría la lógica para abrir un formulario de edición
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // 1. Obtenemos solo la columna 'source' de todos los leads para calcular estadísticas
+      const { data: leads, error } = await supabase
+        .from('leads')
+        .select('source');
+
+      if (error) throw error;
+
+      if (leads) {
+        const total = leads.length;
+
+        // 2. Agrupamos y contamos por origen
+        const sourceCounts: Record<string, number> = {};
+        leads.forEach(lead => {
+          // Normalizamos el origen (si es null, lo llamamos 'Desconocido')
+          const source = lead.source ? lead.source.trim() : 'Desconocido';
+          sourceCounts[source] = (sourceCounts[source] || 0) + 1;
+        });
+
+        // 3. Convertimos a array, ordenamos por cantidad y calculamos porcentajes
+        const sortedSources = Object.entries(sourceCounts)
+          .map(([name, count]) => ({
+            name,
+            count,
+            percentage: Math.round((count / total) * 100)
+          }))
+          .sort((a, b) => b.count - a.count) // Orden descendente
+          .slice(0, 3); // Nos quedamos con los top 3
+
+        setStats({
+          totalLeads: total,
+          topSources: sortedSources
+        });
+      }
+    } catch (error) {
+      console.error('Error al cargar datos del dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Función para borrar una acción con confirmación
+  const handleEdit = (id: number) => {
+    console.log("Editando actividad:", id);
+  };
+
   const handleDelete = (id: number) => {
     if (window.confirm("¿Estás seguro de que deseas eliminar esta acción?")) {
       setActivities(activities.filter(act => act.id !== id));
     }
   };
 
+  // Función auxiliar para elegir icono según el origen
+  const getSourceIcon = (sourceName: string) => {
+    const lower = sourceName.toLowerCase();
+    if (lower.includes('web') || lower.includes('google')) return <Globe className="text-blue-600" size={20} />;
+    if (lower.includes('insta') || lower.includes('facebook') || lower.includes('social')) return <Smartphone className="text-purple-600" size={20} />;
+    if (lower.includes('referido') || lower.includes('amigo')) return <Users className="text-emerald-600" size={20} />;
+    if (lower.includes('anuncio') || lower.includes('campaña')) return <Megaphone className="text-orange-600" size={20} />;
+    return <HelpCircle className="text-slate-400" size={20} />;
+  };
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-500">
       {/* HEADER DE BIENVENIDA */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
           ¡Hola de nuevo, {session?.user.email?.split('@')[0]}!
         </h1>
-        <p className="text-slate-500">Aquí tienes el resumen de tu actividad para hoy.</p>
+        <p className="text-slate-500">Resumen de tus contactos y fuentes de captación.</p>
       </div>
 
-      {/* TARJETAS DE MÉTRICAS */}
+      {/* TARJETAS DE MÉTRICAS (WIDGETS ACTUALIZADOS) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Leads Totales" 
-          value="128" 
-          change="+12%" 
-          isPositive={true} 
-          icon={<Users className="text-emerald-600" size={20} />} 
-        />
-        <StatCard 
-          title="Citas Hoy" 
-          value="5" 
-          change="0%" 
-          isPositive={true} 
-          icon={<Calendar className="text-blue-600" size={20} />} 
-        />
-        <StatCard 
-          title="Tasa Conversión" 
-          value="24%" 
-          change="+3%" 
-          isPositive={true} 
-          icon={<TrendingUp className="text-purple-600" size={20} />} 
-        />
-        <StatCard 
-          title="Leads Fríos" 
-          value="12" 
-          change="-5%" 
-          isPositive={false} 
-          icon={<AlertCircle className="text-amber-600" size={20} />} 
-        />
+        {loading ? (
+           // Skeleton loading state
+           Array(4).fill(0).map((_, i) => (
+             <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-32 animate-pulse" />
+           ))
+        ) : (
+          <>
+            {/* Widget 1: Total Global */}
+            <StatCard 
+              title="Total Contactos" 
+              value={stats.totalLeads.toString()} 
+              // Usamos un valor fijo o calculado si tuviéramos histórico
+              change="Total histórico" 
+              isPositive={true} 
+              icon={<Users className="text-slate-900" size={20} />} 
+              trendIcon={false}
+            />
+
+            {/* Widget 2, 3, 4: Top 3 Fuentes */}
+            {stats.topSources.map((source, index) => (
+              <StatCard 
+                key={index}
+                title={`Origen: ${source.name}`} 
+                value={source.count.toString()} 
+                change={`${source.percentage}% del total`} 
+                isPositive={true} 
+                icon={getSourceIcon(source.name)} 
+                trendIcon={true}
+              />
+            ))}
+
+            {/* Relleno si hay menos de 3 fuentes para mantener la grilla */}
+            {stats.topSources.length < 3 && Array(3 - stats.topSources.length).fill(0).map((_, i) => (
+              <div key={`empty-${i}`} className="bg-slate-50 p-6 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
+                <p className="text-sm font-medium">Sin más datos de origen</p>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -115,7 +204,7 @@ export default function Dashboard() {
                     {activity.priority}
                   </span>
                   
-                  {/* BOTONES DE ACCIÓN: Aparecen al hacer hover sobre la fila */}
+                  {/* BOTONES DE ACCIÓN */}
                   <div className="flex items-center gap-1 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => handleEdit(activity.id)}
@@ -138,7 +227,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ÚLTIMOS LEADS */}
+        {/* ÚLTIMOS LEADS (Estático/Mock para mantener diseño, se puede conectar igual que los widgets) */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100">
             <h3 className="font-bold text-slate-800">Leads Recientes</h3>
@@ -158,17 +247,24 @@ export default function Dashboard() {
 }
 
 // Componentes auxiliares internos
-function StatCard({ title, value, change, isPositive, icon }: { 
-  title: string, value: string, change: string, isPositive: boolean, icon: React.ReactNode 
+function StatCard({ title, value, change, isPositive, icon, trendIcon = true }: { 
+  title: string, value: string, change: string, isPositive: boolean, icon: React.ReactNode, trendIcon?: boolean
 }) {
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-4">
         <div className="p-2 bg-slate-50 rounded-lg">{icon}</div>
-        <div className={`flex items-center text-xs font-bold ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
-          {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-          {change}
-        </div>
+        {trendIcon && (
+          <div className={`flex items-center text-xs font-bold ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
+            {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+            <span className="ml-1">{change}</span>
+          </div>
+        )}
+        {!trendIcon && (
+           <div className="text-xs font-bold text-slate-400">
+             {change}
+           </div>
+        )}
       </div>
       <p className="text-slate-500 text-sm font-medium">{title}</p>
       <h4 className="text-2xl font-bold text-slate-900 mt-1">{value}</h4>
