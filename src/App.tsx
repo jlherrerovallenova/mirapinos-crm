@@ -7,6 +7,7 @@ import Pipeline from './pages/Pipeline';
 import Inventory from './pages/Inventory';
 import Settings from './pages/Settings';
 import LeadDetail from './pages/LeadDetail';
+import Agenda from './pages/Agenda'; // <--- Importación de la nueva página
 import Login from './pages/Login'; 
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
         <Route path="/leads/:id" element={<LeadDetail />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/inventory" element={<Inventory />} />
+        <Route path="/agenda" element={<Agenda />} /> {/* <--- Nueva Ruta registrada */}
         <Route path="/settings" element={<Settings />} />
       </Route>
 
