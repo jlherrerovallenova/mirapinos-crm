@@ -1,6 +1,6 @@
 // src/pages/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // <--- IMPORTACIÓN AÑADIDA
+import { useNavigate } from 'react-router-dom'; // Hook de navegación
 import { 
   Users, 
   TrendingUp, 
@@ -13,8 +13,7 @@ import {
   Globe,
   Smartphone,
   Megaphone,
-  HelpCircle,
-  Loader2
+  HelpCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -33,16 +32,16 @@ interface DashboardStats {
 
 export default function Dashboard() {
   const { session } = useAuth();
-  const navigate = useNavigate(); // <--- HOOK DE NAVEGACIÓN INICIALIZADO
+  const navigate = useNavigate(); // Inicializamos el hook
   const [loading, setLoading] = useState(true);
   
-  // Estado para los datos reales de Supabase
+  // Estado para los datos reales de Supabase (Widgets superiores)
   const [stats, setStats] = useState<DashboardStats>({
     totalLeads: 0,
     topSources: []
   });
 
-  // Estado local para manejar las actividades (Mantenemos esto local por ahora)
+  // Estado local para manejar las actividades (Mock data por ahora)
   const [activities, setActivities] = useState([
     { id: 1, type: 'Llamada', contact: 'Juan Pérez', time: '10:30 AM', status: 'pending', priority: 'high' },
     { id: 2, type: 'Visita', contact: 'María García', time: '12:00 PM', status: 'completed', priority: 'medium' },
@@ -57,7 +56,7 @@ export default function Dashboard() {
     try {
       setLoading(true);
       
-      // 1. Obtenemos solo la columna 'source' de todos los leads
+      // 1. Obtenemos solo la columna 'source' de todos los leads para calcular estadísticas
       const { data: leads, error } = await supabase
         .from('leads')
         .select('source');
@@ -74,15 +73,15 @@ export default function Dashboard() {
           sourceCounts[source] = (sourceCounts[source] || 0) + 1;
         });
 
-        // 3. Convertimos a array, ordenamos y calculamos porcentajes
+        // 3. Convertimos a array, ordenamos por cantidad y calculamos porcentajes
         const sortedSources = Object.entries(sourceCounts)
           .map(([name, count]) => ({
             name,
             count,
             percentage: Math.round((count / total) * 100)
           }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 3);
+          .sort((a, b) => b.count - a.count) // Orden descendente
+          .slice(0, 3); // Top 3
 
         setStats({
           totalLeads: total,
@@ -106,6 +105,7 @@ export default function Dashboard() {
     }
   };
 
+  // Iconos dinámicos según el origen del lead
   const getSourceIcon = (sourceName: string) => {
     const lower = sourceName.toLowerCase();
     if (lower.includes('web') || lower.includes('google')) return <Globe className="text-blue-600" size={20} />;
@@ -125,14 +125,16 @@ export default function Dashboard() {
         <p className="text-slate-500">Resumen de tus contactos y fuentes de captación.</p>
       </div>
 
-      {/* TARJETAS DE MÉTRICAS */}
+      {/* TARJETAS DE MÉTRICAS (Datos reales de Supabase) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loading ? (
+           // Skeleton loading
            Array(4).fill(0).map((_, i) => (
              <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-32 animate-pulse" />
            ))
         ) : (
           <>
+            {/* Widget 1: Total Global */}
             <StatCard 
               title="Total Contactos" 
               value={stats.totalLeads.toString()} 
@@ -142,6 +144,7 @@ export default function Dashboard() {
               trendIcon={false}
             />
 
+            {/* Widget 2, 3, 4: Top 3 Fuentes */}
             {stats.topSources.map((source, index) => (
               <StatCard 
                 key={index}
@@ -154,6 +157,7 @@ export default function Dashboard() {
               />
             ))}
 
+            {/* Relleno visual si hay menos de 3 fuentes */}
             {stats.topSources.length < 3 && Array(3 - stats.topSources.length).fill(0).map((_, i) => (
               <div key={`empty-${i}`} className="bg-slate-50 p-6 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
                 <p className="text-sm font-medium">Sin más datos de origen</p>
@@ -171,7 +175,11 @@ export default function Dashboard() {
               <Clock size={18} className="text-emerald-500" />
               Agenda de Actividades
             </h3>
-            <button className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors">
+            {/* BOTÓN OPERATIVO: Redirige a /agenda */}
+            <button 
+              onClick={() => navigate('/agenda')}
+              className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+            >
               VER TODAS
             </button>
           </div>
@@ -199,6 +207,7 @@ export default function Dashboard() {
                     {activity.priority}
                   </span>
                   
+                  {/* BOTONES DE ACCIÓN (Hover) */}
                   <div className="flex items-center gap-1 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => handleEdit(activity.id)}
@@ -231,7 +240,7 @@ export default function Dashboard() {
             <RecentLead name="Carlos Ruiz" source="Web" time="hace 45 min" />
             <RecentLead name="Elena Soler" source="Referido" time="hace 2 horas" />
             
-            {/* BOTÓN CORREGIDO: AHORA NAVEGA A /LEADS */}
+            {/* BOTÓN OPERATIVO: Redirige a /leads */}
             <button 
               onClick={() => navigate('/leads')}
               className="w-full py-2.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
@@ -245,6 +254,7 @@ export default function Dashboard() {
   );
 }
 
+// Componentes auxiliares internos
 function StatCard({ title, value, change, isPositive, icon, trendIcon = true }: { 
   title: string, value: string, change: string, isPositive: boolean, icon: React.ReactNode, trendIcon?: boolean
 }) {
