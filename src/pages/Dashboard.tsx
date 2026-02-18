@@ -1,6 +1,6 @@
 // src/pages/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Hook de navegación
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   TrendingUp, 
@@ -13,12 +13,18 @@ import {
   Globe,
   Smartphone,
   Megaphone,
-  HelpCircle
+  HelpCircle,
+  Calendar
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import type { Database } from '../types/supabase';
 
-// Definición de tipos para las estadísticas
+// Definición de tipos basados en la base de datos
+type AgendaItem = Database['public']['Tables']['agenda']['Row'] & {
+  leads?: { name: string } | null;
+};
+
 interface SourceStat {
   name: string;
   count: number;
@@ -32,31 +38,25 @@ interface DashboardStats {
 
 export default function Dashboard() {
   const { session } = useAuth();
-  const navigate = useNavigate(); // Inicializamos el hook
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   
-  // Estado para los datos reales de Supabase (Widgets superiores)
   const [stats, setStats] = useState<DashboardStats>({
     totalLeads: 0,
     topSources: []
   });
 
-  // Estado local para manejar las actividades (Mock data por ahora)
-  const [activities, setActivities] = useState([
-    { id: 1, type: 'Llamada', contact: 'Juan Pérez', time: '10:30 AM', status: 'pending', priority: 'high' },
-    { id: 2, type: 'Visita', contact: 'María García', time: '12:00 PM', status: 'completed', priority: 'medium' },
-    { id: 3, type: 'Email', contact: 'Roberto Carlos', time: '04:15 PM', status: 'pending', priority: 'low' },
-  ]);
+  // Estado para las actividades reales de la base de datos
+  const [activities, setActivities] = useState<AgendaItem[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchAgendaData();
   }, []);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // 1. Obtenemos solo la columna 'source' de todos los leads para calcular estadísticas
       const { data: leads, error } = await supabase
         .from('leads')
         .select('source');
@@ -65,23 +65,20 @@ export default function Dashboard() {
 
       if (leads) {
         const total = leads.length;
-
-        // 2. Agrupamos y contamos por origen
         const sourceCounts: Record<string, number> = {};
         leads.forEach(lead => {
           const source = lead.source ? lead.source.trim() : 'Desconocido';
           sourceCounts[source] = (sourceCounts[source] || 0) + 1;
         });
 
-        // 3. Convertimos a array, ordenamos por cantidad y calculamos porcentajes
         const sortedSources = Object.entries(sourceCounts)
           .map(([name, count]) => ({
             name,
             count,
-            percentage: Math.round((count / total) * 100)
+            percentage: total > 0 ? Math.round((count / total) * 100) : 0
           }))
-          .sort((a, b) => b.count - a.count) // Orden descendente
-          .slice(0, 3); // Top 3
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 3);
 
         setStats({
           totalLeads: total,
@@ -89,23 +86,46 @@ export default function Dashboard() {
         });
       }
     } catch (error) {
-      console.error('Error al cargar datos del dashboard:', error);
+      console.error('Error al cargar estadísticas:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = (id: number) => {
-    console.log("Editando actividad:", id);
-  };
+  const fetchAgendaData = async () => {
+    try {
+      // Consultamos la tabla agenda uniendo con el nombre del lead
+      const { data, error } = await supabase
+        .from('agenda')
+        .select(`
+          *,
+          leads (
+            name
+          )
+        `)
+        .order('due_date', { ascending: true })
+        .limit(5); // Mostramos las 5 más próximas
 
-  const handleDelete = (id: number) => {
-    if (window.confirm("¿Estás seguro de que deseas eliminar esta acción?")) {
-      setActivities(activities.filter(act => act.id !== id));
+      if (error) throw error;
+      if (data) setActivities(data as AgendaItem[]);
+    } catch (error) {
+      console.error('Error al cargar agenda:', error);
     }
   };
 
-  // Iconos dinámicos según el origen del lead
+  const handleDelete = async (id: number) => {
+    if (window.confirm("¿Estás seguro de que deseas eliminar esta acción?")) {
+      const { error } = await supabase
+        .from('agenda')
+        .delete()
+        .eq('id', id);
+      
+      if (!error) {
+        setActivities(activities.filter(act => act.id !== id));
+      }
+    }
+  };
+
   const getSourceIcon = (sourceName: string) => {
     const lower = sourceName.toLowerCase();
     if (lower.includes('web') || lower.includes('google')) return <Globe className="text-blue-600" size={20} />;
@@ -117,7 +137,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* HEADER DE BIENVENIDA */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
           ¡Hola de nuevo, {session?.user.email?.split('@')[0]}!
@@ -125,16 +144,13 @@ export default function Dashboard() {
         <p className="text-slate-500">Resumen de tus contactos y fuentes de captación.</p>
       </div>
 
-      {/* TARJETAS DE MÉTRICAS (Datos reales de Supabase) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loading ? (
-           // Skeleton loading
            Array(4).fill(0).map((_, i) => (
              <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-32 animate-pulse" />
            ))
         ) : (
           <>
-            {/* Widget 1: Total Global */}
             <StatCard 
               title="Total Contactos" 
               value={stats.totalLeads.toString()} 
@@ -144,7 +160,6 @@ export default function Dashboard() {
               trendIcon={false}
             />
 
-            {/* Widget 2, 3, 4: Top 3 Fuentes */}
             {stats.topSources.map((source, index) => (
               <StatCard 
                 key={index}
@@ -157,7 +172,6 @@ export default function Dashboard() {
               />
             ))}
 
-            {/* Relleno visual si hay menos de 3 fuentes */}
             {stats.topSources.length < 3 && Array(3 - stats.topSources.length).fill(0).map((_, i) => (
               <div key={`empty-${i}`} className="bg-slate-50 p-6 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
                 <p className="text-sm font-medium">Sin más datos de origen</p>
@@ -168,14 +182,13 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* AGENDA DE ACTIVIDADES */}
+        {/* AGENDA DE ACTIVIDADES REALES */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
               <Clock size={18} className="text-emerald-500" />
               Agenda de Actividades
             </h3>
-            {/* BOTÓN OPERATIVO: Redirige a /agenda */}
             <button 
               onClick={() => navigate('/agenda')}
               className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
@@ -184,53 +197,51 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="divide-y divide-slate-100">
-            {activities.map((activity) => (
-              <div key={activity.id} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group">
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    activity.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {activity.status === 'completed' ? <CheckCircle2 size={20} /> : <Clock size={20} />}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">{activity.type}: {activity.contact}</p>
-                    <p className="text-xs text-slate-500">{activity.time}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    activity.priority === 'high' ? 'bg-red-100 text-red-600' : 
-                    activity.priority === 'medium' ? 'bg-amber-100 text-amber-600' : 
-                    'bg-blue-100 text-blue-600'
-                  }`}>
-                    {activity.priority}
-                  </span>
-                  
-                  {/* BOTONES DE ACCIÓN (Hover) */}
-                  <div className="flex items-center gap-1 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => handleEdit(activity.id)}
-                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                      title="Editar acción"
-                    >
-                      <Pencil size={16} />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(activity.id)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                      title="Borrar acción"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
+            {activities.length === 0 ? (
+              <div className="p-10 text-center">
+                <Calendar className="mx-auto text-slate-300 mb-2" size={32} />
+                <p className="text-sm text-slate-500 italic">No hay tareas pendientes en la agenda.</p>
               </div>
-            ))}
+            ) : (
+              activities.map((activity) => {
+                const dateObj = new Date(activity.due_date);
+                return (
+                  <div key={activity.id} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        activity.completed ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {activity.completed ? <CheckCircle2 size={20} /> : <Clock size={20} />}
+                      </div>
+                      <div>
+                        <p className={`text-sm font-bold ${activity.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                          {activity.type}: {activity.leads?.name || 'Cliente desconocido'}
+                        </p>
+                        <p className="text-[11px] font-medium text-slate-500">
+                          {activity.title} • {dateObj.toLocaleDateString()} {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => handleDelete(activity.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          title="Borrar acción"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
-        {/* ÚLTIMOS LEADS */}
+        {/* ÚLTIMOS LEADS (ESTÁTICO O PUEDES CONECTARLO TAMBIÉN) */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100">
             <h3 className="font-bold text-slate-800">Leads Recientes</h3>
@@ -240,7 +251,6 @@ export default function Dashboard() {
             <RecentLead name="Carlos Ruiz" source="Web" time="hace 45 min" />
             <RecentLead name="Elena Soler" source="Referido" time="hace 2 horas" />
             
-            {/* BOTÓN OPERATIVO: Redirige a /leads */}
             <button 
               onClick={() => navigate('/leads')}
               className="w-full py-2.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
@@ -254,7 +264,6 @@ export default function Dashboard() {
   );
 }
 
-// Componentes auxiliares internos
 function StatCard({ title, value, change, isPositive, icon, trendIcon = true }: { 
   title: string, value: string, change: string, isPositive: boolean, icon: React.ReactNode, trendIcon?: boolean
 }) {
