@@ -12,30 +12,18 @@ import {
   Smartphone,
   Megaphone,
   HelpCircle,
-  Calendar,
-  AlertCircle
+  Calendar
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import type { Database } from '../types/supabase';
 
-// --- DEFINICIÓN DE TIPOS MANUAL PARA EVITAR ERRORES DE TS ---
+// Tipo base de la tabla agenda
+type AgendaItem = Database['public']['Tables']['agenda']['Row'];
 
-interface LeadRef {
-  name: string;
-}
-
-// Estructura exacta de la respuesta de Supabase con el JOIN
-interface AgendaItemWithLead {
-  id: number;
-  created_at: string;
-  lead_id: string | null;
-  title: string;
-  type: string;
-  due_date: string;
-  completed: boolean;
-  user_id: string | null;
-  // Supabase puede devolver un objeto o un array dependiendo de la relación detectada
-  leads: LeadRef | LeadRef[] | null; 
+// Tipo extendido para usar en la vista (con el nombre ya resuelto)
+interface ActivityItem extends AgendaItem {
+  leadName: string;
 }
 
 interface SourceStat {
@@ -49,8 +37,6 @@ interface DashboardStats {
   topSources: SourceStat[];
 }
 
-// ------------------------------------------------------------
-
 export default function Dashboard() {
   const { session } = useAuth();
   const navigate = useNavigate();
@@ -61,7 +47,7 @@ export default function Dashboard() {
     topSources: []
   });
 
-  const [activities, setActivities] = useState<AgendaItemWithLead[]>([]);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
 
   useEffect(() => {
     if (session?.user.id) {
@@ -71,7 +57,7 @@ export default function Dashboard() {
 
   const loadData = async () => {
     setLoading(true);
-    await Promise.all([fetchStats(), fetchAgenda()]);
+    await Promise.all([fetchStats(), fetchAgendaManual()]);
     setLoading(false);
   };
 
@@ -103,67 +89,78 @@ export default function Dashboard() {
         setStats({ totalLeads: total, topSources: sortedSources });
       }
     } catch (error) {
-      console.error('Error cargando estadísticas:', error);
+      console.error('Error stats:', error);
     }
   };
 
-  const fetchAgenda = async () => {
+  // --- NUEVA ESTRATEGIA: Carga en dos pasos (sin JOIN) ---
+  const fetchAgendaManual = async () => {
     try {
-      // Intentamos traer la agenda con el nombre del lead
-      const { data, error } = await supabase
+      // Paso 1: Obtener las tareas
+      const { data: tasks, error: tasksError } = await supabase
         .from('agenda')
-        .select(`
-          *,
-          leads (
-            name
-          )
-        `)
+        .select('*')
         .order('due_date', { ascending: true })
         .limit(10);
 
-      if (error) {
-        console.error('Error fetching agenda:', error);
+      if (tasksError) throw tasksError;
+      if (!tasks || tasks.length === 0) {
+        setActivities([]);
         return;
       }
 
-      if (data) {
-        // Forzamos el tipado para manejar la respuesta
-        setActivities(data as unknown as AgendaItemWithLead[]);
+      // Paso 2: Recopilar IDs de leads únicos
+      // Filtramos los que tengan lead_id (no nulos)
+      const leadIds = Array.from(new Set(tasks.map(t => t.lead_id).filter(id => id !== null))) as string[];
+
+      let leadMap: Record<string, string> = {};
+
+      if (leadIds.length > 0) {
+        // Paso 3: Obtener los nombres de esos leads
+        const { data: leadsData, error: leadsError } = await supabase
+          .from('leads')
+          .select('id, name')
+          .in('id', leadIds);
+
+        if (!leadsError && leadsData) {
+          // Crear mapa rápido: { "id-123": "Juan", "id-456": "Maria" }
+          leadsData.forEach(l => {
+            leadMap[l.id] = l.name;
+          });
+        }
       }
+
+      // Paso 4: Combinar datos
+      const combinedData: ActivityItem[] = tasks.map(task => ({
+        ...task,
+        // Buscamos el nombre en el mapa, si no existe ponemos 'Desconocido'
+        leadName: task.lead_id ? (leadMap[task.lead_id] || 'Lead no encontrado') : 'Sin asignar'
+      }));
+
+      setActivities(combinedData);
+
     } catch (err) {
-      console.error('Error inesperado en agenda:', err);
+      console.error('Error cargando agenda:', err);
     }
   };
 
   const handleDeleteActivity = async (id: number) => {
-    if (!window.confirm("¿Eliminar esta tarea de la base de datos permanentemente?")) return;
+    if (!window.confirm("¿Eliminar esta tarea permanentemente?")) return;
 
     try {
       const { error } = await supabase.from('agenda').delete().eq('id', id);
       if (error) throw error;
-      // Actualizar UI
       setActivities(prev => prev.filter(item => item.id !== id));
     } catch (error) {
-      console.error('Error borrando tarea:', error);
-      alert('No se pudo borrar la tarea.');
+      console.error('Error al borrar:', error);
     }
   };
 
-  // Función auxiliar para obtener el nombre del lead de forma segura
-  const getLeadName = (item: AgendaItemWithLead) => {
-    if (!item.leads) return 'Cliente desconocido';
-    if (Array.isArray(item.leads)) {
-      return item.leads[0]?.name || 'Cliente desconocido';
-    }
-    return item.leads.name || 'Cliente desconocido';
-  };
-
-  // Formateo de fecha
+  // Utilidades de formato
   const formatDateTime = (dateString: string) => {
     if (!dateString) return '';
     const date = new Date(dateString);
     const now = new Date();
-    
     const isToday = date.toDateString() === now.toDateString();
     const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
@@ -185,10 +182,10 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-slate-900">
           ¡Hola, {session?.user.email?.split('@')[0]}!
         </h1>
-        <p className="text-slate-500">Resumen de actividad en tiempo real.</p>
+        <p className="text-slate-500">Panel de control general.</p>
       </div>
 
-      {/* TARJETAS SUPERIORES */}
+      {/* STATS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loading ? (
            Array(4).fill(0).map((_, i) => (
@@ -199,7 +196,7 @@ export default function Dashboard() {
             <StatCard 
               title="Total Contactos" 
               value={stats.totalLeads.toString()} 
-              change="Base de datos" 
+              change="Registrados" 
               isPositive={true} 
               icon={<Users className="text-slate-900" size={20} />} 
               trendIcon={false}
@@ -217,7 +214,7 @@ export default function Dashboard() {
             ))}
             {stats.topSources.length < 3 && Array(3 - stats.topSources.length).fill(0).map((_, i) => (
               <div key={`empty-${i}`} className="bg-slate-50 p-6 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
-                <p className="text-xs font-medium">Sin datos suficientes</p>
+                <p className="text-xs">Sin datos suficientes</p>
               </div>
             ))}
           </>
@@ -226,7 +223,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* WIDGET AGENDA REAL */}
+        {/* AGENDA (DATOS REALES) */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[400px]">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -237,7 +234,7 @@ export default function Dashboard() {
               onClick={() => navigate('/agenda')}
               className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
             >
-              VER TODO
+              VER CALENDARIO
             </button>
           </div>
           
@@ -245,33 +242,32 @@ export default function Dashboard() {
             {activities.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                 <Calendar size={40} className="mb-3 opacity-30" />
-                <p className="text-sm font-medium">No hay tareas pendientes</p>
-                <p className="text-xs opacity-75 mt-1">Crea tareas desde la ficha de un cliente</p>
+                <p className="text-sm">No hay tareas pendientes</p>
               </div>
             ) : (
               activities.map((activity) => (
                 <div key={activity.id} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group">
                   <div className="flex items-center gap-4">
-                    {/* Icono Estado */}
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                    {/* Icono */}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                       activity.completed ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-50 text-blue-600'
                     }`}>
                       {activity.completed ? <CheckCircle2 size={18} /> : <Clock size={18} />}
                     </div>
                     
-                    {/* Datos */}
+                    {/* Datos de la tarea */}
                     <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                           {activity.type}
                         </span>
                         <p className={`text-sm font-bold ${activity.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                          {getLeadName(activity)}
+                          {activity.leadName}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
                         <span className="font-medium">{activity.title}</span>
-                        <span className="text-slate-300">•</span>
+                        <span>•</span>
                         <span className={new Date(activity.due_date) < new Date() && !activity.completed ? "text-red-500 font-bold" : ""}>
                           {formatDateTime(activity.due_date)}
                         </span>
@@ -280,7 +276,7 @@ export default function Dashboard() {
                   </div>
                   
                   {/* Botón borrar */}
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity px-2">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => handleDeleteActivity(activity.id)}
                       className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -295,21 +291,23 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* WIDGET LEADS RECIENTES (Estático o puedes conectarlo luego) */}
+        {/* LEADS RECIENTES (UI Estática o conectable similar) */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden h-fit">
           <div className="p-6 border-b border-slate-100">
-            <h3 className="font-bold text-slate-800">Leads Recientes</h3>
+            <h3 className="font-bold text-slate-800">Accesos Rápidos</h3>
           </div>
-          <div className="p-6 space-y-6">
-            <RecentLead name="Ana Martínez" source="Instagram" time="Hoy" />
-            <RecentLead name="Carlos Ruiz" source="Web" time="Ayer" />
-            <RecentLead name="Elena Soler" source="Referido" time="Ayer" />
-            
+          <div className="p-6 space-y-4">
             <button 
               onClick={() => navigate('/leads')}
-              className="w-full py-2.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
+              className="w-full py-3 bg-slate-900 text-white rounded-lg text-sm font-bold shadow hover:bg-slate-800 transition-all active:scale-95"
             >
-              Ver todos los leads
+              Gestionar Clientes (Leads)
+            </button>
+            <button 
+              onClick={() => navigate('/inventory')}
+              className="w-full py-3 border border-slate-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all active:scale-95"
+            >
+              Ver Inventario
             </button>
           </div>
         </div>
@@ -318,7 +316,7 @@ export default function Dashboard() {
   );
 }
 
-// Componentes simples para UI
+// Componentes pequeños UI
 function StatCard({ title, value, change, isPositive, icon, trendIcon = true }: any) {
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -335,23 +333,6 @@ function StatCard({ title, value, change, isPositive, icon, trendIcon = true }: 
       </div>
       <p className="text-slate-500 text-sm font-medium">{title}</p>
       <h4 className="text-2xl font-bold text-slate-900 mt-1">{value}</h4>
-    </div>
-  );
-}
-
-function RecentLead({ name, source, time }: { name: string, source: string, time: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-xs">
-          {name.substring(0, 2).toUpperCase()}
-        </div>
-        <div>
-          <p className="text-sm font-bold text-slate-800">{name}</p>
-          <p className="text-xs text-slate-500">{source}</p>
-        </div>
-      </div>
-      <span className="text-[10px] text-slate-400 font-medium">{time}</span>
     </div>
   );
 }
