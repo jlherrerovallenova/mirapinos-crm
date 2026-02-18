@@ -5,35 +5,28 @@ import {
   Users, 
   ArrowUpRight, 
   ArrowDownRight,
-  Clock,
-  CheckCircle2,
-  Trash2,
   Globe,
   Smartphone,
-  Megaphone,
   HelpCircle,
-  Calendar
+  Megaphone,
+  Clock,      // <-- Faltaba este import
+  Calendar    // <-- Añadido para el botón de agenda
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
-// Definimos tipos sencillos para evitar conflictos
-type AgendaItem = {
-  id: number;
-  title: string;
-  type: string;
-  due_date: string;
-  completed: boolean;
-  lead_id: string | null;
-  // Propiedad extra para la vista
-  clientName?: string;
-};
-
-type SourceStat = {
+interface SourceStat {
   name: string;
   count: number;
   percentage: number;
-};
+}
+
+interface RecentLead {
+  id: string;
+  name: string;
+  source: string | null;
+  created_at: string;
+}
 
 export default function Dashboard() {
   const { session } = useAuth();
@@ -46,29 +39,36 @@ export default function Dashboard() {
     topSources: []
   });
 
-  // Estado para la agenda
-  const [activities, setActivities] = useState<AgendaItem[]>([]);
+  // Estado para leads recientes
+  const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
 
   useEffect(() => {
-    // Cargamos los datos al montar el componente
-    loadDashboardData();
-  }, []);
+    if (session?.user.id) {
+      loadDashboardData();
+    }
+  }, [session]);
 
   const loadDashboardData = async () => {
     setLoading(true);
-    console.log("🔄 Iniciando carga del Dashboard...");
-
     try {
-      // 1. CARGAR ESTADÍSTICAS (LEADS)
-      const { data: leads, error: leadsError } = await supabase
-        .from('leads')
-        .select('source');
+      // 1. CARGAR ESTADÍSTICAS Y LEADS RECIENTES EN PARALELO
+      const [leadsResponse, recentResponse] = await Promise.all([
+        // Query para estadísticas (todos los leads)
+        supabase.from('leads').select('source'),
+        
+        // Query para leads recientes (últimos 5)
+        supabase.from('leads')
+          .select('id, name, source, created_at')
+          .order('created_at', { ascending: false })
+          .limit(5)
+      ]);
 
-      if (!leadsError && leads) {
-        const total = leads.length;
+      // Procesar Estadísticas
+      if (!leadsResponse.error && leadsResponse.data) {
+        const total = leadsResponse.data.length;
         const sourceCounts: Record<string, number> = {};
         
-        leads.forEach(lead => {
+        leadsResponse.data.forEach(lead => {
           const source = lead.source ? lead.source.trim() : 'Desconocido';
           sourceCounts[source] = (sourceCounts[source] || 0) + 1;
         });
@@ -85,92 +85,36 @@ export default function Dashboard() {
         setStats({ totalLeads: total, topSources: sortedSources });
       }
 
-      // 2. CARGAR AGENDA (ESTRATEGIA MANUAL)
-      // Paso A: Pedir las tareas ordenadas por fecha
-      const { data: agendaData, error: agendaError } = await supabase
-        .from('agenda')
-        .select('*')
-        .order('due_date', { ascending: true })
-        .limit(10);
-
-      if (agendaError) {
-        console.error("❌ Error cargando agenda:", agendaError);
-      } else if (agendaData && agendaData.length > 0) {
-        console.log("✅ Tareas encontradas:", agendaData.length);
-
-        // Paso B: Obtener los nombres de los clientes asociados
-        // Extraemos todos los lead_id únicos que no sean nulos
-        const leadIds = [...new Set(agendaData.map(item => item.lead_id).filter(id => id))];
-
-        let leadMap: Record<string, string> = {};
-
-        if (leadIds.length > 0) {
-          const { data: leadsInfo } = await supabase
-            .from('leads')
-            .select('id, name')
-            .in('id', leadIds);
-          
-          if (leadsInfo) {
-            leadsInfo.forEach(l => {
-              leadMap[l.id] = l.name;
-            });
-          }
-        }
-
-        // Paso C: Combinar la información
-        const combinedActivities = agendaData.map(task => ({
-          ...task,
-          clientName: task.lead_id ? (leadMap[task.lead_id] || 'Cliente desconocido') : 'Sin asignar'
-        }));
-
-        setActivities(combinedActivities);
-      } else {
-        console.log("⚠️ No se encontraron tareas en la agenda.");
-        setActivities([]);
+      // Procesar Leads Recientes
+      if (!recentResponse.error && recentResponse.data) {
+        setRecentLeads(recentResponse.data);
       }
 
     } catch (error) {
-      console.error("🔥 Error crítico en Dashboard:", error);
+      console.error("Error cargando dashboard:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteActivity = async (id: number) => {
-    if (!window.confirm("¿Eliminar esta tarea de la agenda?")) return;
-
-    try {
-      const { error } = await supabase.from('agenda').delete().eq('id', id);
-      if (error) throw error;
-      
-      // Actualizamos la lista visualmente
-      setActivities(prev => prev.filter(a => a.id !== id));
-    } catch (error) {
-      console.error("Error al borrar:", error);
-      alert("No se pudo borrar la tarea.");
-    }
-  };
-
-  // Formato de fecha legible
-  const formatDateTime = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    
-    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    if (isToday) return `Hoy, ${time}`;
-    return `${date.toLocaleDateString()} ${time}`;
-  };
-
-  // Helpers para iconos
+  // Helpers
   const getSourceIcon = (sourceName: string) => {
     const lower = sourceName.toLowerCase();
     if (lower.includes('web') || lower.includes('google')) return <Globe className="text-blue-600" size={20} />;
     if (lower.includes('insta') || lower.includes('facebook')) return <Smartphone className="text-purple-600" size={20} />;
     if (lower.includes('referido') || lower.includes('amigo')) return <Users className="text-emerald-600" size={20} />;
+    if (lower.includes('anuncio') || lower.includes('campaña')) return <Megaphone className="text-orange-600" size={20} />;
     return <HelpCircle className="text-slate-400" size={20} />;
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
+    
+    if (diffInMinutes < 60) return `hace ${diffInMinutes} min`;
+    if (diffInMinutes < 1440) return `hace ${Math.floor(diffInMinutes / 60)} h`;
+    return date.toLocaleDateString();
   };
 
   return (
@@ -211,7 +155,6 @@ export default function Dashboard() {
                 trendIcon={true}
               />
             ))}
-            {/* Relleno si hay pocos datos */}
             {stats.topSources.length < 3 && Array(3 - stats.topSources.length).fill(0).map((_, i) => (
               <div key={`empty-${i}`} className="bg-slate-50 p-6 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
                 <p className="text-xs">Sin datos suficientes</p>
@@ -221,78 +164,46 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* AGENDA - DATOS REALES */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[400px]">
+        {/* WIDGET 1: LEADS RECIENTES (Rellena el hueco dejado por la agenda) */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-              <Clock size={18} className="text-emerald-500" />
-              Agenda (Próximas Tareas)
-            </h3>
+            <h3 className="font-bold text-slate-800">Últimos Clientes Registrados</h3>
             <button 
-              onClick={() => navigate('/agenda')}
+              onClick={() => navigate('/leads')}
               className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
             >
-              VER CALENDARIO
+              VER TODOS
             </button>
           </div>
-          
-          <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[500px]">
-            {activities.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                <Calendar size={40} className="mb-3 opacity-30" />
-                <p className="text-sm font-medium">No hay tareas pendientes</p>
-                <p className="text-xs opacity-70 mt-1">Crea tareas desde la ficha de un cliente</p>
+          <div className="p-6 space-y-4 flex-1">
+            {recentLeads.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <p className="text-sm">No hay clientes recientes.</p>
               </div>
             ) : (
-              activities.map((activity) => (
-                <div key={activity.id} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group">
-                  <div className="flex items-center gap-4">
-                    {/* Icono de Estado */}
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                      activity.completed ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-50 text-blue-600'
-                    }`}>
-                      {activity.completed ? <CheckCircle2 size={18} /> : <Clock size={18} />}
+              recentLeads.map((lead) => (
+                <div key={lead.id} className="flex items-center justify-between group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-sm group-hover:bg-slate-200 transition-colors">
+                      {lead.name.substring(0, 2).toUpperCase()}
                     </div>
-                    
-                    {/* Información */}
                     <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                          {activity.type}
-                        </span>
-                        <span className={`text-sm font-bold ${activity.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                          {activity.clientName}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
-                        <span className="font-medium text-slate-600">{activity.title}</span>
-                        <span>•</span>
-                        <span className={new Date(activity.due_date) < new Date() && !activity.completed ? "text-red-500 font-bold" : ""}>
-                          {formatDateTime(activity.due_date)}
-                        </span>
-                      </div>
+                      <p className="text-sm font-bold text-slate-800">{lead.name}</p>
+                      <p className="text-xs text-slate-500">{lead.source || 'Sin origen'}</p>
                     </div>
                   </div>
-                  
-                  {/* Botón Borrar */}
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => handleDeleteActivity(activity.id)}
-                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Eliminar tarea"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium bg-slate-50 px-2 py-1 rounded-full">
+                    {formatTime(lead.created_at)}
+                  </span>
                 </div>
               ))
             )}
           </div>
         </div>
 
-        {/* ACCESOS RÁPIDOS */}
+        {/* WIDGET 2: ACCESOS RÁPIDOS */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden h-fit">
           <div className="p-6 border-b border-slate-100">
             <h3 className="font-bold text-slate-800">Accesos Rápidos</h3>
@@ -300,16 +211,24 @@ export default function Dashboard() {
           <div className="p-6 space-y-4">
             <button 
               onClick={() => navigate('/leads')}
-              className="w-full py-3 bg-slate-900 text-white rounded-lg text-sm font-bold shadow hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2"
+              className="w-full py-4 bg-slate-900 text-white rounded-xl text-sm font-bold shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2"
             >
-              <Users size={16} /> Gestionar Clientes
+              <Users size={18} /> Gestionar Clientes (Leads)
             </button>
-            <button 
-              onClick={() => navigate('/inventory')}
-              className="w-full py-3 border border-slate-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all active:scale-95 flex items-center justify-center gap-2"
-            >
-              <Clock size={16} /> Ver Inventario
-            </button>
+            <div className="grid grid-cols-2 gap-4">
+               <button 
+                onClick={() => navigate('/inventory')}
+                className="w-full py-4 border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Clock size={18} /> Inventario
+              </button>
+               <button 
+                onClick={() => navigate('/agenda')}
+                className="w-full py-4 border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Calendar size={18} /> Agenda
+              </button>
+            </div>
           </div>
         </div>
 
