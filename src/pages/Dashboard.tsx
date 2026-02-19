@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   Trash2,
   Circle,
-  AlertCircle
+  AlertCircle,
+  Bug
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -33,7 +34,6 @@ interface RecentLead {
   created_at: string;
 }
 
-// Tipo AgendaItem IDÉNTICO al que usas en Agenda.tsx
 type AgendaItem = Database['public']['Tables']['agenda']['Row'] & {
   leads?: { name: string } | null
 };
@@ -43,13 +43,16 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   
-  // Estados
+  // Estados de Datos
   const [stats, setStats] = useState<{ totalLeads: number; topSources: SourceStat[] }>({
     totalLeads: 0,
     topSources: []
   });
   const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
+
+  // Estado de Diagnóstico (NUEVO)
+  const [debug, setDebug] = useState({ error: null as any, data: null as any, count: 0 });
 
   useEffect(() => {
     if (session?.user.id) {
@@ -87,20 +90,23 @@ export default function Dashboard() {
         setRecentLeads(recentResponse.data);
       }
 
-      // 2. CARGA DE AGENDA (Copia exacta de la lógica que te funciona en Agenda.tsx)
+      // 2. CARGA DE AGENDA CON DIAGNÓSTICO
       let query = supabase
         .from('agenda')
-        .select('*, leads(name)')
+        .select('*, leads(name)', { count: 'exact' })
         .eq('completed', false)
         .order('due_date', { ascending: true });
 
-      // Usamos range() igual que en la paginación de Agenda.tsx para evitar fallos del Join
-      const { data: agendaData, error: agendaError } = await query.range(0, 9);
+      const { data: agendaData, error: agendaError, count } = await query.range(0, 7); // Mismo rango que Agenda.tsx (página 1)
 
-      if (agendaError) {
-        console.error("Error fetching agenda para dashboard:", agendaError);
-      } else if (agendaData) {
-        // Mapeo idéntico al de Agenda.tsx para resolver el array/objeto de leads
+      // Guardamos la respuesta cruda de Supabase para verla en pantalla
+      setDebug({
+        error: agendaError ? agendaError.message || JSON.stringify(agendaError) : 'Ninguno',
+        data: agendaData,
+        count: count || 0
+      });
+
+      if (!agendaError && agendaData) {
         const formattedData = (agendaData || []).map(item => ({
           ...item,
           leads: Array.isArray(item.leads) ? item.leads[0] : item.leads
@@ -109,8 +115,9 @@ export default function Dashboard() {
         setAgenda(formattedData);
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error general cargando dashboard:", error);
+      setDebug(prev => ({ ...prev, error: `Crash general: ${error.message}` }));
     } finally {
       setLoading(false);
     }
@@ -120,7 +127,6 @@ export default function Dashboard() {
 
   const toggleTask = async (task: AgendaItem) => {
     const newStatus = !task.completed;
-    // Optimismo: si se completa, desaparece de la vista del dashboard
     if (newStatus) {
        setAgenda(prev => prev.filter(t => t.id !== task.id));
     } else {
@@ -197,6 +203,21 @@ export default function Dashboard() {
             ))}
           </>
         )}
+      </div>
+
+      {/* BLOQUE DE DIAGNÓSTICO PARA LA AGENDA */}
+      <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs text-amber-900 font-mono overflow-auto max-h-64 shadow-inner">
+        <h4 className="font-bold flex items-center gap-2 mb-2 text-amber-700">
+          <Bug size={16}/> 
+          Diagnóstico de Conexión de Agenda
+        </h4>
+        <p className="mb-1"><strong className="text-amber-800">Error detectado:</strong> {debug.error}</p>
+        <p className="mb-1"><strong className="text-amber-800">Tareas pendientes (Count):</strong> {debug.count}</p>
+        <div><strong className="text-amber-800">Datos Crudos recibidos:</strong> 
+          <pre className="mt-2 bg-white/50 p-2 rounded border border-amber-100 whitespace-pre-wrap">
+            {debug.data ? JSON.stringify(debug.data, null, 2) : 'Cargando o Null...'}
+          </pre>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
