@@ -8,7 +8,6 @@ import {
   Globe,
   Smartphone,
   HelpCircle,
-  Megaphone,
   Clock,
   Calendar,
   CheckCircle2,
@@ -66,11 +65,12 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      // 1. CARGA PARALELA DE DATOS (Estadísticas, Leads Recientes y Agenda)
+      // 1. CARGA PARALELA DE DATOS 
+      // Modificado para traer únicamente las tareas no completadas de la agenda.
       const [leadsResponse, recentResponse, agendaResponse] = await Promise.all([
         supabase.from('leads').select('source'),
         supabase.from('leads').select('id, name, source, created_at').order('created_at', { ascending: false }).limit(5),
-        supabase.from('agenda').select('*').order('due_date', { ascending: true }).limit(10)
+        supabase.from('agenda').select('*').eq('completed', false).order('due_date', { ascending: true }).limit(15)
       ]);
 
       // --- PROCESAR ESTADÍSTICAS ---
@@ -98,18 +98,23 @@ export default function Dashboard() {
       }
 
       // --- PROCESAR AGENDA (Estrategia Manual Segura) ---
-      if (agendaResponse.data && agendaResponse.data.length > 0) {
+      if (agendaResponse.error) {
+        console.error("Error en la consulta de agenda:", agendaResponse.error);
+        setAgenda([]);
+      } else if (agendaResponse.data && agendaResponse.data.length > 0) {
         const tasks = agendaResponse.data;
         
-        // Extraer IDs únicos de clientes
-        const leadIds = [...new Set(tasks.map(t => t.lead_id).filter(id => id))];
+        // Extraer IDs únicos de clientes (filtrando nulos o vacíos)
+        const leadIds = [...new Set(tasks.map(t => t.lead_id).filter(Boolean))];
         
         // Buscar nombres de esos clientes
         let leadMap: Record<string, string> = {};
         if (leadIds.length > 0) {
-          const { data: names } = await supabase.from('leads').select('id, name').in('id', leadIds);
-          if (names) {
+          const { data: names, error: namesError } = await supabase.from('leads').select('id, name').in('id', leadIds as string[]);
+          if (!namesError && names) {
             names.forEach(n => leadMap[n.id] = n.name);
+          } else if (namesError) {
+             console.error("Error obteniendo nombres de leads:", namesError);
           }
         }
 
@@ -125,7 +130,7 @@ export default function Dashboard() {
       }
 
     } catch (error) {
-      console.error("Error cargando dashboard:", error);
+      console.error("Error general cargando dashboard:", error);
     } finally {
       setLoading(false);
     }
@@ -136,14 +141,21 @@ export default function Dashboard() {
   const toggleTask = async (task: AgendaItem) => {
     // Optimismo en UI: actualizamos localmente primero para que sea instantáneo
     const newStatus = !task.completed;
-    setAgenda(prev => prev.map(t => t.id === task.id ? { ...t, completed: newStatus } : t));
+    
+    // Si la marcamos como completada, la removemos visualmente del dashboard de tareas pendientes (opcional, pero útil)
+    if (newStatus) {
+       setAgenda(prev => prev.filter(t => t.id !== task.id));
+    } else {
+       setAgenda(prev => prev.map(t => t.id === task.id ? { ...t, completed: newStatus } : t));
+    }
 
     try {
-      await supabase.from('agenda').update({ completed: newStatus }).eq('id', task.id);
+      const { error } = await supabase.from('agenda').update({ completed: newStatus }).eq('id', task.id);
+      if (error) throw error;
     } catch (error) {
       console.error("Error actualizando tarea:", error);
-      // Revertir en caso de error
-      setAgenda(prev => prev.map(t => t.id === task.id ? { ...t, completed: !newStatus } : t));
+      // Revertir recargando los datos reales si hay error
+      loadDashboardData();
     }
   };
 
@@ -154,7 +166,8 @@ export default function Dashboard() {
     setAgenda(prev => prev.filter(t => t.id !== id));
 
     try {
-      await supabase.from('agenda').delete().eq('id', id);
+      const { error } = await supabase.from('agenda').delete().eq('id', id);
+      if (error) throw error;
     } catch (error) {
       console.error("Error eliminando tarea:", error);
       loadDashboardData(); // Recargar si falla
@@ -228,7 +241,7 @@ export default function Dashboard() {
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
               <Clock size={18} className="text-emerald-500" />
-              Agenda de Acciones
+              Agenda de Acciones (Pendientes)
             </h3>
             <button 
               onClick={() => navigate('/agenda')}
