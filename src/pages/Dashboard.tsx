@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import type { Database } from '../types/supabase';
 
 // --- TIPOS ---
 interface SourceStat {
@@ -33,9 +32,16 @@ interface RecentLead {
   created_at: string;
 }
 
-type AgendaItem = Database['public']['Tables']['agenda']['Row'] & {
-  leads?: { name: string } | null
-};
+// Tipo combinado con el clientName calculado a mano
+interface AgendaItem {
+  id: number;
+  title: string;
+  type: string;
+  due_date: string;
+  completed: boolean;
+  lead_id: string | null;
+  clientName?: string; 
+}
 
 export default function Dashboard() {
   const { session } = useAuth();
@@ -60,54 +66,78 @@ export default function Dashboard() {
     setLoading(true);
     
     try {
-      // 1. CARGA DE LEADS Y ESTADÍSTICAS
-      const leadsResponse = await supabase.from('leads').select('source');
-      const recentResponse = await supabase.from('leads').select('id, name, source, created_at').order('created_at', { ascending: false }).limit(5);
-      
-      if (leadsResponse.data) {
-        const total = leadsResponse.data.length;
-        const sourceCounts: Record<string, number> = {};
-        leadsResponse.data.forEach(lead => {
-          const source = lead.source ? lead.source.trim() : 'Desconocido';
-          sourceCounts[source] = (sourceCounts[source] || 0) + 1;
-        });
-        const sortedSources = Object.entries(sourceCounts)
-          .map(([name, count]) => ({
-            name,
-            count,
-            percentage: total > 0 ? Math.round((count / total) * 100) : 0
-          }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 3);
-        setStats({ totalLeads: total, topSources: sortedSources });
-      }
+      // 1. CARGAR ESTADÍSTICAS (Independiente)
+      supabase.from('leads').select('source').then(({ data }) => {
+        if (data) {
+          const total = data.length;
+          const sourceCounts: Record<string, number> = {};
+          data.forEach(lead => {
+            const source = lead.source ? lead.source.trim() : 'Desconocido';
+            sourceCounts[source] = (sourceCounts[source] || 0) + 1;
+          });
+          const sortedSources = Object.entries(sourceCounts)
+            .map(([name, count]) => ({
+              name,
+              count,
+              percentage: total > 0 ? Math.round((count / total) * 100) : 0
+            }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 3);
+          setStats({ totalLeads: total, topSources: sortedSources });
+        }
+      });
 
-      if (recentResponse.data) {
-        setRecentLeads(recentResponse.data);
-      }
+      // 2. CARGAR LEADS RECIENTES (Independiente)
+      supabase.from('leads').select('id, name, source, created_at').order('created_at', { ascending: false }).limit(5).then(({ data }) => {
+        if (data) setRecentLeads(data);
+      });
 
-      // 2. CARGA DE AGENDA (Aceptando false y null)
-      let query = supabase
+      // 3. CARGAR AGENDA (Modo Manual Blindado)
+      const { data: agendaTasks, error: agendaError } = await supabase
         .from('agenda')
-        .select('*, leads(name)')
-        .or('completed.eq.false,completed.is.null') // <-- LA CLAVE: Atrapa false y null
-        .order('due_date', { ascending: true });
-
-      const { data: agendaData, error: agendaError } = await query.range(0, 9);
+        .select('*')
+        .eq('completed', false)
+        .order('due_date', { ascending: true })
+        .limit(15);
 
       if (agendaError) {
-        console.error("Error fetching agenda para dashboard:", agendaError);
-      } else if (agendaData) {
-        const formattedData = (agendaData || []).map(item => ({
-          ...item,
-          leads: Array.isArray(item.leads) ? item.leads[0] : item.leads
-        })) as AgendaItem[];
-        
-        setAgenda(formattedData);
+        console.error("Error obteniendo tareas de la agenda:", agendaError);
+      }
+
+      if (agendaTasks && agendaTasks.length > 0) {
+        // Obtenemos los IDs de los leads, filtrando los nulos y vacíos de forma segura
+        const leadIds = [...new Set(agendaTasks.map(t => t.lead_id).filter(id => id != null && id !== ''))];
+        let leadMap: Record<string, string> = {};
+
+        // Solo consultamos la tabla leads si hay IDs válidos que buscar
+        if (leadIds.length > 0) {
+          const { data: leadsData, error: leadsError } = await supabase
+            .from('leads')
+            .select('id, name')
+            .in('id', leadIds);
+            
+          if (!leadsError && leadsData) {
+            leadsData.forEach(l => {
+              leadMap[l.id] = l.name;
+            });
+          } else {
+             console.error("Error cruzando nombres de leads:", leadsError);
+          }
+        }
+
+        // Combinamos los datos
+        const finalAgenda = agendaTasks.map(task => ({
+          ...task,
+          clientName: task.lead_id ? (leadMap[task.lead_id] || 'Cliente desconocido') : 'Sin asignar'
+        }));
+
+        setAgenda(finalAgenda);
+      } else {
+        setAgenda([]); // No hay tareas
       }
 
     } catch (error) {
-      console.error("Error general cargando dashboard:", error);
+      console.error("Error crítico en dashboard:", error);
     } finally {
       setLoading(false);
     }
@@ -116,10 +146,9 @@ export default function Dashboard() {
   // --- ACCIONES DE LA AGENDA ---
 
   const toggleTask = async (task: AgendaItem) => {
-    // Si estaba null o false, al completarla pasa a true explícitamente
-    const newStatus = task.completed === true ? false : true; 
+    const newStatus = !task.completed;
     
-    // Optimismo: si se completa, desaparece de la vista
+    // UI Optimista: si completamos la tarea, la borramos del dashboard al instante
     if (newStatus) {
        setAgenda(prev => prev.filter(t => t.id !== task.id));
     } else {
@@ -127,19 +156,22 @@ export default function Dashboard() {
     }
 
     try {
-      await supabase.from('agenda').update({ completed: newStatus }).eq('id', task.id);
+      const { error } = await supabase.from('agenda').update({ completed: newStatus }).eq('id', task.id);
+      if (error) throw error;
     } catch (error) {
       console.error("Error actualizando tarea:", error);
-      loadDashboardData();
+      loadDashboardData(); // Revertimos recargando datos reales si falla
     }
   };
 
   const deleteTask = async (id: number) => {
     if (!window.confirm("¿Eliminar esta tarea de la agenda?")) return;
+    
     setAgenda(prev => prev.filter(t => t.id !== id));
 
     try {
-      await supabase.from('agenda').delete().eq('id', id);
+      const { error } = await supabase.from('agenda').delete().eq('id', id);
+      if (error) throw error;
     } catch (error) {
       console.error("Error eliminando tarea:", error);
       loadDashboardData();
@@ -257,7 +289,7 @@ export default function Dashboard() {
                             {task.type}
                           </span>
                           <span className={`text-sm font-bold ${task.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                            {task.leads?.name || 'Sin cliente vinculado'}
+                            {task.clientName}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-500">
