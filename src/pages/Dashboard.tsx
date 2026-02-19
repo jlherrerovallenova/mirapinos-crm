@@ -13,8 +13,7 @@ import {
   CheckCircle2,
   Trash2,
   Circle,
-  AlertCircle,
-  Bug
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -43,16 +42,13 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   
-  // Estados de Datos
+  // Estados
   const [stats, setStats] = useState<{ totalLeads: number; topSources: SourceStat[] }>({
     totalLeads: 0,
     topSources: []
   });
   const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
-
-  // Estado de Diagnóstico (NUEVO)
-  const [debug, setDebug] = useState({ error: null as any, data: null as any, count: 0 });
 
   useEffect(() => {
     if (session?.user.id) {
@@ -90,23 +86,18 @@ export default function Dashboard() {
         setRecentLeads(recentResponse.data);
       }
 
-      // 2. CARGA DE AGENDA CON DIAGNÓSTICO
+      // 2. CARGA DE AGENDA (Aceptando false y null)
       let query = supabase
         .from('agenda')
-        .select('*, leads(name)', { count: 'exact' })
-        .eq('completed', false)
+        .select('*, leads(name)')
+        .or('completed.eq.false,completed.is.null') // <-- LA CLAVE: Atrapa false y null
         .order('due_date', { ascending: true });
 
-      const { data: agendaData, error: agendaError, count } = await query.range(0, 7); // Mismo rango que Agenda.tsx (página 1)
+      const { data: agendaData, error: agendaError } = await query.range(0, 9);
 
-      // Guardamos la respuesta cruda de Supabase para verla en pantalla
-      setDebug({
-        error: agendaError ? agendaError.message || JSON.stringify(agendaError) : 'Ninguno',
-        data: agendaData,
-        count: count || 0
-      });
-
-      if (!agendaError && agendaData) {
+      if (agendaError) {
+        console.error("Error fetching agenda para dashboard:", agendaError);
+      } else if (agendaData) {
         const formattedData = (agendaData || []).map(item => ({
           ...item,
           leads: Array.isArray(item.leads) ? item.leads[0] : item.leads
@@ -115,9 +106,8 @@ export default function Dashboard() {
         setAgenda(formattedData);
       }
 
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error general cargando dashboard:", error);
-      setDebug(prev => ({ ...prev, error: `Crash general: ${error.message}` }));
     } finally {
       setLoading(false);
     }
@@ -126,7 +116,10 @@ export default function Dashboard() {
   // --- ACCIONES DE LA AGENDA ---
 
   const toggleTask = async (task: AgendaItem) => {
-    const newStatus = !task.completed;
+    // Si estaba null o false, al completarla pasa a true explícitamente
+    const newStatus = task.completed === true ? false : true; 
+    
+    // Optimismo: si se completa, desaparece de la vista
     if (newStatus) {
        setAgenda(prev => prev.filter(t => t.id !== task.id));
     } else {
@@ -203,21 +196,6 @@ export default function Dashboard() {
             ))}
           </>
         )}
-      </div>
-
-      {/* BLOQUE DE DIAGNÓSTICO PARA LA AGENDA */}
-      <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs text-amber-900 font-mono overflow-auto max-h-64 shadow-inner">
-        <h4 className="font-bold flex items-center gap-2 mb-2 text-amber-700">
-          <Bug size={16}/> 
-          Diagnóstico de Conexión de Agenda
-        </h4>
-        <p className="mb-1"><strong className="text-amber-800">Error detectado:</strong> {debug.error}</p>
-        <p className="mb-1"><strong className="text-amber-800">Tareas pendientes (Count):</strong> {debug.count}</p>
-        <div><strong className="text-amber-800">Datos Crudos recibidos:</strong> 
-          <pre className="mt-2 bg-white/50 p-2 rounded border border-amber-100 whitespace-pre-wrap">
-            {debug.data ? JSON.stringify(debug.data, null, 2) : 'Cargando o Null...'}
-          </pre>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
