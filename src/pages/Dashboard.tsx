@@ -30,16 +30,24 @@ interface SourceStat {
   percentage: number;
 }
 
+interface RecentLead {
+  id: string;
+  name: string;
+  source: string | null;
+  created_at: string;
+}
+
 export default function Dashboard() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   
+  // Estados para datos
   const [stats, setStats] = useState<{ totalLeads: number; topSources: SourceStat[] }>({
     totalLeads: 0,
     topSources: []
   });
-  const [recentLeads, setRecentLeads] = useState<any[]>([]);
+  const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
 
   useEffect(() => {
@@ -51,20 +59,22 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      // 1. CARGA DE DATOS GENERALES
-      const [leadsRes, recentRes] = await Promise.all([
-        supabase.from('leads').select('source'),
-        supabase.from('leads').select('id, name, source, created_at').order('created_at', { ascending: false }).limit(5)
-      ]);
-
-      if (leadsRes.data) {
-        const total = leadsRes.data.length;
-        const counts: Record<string, number> = {};
-        leadsRes.data.forEach(l => {
-          const s = l.source?.trim() || 'Desconocido';
-          counts[s] = (counts[s] || 0) + 1;
+      // 1. CARGA DE LEADS Y ESTADÍSTICAS
+      const leadsResponse = await supabase.from('leads').select('source');
+      const recentResponse = await supabase
+        .from('leads')
+        .select('id, name, source, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (leadsResponse.data) {
+        const total = leadsResponse.data.length;
+        const sourceCounts: Record<string, number> = {};
+        leadsResponse.data.forEach(lead => {
+          const source = lead.source ? lead.source.trim() : 'Desconocido';
+          sourceCounts[source] = (sourceCounts[source] || 0) + 1;
         });
-        const top = Object.entries(counts)
+        const sortedSources = Object.entries(sourceCounts)
           .map(([name, count]) => ({
             name,
             count,
@@ -72,81 +82,140 @@ export default function Dashboard() {
           }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 3);
-        setStats({ totalLeads: total, topSources: top });
+        setStats({ totalLeads: total, topSources: sortedSources });
       }
 
-      if (recentRes.data) setRecentLeads(recentRes.data);
+      if (recentResponse.data) {
+        setRecentLeads(recentResponse.data);
+      }
 
-      // 2. CARGA DE AGENDA (Ahora con relación leads(name) funcional)
-      const { data: agendaData } = await supabase
+      // 2. CARGA DE AGENDA (Aprovechando la relación Foreign Key creada)
+      const { data: agendaData, error: agendaError } = await supabase
         .from('agenda')
         .select('*, leads(name)')
         .eq('completed', false)
         .order('due_date', { ascending: true })
         .limit(10);
 
-      if (agendaData) {
-        const formatted = agendaData.map(item => ({
+      if (agendaError) {
+        console.error("Error fetching agenda:", agendaError);
+      } else if (agendaData) {
+        // Formateamos para manejar si leads viene como array o objeto
+        const formattedData = (agendaData || []).map(item => ({
           ...item,
           leads: Array.isArray(item.leads) ? item.leads[0] : item.leads
         })) as AgendaItem[];
-        setAgenda(formatted);
+        
+        setAgenda(formattedData);
       }
+
     } catch (error) {
-      console.error("Error cargando dashboard:", error);
+      console.error("Error general cargando dashboard:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  // --- ACCIONES DE LA AGENDA ---
+
   const toggleTask = async (task: AgendaItem) => {
-    const { error } = await supabase
-      .from('agenda')
-      .update({ completed: !task.completed })
-      .eq('id', task.id);
+    const newStatus = !task.completed;
     
-    if (!error) loadDashboardData();
+    // Actualización optimista: removemos de la lista si se completa
+    if (newStatus) {
+       setAgenda(prev => prev.filter(t => t.id !== task.id));
+    }
+
+    try {
+      const { error } = await supabase
+        .from('agenda')
+        .update({ completed: newStatus })
+        .eq('id', task.id);
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error actualizando tarea:", error);
+      loadDashboardData(); // Recarga en caso de fallo
+    }
   };
 
   const deleteTask = async (id: number) => {
-    if (!window.confirm("¿Eliminar esta tarea?")) return;
-    const { error } = await supabase.from('agenda').delete().eq('id', id);
-    if (!error) loadDashboardData();
+    if (!window.confirm("¿Eliminar esta tarea de la agenda?")) return;
+    
+    setAgenda(prev => prev.filter(t => t.id !== id));
+
+    try {
+      const { error } = await supabase.from('agenda').delete().eq('id', id);
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error eliminando tarea:", error);
+      loadDashboardData();
+    }
+  };
+
+  // --- HELPERS DE UI ---
+  const getSourceIcon = (sourceName: string) => {
+    const lower = sourceName.toLowerCase();
+    if (lower.includes('web') || lower.includes('google')) return <Globe className="text-blue-600" size={20} />;
+    if (lower.includes('insta') || lower.includes('facebook')) return <Smartphone className="text-purple-600" size={20} />;
+    if (lower.includes('referido') || lower.includes('amigo')) return <Users className="text-emerald-600" size={20} />;
+    return <HelpCircle className="text-slate-400" size={20} />;
+  };
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return isToday ? `Hoy, ${time}` : `${date.toLocaleDateString()} ${time}`;
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
-      <header>
+      <div>
         <h1 className="text-2xl font-bold text-slate-900">Panel de Control</h1>
         <p className="text-slate-500">Hola {session?.user.email?.split('@')[0]}, resumen de actividad.</p>
-      </header>
+      </div>
 
-      {/* MÉTRICAS */}
+      {/* TARJETAS DE MÉTRICAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Total Contactos" 
-          value={stats.totalLeads.toString()} 
-          icon={<Users className="text-slate-900" size={20} />} 
-        />
-        {stats.topSources.map((source, index) => (
-          <StatCard 
-            key={index}
-            title={`Origen: ${source.name}`} 
-            value={source.count.toString()} 
-            change={`${source.percentage}%`} 
-            icon={<Globe className="text-blue-600" size={20} />} 
-            trendIcon
-          />
-        ))}
+        {loading ? (
+           Array(4).fill(0).map((_, i) => (
+             <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-32 animate-pulse" />
+           ))
+        ) : (
+          <>
+            <StatCard 
+              title="Total Contactos" 
+              value={stats.totalLeads.toString()} 
+              change="Base de Datos" 
+              isPositive={true} 
+              icon={<Users className="text-slate-900" size={20} />} 
+              trendIcon={false}
+            />
+            {stats.topSources.map((source, index) => (
+              <StatCard 
+                key={index}
+                title={`Origen: ${source.name}`} 
+                value={source.count.toString()} 
+                change={`${source.percentage}%`} 
+                isPositive={true} 
+                icon={getSourceIcon(source.name)} 
+                trendIcon={true}
+              />
+            ))}
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* WIDGET AGENDA */}
+        
+        {/* WIDGET: AGENDA DE ACCIONES */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[400px]">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
               <Clock size={18} className="text-emerald-500" />
-              Agenda de Acciones
+              Agenda de Acciones (Pendientes)
             </h3>
             <button 
               onClick={() => navigate('/agenda')}
@@ -156,67 +225,111 @@ export default function Dashboard() {
             </button>
           </div>
 
-          <div className="divide-y divide-slate-100 flex-1 overflow-y-auto">
-            {agenda.length === 0 ? (
+          <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[500px]">
+            {agenda.length === 0 && !loading ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                <Calendar size={48} className="mb-4 opacity-20" />
+                <Calendar size={48} className="mb-4 opacity-20 text-slate-500" />
                 <p className="text-sm font-medium text-slate-600">Todo al día</p>
+                <p className="text-xs opacity-60">No tienes acciones pendientes</p>
               </div>
             ) : (
-              agenda.map((task) => (
-                <div key={task.id} className="p-4 hover:bg-slate-50 transition-all flex items-center justify-between group">
-                  <div className="flex items-center gap-4">
-                    <button 
-                      onClick={() => toggleTask(task)}
-                      className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-200 text-slate-300 hover:border-emerald-500 hover:text-emerald-500 transition-colors"
-                    >
-                      <Circle size={20} />
-                    </button>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-100">
-                          {task.type}
-                        </span>
-                        <span className="text-sm font-bold text-slate-800">
-                          {task.leads?.name || 'Sin cliente vinculado'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span className="font-medium">{task.title}</span>
-                        <span>•</span>
-                        <span>{new Date(task.due_date).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+              agenda.map((task) => {
+                const isOverdue = new Date(task.due_date) < new Date();
+                return (
+                  <div key={task.id} className="p-4 hover:bg-slate-50 transition-all flex items-center justify-between group bg-white">
+                    <div className="flex items-center gap-4">
+                      <button 
+                        onClick={() => toggleTask(task)}
+                        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all shadow-sm bg-white border border-slate-200 text-slate-300 hover:border-emerald-400 hover:text-emerald-500"
+                      >
+                        <Circle size={20} />
+                      </button>
+                      
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${
+                            task.type === 'Llamada' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                            task.type === 'Visita' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                            'bg-slate-50 text-slate-600 border-slate-100'
+                          }`}>
+                            {task.type}
+                          </span>
+                          <span className="text-sm font-bold text-slate-800">
+                            {task.leads?.name || 'Sin cliente vinculado'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <span className="font-medium">{task.title}</span>
+                          <span>•</span>
+                          <span className={`${isOverdue ? "text-red-500 font-bold flex items-center gap-1" : ""}`}>
+                            {isOverdue && <AlertCircle size={10} />}
+                            {formatDateTime(task.due_date)}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => deleteTask(task.id)}
+                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                  <button 
-                    onClick={() => deleteTask(task.id)}
-                    className="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-red-500 transition-all"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
 
-        {/* COLUMNA LATERAL: LEADS RECIENTES */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-            <h3 className="font-bold text-slate-800 text-sm">Leads Recientes</h3>
+        {/* BARRA LATERAL: LEADS Y ACCESOS */}
+        <div className="space-y-8">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h3 className="font-bold text-slate-800 text-sm">Leads Recientes</h3>
+              <button onClick={() => navigate('/leads')} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 bg-white border border-slate-200 px-2 py-1 rounded shadow-sm">
+                VER TODOS
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              {recentLeads.map((lead) => (
+                <div key={lead.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors cursor-default">
+                  <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs border border-slate-200">
+                    {lead.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="overflow-hidden">
+                    <p className="text-xs font-bold text-slate-800 truncate">{lead.name}</p>
+                    <p className="text-[10px] text-slate-500 truncate">{lead.source || 'Sin origen'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="p-4 space-y-4">
-            {recentLeads.map((lead) => (
-              <div key={lead.id} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-[10px] border border-slate-200">
-                  {lead.name.substring(0, 2).toUpperCase()}
-                </div>
-                <div className="overflow-hidden">
-                  <p className="text-xs font-bold text-slate-800 truncate">{lead.name}</p>
-                  <p className="text-[10px] text-slate-500 truncate">{lead.source || 'Sin origen'}</p>
-                </div>
-              </div>
-            ))}
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-5 space-y-3">
+            <h3 className="font-bold text-slate-800 text-sm mb-2">Accesos Rápidos</h3>
+            <button 
+              onClick={() => navigate('/leads')}
+              className="w-full py-3 bg-slate-900 text-white rounded-lg text-xs font-bold shadow hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+            >
+              <Users size={14} /> Gestionar Clientes
+            </button>
+            <div className="grid grid-cols-2 gap-3">
+               <button 
+                onClick={() => navigate('/inventory')}
+                className="w-full py-3 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+              >
+                <Clock size={14} /> Inventario
+              </button>
+               <button 
+                onClick={() => navigate('/agenda')}
+                className="w-full py-3 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+              >
+                <Calendar size={14} /> Agenda
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -224,15 +337,15 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ title, value, change, icon, trendIcon = false }: any) {
+function StatCard({ title, value, change, isPositive, icon, trendIcon = true }: any) {
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
       <div className="flex justify-between items-start mb-4">
         <div className="p-2 bg-slate-50 rounded-lg">{icon}</div>
         {trendIcon && (
-          <div className="flex items-center text-xs font-bold text-emerald-600">
-            <ArrowUpRight size={14} className="mr-1" />
-            {change}
+          <div className={`flex items-center text-xs font-bold ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
+            {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+            <span className="ml-1">{change}</span>
           </div>
         )}
       </div>
