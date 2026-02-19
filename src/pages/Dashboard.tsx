@@ -32,7 +32,7 @@ interface RecentLead {
   created_at: string;
 }
 
-// Tipo combinado para la Agenda (Datos + Nombre Cliente)
+// Tipo combinado para la Agenda (Datos + Nombre Cliente mediante Join)
 interface AgendaItem {
   id: number;
   title: string;
@@ -40,7 +40,8 @@ interface AgendaItem {
   due_date: string;
   completed: boolean;
   lead_id: string | null;
-  clientName?: string; // Campo calculado en el frontend
+  leads?: { name: string } | null | any;
+  clientName?: string; // Campo calculado localmente para pintar en UI
 }
 
 export default function Dashboard() {
@@ -65,13 +66,19 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      // 1. CARGA PARALELA DE DATOS 
-      // Modificado para traer únicamente las tareas no completadas de la agenda.
-      const [leadsResponse, recentResponse, agendaResponse] = await Promise.all([
-        supabase.from('leads').select('source'),
-        supabase.from('leads').select('id, name, source, created_at').order('created_at', { ascending: false }).limit(5),
-        supabase.from('agenda').select('*').eq('completed', false).order('due_date', { ascending: true }).limit(15)
-      ]);
+      // 1. CARGA INDEPENDIENTE DE DATOS
+      // Al no usar Promise.all, si una tabla falla, el resto del dashboard sigue cargando.
+      
+      const leadsResponse = await supabase.from('leads').select('source');
+      const recentResponse = await supabase.from('leads').select('id, name, source, created_at').order('created_at', { ascending: false }).limit(5);
+      
+      // Utilizamos el mismo join relacional (leads(name)) que funciona en Agenda.tsx
+      const agendaResponse = await supabase
+        .from('agenda')
+        .select('*, leads(name)')
+        .eq('completed', false)
+        .order('due_date', { ascending: true })
+        .limit(10);
 
       // --- PROCESAR ESTADÍSTICAS ---
       if (leadsResponse.data) {
@@ -97,35 +104,19 @@ export default function Dashboard() {
         setRecentLeads(recentResponse.data);
       }
 
-      // --- PROCESAR AGENDA (Estrategia Manual Segura) ---
-      if (agendaResponse.error) {
-        console.error("Error en la consulta de agenda:", agendaResponse.error);
-        setAgenda([]);
-      } else if (agendaResponse.data && agendaResponse.data.length > 0) {
-        const tasks = agendaResponse.data;
-        
-        // Extraer IDs únicos de clientes (filtrando nulos o vacíos)
-        const leadIds = [...new Set(tasks.map(t => t.lead_id).filter(Boolean))];
-        
-        // Buscar nombres de esos clientes
-        let leadMap: Record<string, string> = {};
-        if (leadIds.length > 0) {
-          const { data: names, error: namesError } = await supabase.from('leads').select('id, name').in('id', leadIds as string[]);
-          if (!namesError && names) {
-            names.forEach(n => leadMap[n.id] = n.name);
-          } else if (namesError) {
-             console.error("Error obteniendo nombres de leads:", namesError);
-          }
-        }
-
-        // Combinar todo
-        const enrichedAgenda = tasks.map(task => ({
-          ...task,
-          clientName: task.lead_id ? (leadMap[task.lead_id] || 'Cliente desconocido') : 'Sin asignar'
-        }));
-        
-        setAgenda(enrichedAgenda);
+      // --- PROCESAR AGENDA ---
+      if (agendaResponse.data) {
+        const formattedAgenda = agendaResponse.data.map((task: any) => {
+          // Extraemos el nombre dependiendo de cómo devuelva Supabase el objeto 'leads' (array o objeto único)
+          const leadData = Array.isArray(task.leads) ? task.leads[0] : task.leads;
+          return {
+            ...task,
+            clientName: leadData?.name || 'Sin asignar'
+          };
+        });
+        setAgenda(formattedAgenda);
       } else {
+        if (agendaResponse.error) console.error("Error cargando agenda del dashboard:", agendaResponse.error);
         setAgenda([]);
       }
 
@@ -139,10 +130,10 @@ export default function Dashboard() {
   // --- ACCIONES DE LA AGENDA ---
 
   const toggleTask = async (task: AgendaItem) => {
-    // Optimismo en UI: actualizamos localmente primero para que sea instantáneo
+    // Optimismo en UI
     const newStatus = !task.completed;
     
-    // Si la marcamos como completada, la removemos visualmente del dashboard de tareas pendientes (opcional, pero útil)
+    // Si la completamos, la quitamos de esta vista (ya que solo mostramos pendientes)
     if (newStatus) {
        setAgenda(prev => prev.filter(t => t.id !== task.id));
     } else {
@@ -154,8 +145,7 @@ export default function Dashboard() {
       if (error) throw error;
     } catch (error) {
       console.error("Error actualizando tarea:", error);
-      // Revertir recargando los datos reales si hay error
-      loadDashboardData();
+      loadDashboardData(); // Revertir si hay error
     }
   };
 
