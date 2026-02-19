@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import type { Database } from '../types/supabase';
 
 // --- TIPOS ---
 interface SourceStat {
@@ -32,17 +33,10 @@ interface RecentLead {
   created_at: string;
 }
 
-// Tipo combinado para la Agenda (Datos + Nombre Cliente mediante Join)
-interface AgendaItem {
-  id: number;
-  title: string;
-  type: string;
-  due_date: string;
-  completed: boolean;
-  lead_id: string | null;
-  leads?: { name: string } | null | any;
-  clientName?: string; // Campo calculado localmente para pintar en UI
-}
+// Tipo AgendaItem IDÉNTICO al que usas en Agenda.tsx
+type AgendaItem = Database['public']['Tables']['agenda']['Row'] & {
+  leads?: { name: string } | null
+};
 
 export default function Dashboard() {
   const { session } = useAuth();
@@ -65,22 +59,12 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     setLoading(true);
+    
     try {
-      // 1. CARGA INDEPENDIENTE DE DATOS
-      // Al no usar Promise.all, si una tabla falla, el resto del dashboard sigue cargando.
-      
+      // 1. CARGA DE LEADS Y ESTADÍSTICAS
       const leadsResponse = await supabase.from('leads').select('source');
       const recentResponse = await supabase.from('leads').select('id, name, source, created_at').order('created_at', { ascending: false }).limit(5);
       
-      // Utilizamos el mismo join relacional (leads(name)) que funciona en Agenda.tsx
-      const agendaResponse = await supabase
-        .from('agenda')
-        .select('*, leads(name)')
-        .eq('completed', false)
-        .order('due_date', { ascending: true })
-        .limit(10);
-
-      // --- PROCESAR ESTADÍSTICAS ---
       if (leadsResponse.data) {
         const total = leadsResponse.data.length;
         const sourceCounts: Record<string, number> = {};
@@ -99,25 +83,30 @@ export default function Dashboard() {
         setStats({ totalLeads: total, topSources: sortedSources });
       }
 
-      // --- PROCESAR LEADS RECIENTES ---
       if (recentResponse.data) {
         setRecentLeads(recentResponse.data);
       }
 
-      // --- PROCESAR AGENDA ---
-      if (agendaResponse.data) {
-        const formattedAgenda = agendaResponse.data.map((task: any) => {
-          // Extraemos el nombre dependiendo de cómo devuelva Supabase el objeto 'leads' (array o objeto único)
-          const leadData = Array.isArray(task.leads) ? task.leads[0] : task.leads;
-          return {
-            ...task,
-            clientName: leadData?.name || 'Sin asignar'
-          };
-        });
-        setAgenda(formattedAgenda);
-      } else {
-        if (agendaResponse.error) console.error("Error cargando agenda del dashboard:", agendaResponse.error);
-        setAgenda([]);
+      // 2. CARGA DE AGENDA (Copia exacta de la lógica que te funciona en Agenda.tsx)
+      let query = supabase
+        .from('agenda')
+        .select('*, leads(name)')
+        .eq('completed', false)
+        .order('due_date', { ascending: true });
+
+      // Usamos range() igual que en la paginación de Agenda.tsx para evitar fallos del Join
+      const { data: agendaData, error: agendaError } = await query.range(0, 9);
+
+      if (agendaError) {
+        console.error("Error fetching agenda para dashboard:", agendaError);
+      } else if (agendaData) {
+        // Mapeo idéntico al de Agenda.tsx para resolver el array/objeto de leads
+        const formattedData = (agendaData || []).map(item => ({
+          ...item,
+          leads: Array.isArray(item.leads) ? item.leads[0] : item.leads
+        })) as AgendaItem[];
+        
+        setAgenda(formattedData);
       }
 
     } catch (error) {
@@ -130,10 +119,8 @@ export default function Dashboard() {
   // --- ACCIONES DE LA AGENDA ---
 
   const toggleTask = async (task: AgendaItem) => {
-    // Optimismo en UI
     const newStatus = !task.completed;
-    
-    // Si la completamos, la quitamos de esta vista (ya que solo mostramos pendientes)
+    // Optimismo: si se completa, desaparece de la vista del dashboard
     if (newStatus) {
        setAgenda(prev => prev.filter(t => t.id !== task.id));
     } else {
@@ -141,26 +128,22 @@ export default function Dashboard() {
     }
 
     try {
-      const { error } = await supabase.from('agenda').update({ completed: newStatus }).eq('id', task.id);
-      if (error) throw error;
+      await supabase.from('agenda').update({ completed: newStatus }).eq('id', task.id);
     } catch (error) {
       console.error("Error actualizando tarea:", error);
-      loadDashboardData(); // Revertir si hay error
+      loadDashboardData();
     }
   };
 
   const deleteTask = async (id: number) => {
     if (!window.confirm("¿Eliminar esta tarea de la agenda?")) return;
-    
-    // Optimismo UI
     setAgenda(prev => prev.filter(t => t.id !== id));
 
     try {
-      const { error } = await supabase.from('agenda').delete().eq('id', id);
-      if (error) throw error;
+      await supabase.from('agenda').delete().eq('id', id);
     } catch (error) {
       console.error("Error eliminando tarea:", error);
-      loadDashboardData(); // Recargar si falla
+      loadDashboardData();
     }
   };
 
@@ -171,14 +154,6 @@ export default function Dashboard() {
     if (lower.includes('insta') || lower.includes('facebook')) return <Smartphone className="text-purple-600" size={20} />;
     if (lower.includes('referido') || lower.includes('amigo')) return <Users className="text-emerald-600" size={20} />;
     return <HelpCircle className="text-slate-400" size={20} />;
-  };
-
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    return isToday ? `Hoy, ${time}` : `${date.toLocaleDateString()} ${time}`;
   };
 
   return (
@@ -226,7 +201,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* WIDGET 1: AGENDA DE ACCIONES (COLUMNA ANCHA) */}
+        {/* WIDGET 1: AGENDA DE ACCIONES */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[400px]">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -242,71 +217,78 @@ export default function Dashboard() {
           </div>
 
           <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[500px]">
-            {agenda.length === 0 ? (
+            {agenda.length === 0 && !loading ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                 <Calendar size={48} className="mb-4 opacity-20 text-slate-500" />
                 <p className="text-sm font-medium text-slate-600">Todo al día</p>
                 <p className="text-xs opacity-60">No tienes acciones pendientes</p>
               </div>
+            ) : loading ? (
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                <p className="text-sm font-medium animate-pulse">Cargando agenda...</p>
+              </div>
             ) : (
-              agenda.map((task) => (
-                <div key={task.id} className={`p-4 hover:bg-slate-50 transition-all flex items-center justify-between group ${task.completed ? 'bg-slate-50/50' : 'bg-white'}`}>
-                  <div className="flex items-center gap-4">
-                    {/* Botón Completar */}
-                    <button 
-                      onClick={() => toggleTask(task)}
-                      className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all shadow-sm ${
-                        task.completed 
-                          ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' 
-                          : 'bg-white border border-slate-200 text-slate-300 hover:border-emerald-400 hover:text-emerald-500'
-                      }`}
-                      title={task.completed ? "Marcar como pendiente" : "Marcar como completada"}
-                    >
-                      {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
-                    </button>
-                    
-                    {/* Info Tarea */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${
-                          task.type === 'Llamada' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                          task.type === 'Visita' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                          'bg-slate-50 text-slate-600 border-slate-100'
-                        }`}>
-                          {task.type}
-                        </span>
-                        <span className={`text-sm font-bold ${task.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                          {task.clientName}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span className="font-medium">{task.title}</span>
-                        <span>•</span>
-                        <span className={`${new Date(task.due_date) < new Date() && !task.completed ? "text-red-500 font-bold flex items-center gap-1" : ""}`}>
-                          {new Date(task.due_date) < new Date() && !task.completed && <AlertCircle size={10} />}
-                          {formatDateTime(task.due_date)}
-                        </span>
+              agenda.map((task) => {
+                const dateObj = new Date(task.due_date);
+                const isOverdue = dateObj < new Date() && !task.completed;
+                
+                return (
+                  <div key={task.id} className={`p-4 hover:bg-slate-50 transition-all flex items-center justify-between group ${task.completed ? 'bg-slate-50/50' : 'bg-white'}`}>
+                    <div className="flex items-center gap-4">
+                      {/* Botón Completar */}
+                      <button 
+                        onClick={() => toggleTask(task)}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all shadow-sm ${
+                          task.completed 
+                            ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' 
+                            : 'bg-white border border-slate-200 text-slate-300 hover:border-emerald-400 hover:text-emerald-500'
+                        }`}
+                      >
+                        {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                      </button>
+                      
+                      {/* Info Tarea */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${
+                            task.type === 'Llamada' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                            task.type === 'Visita' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                            'bg-slate-50 text-slate-600 border-slate-100'
+                          }`}>
+                            {task.type}
+                          </span>
+                          <span className={`text-sm font-bold ${task.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                            {task.leads?.name || 'Sin cliente vinculado'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <span className="font-medium">{task.title}</span>
+                          <span>•</span>
+                          <span className={`${isOverdue ? "text-red-500 font-bold flex items-center gap-1" : ""}`}>
+                            {isOverdue && <AlertCircle size={10} />}
+                            {dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} a las {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    
+                    {/* Botón Borrar */}
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => deleteTask(task.id)}
+                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                  
-                  {/* Botón Borrar (Visible en hover) */}
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => deleteTask(task.id)}
-                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Eliminar acción"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
 
-        {/* COLUMNA LATERAL (LEADS + ACCESOS) */}
+        {/* COLUMNA LATERAL */}
         <div className="space-y-8">
           
           {/* WIDGET 2: LEADS RECIENTES */}
