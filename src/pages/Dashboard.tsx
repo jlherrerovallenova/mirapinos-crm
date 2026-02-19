@@ -90,6 +90,7 @@ export default function Dashboard() {
       }
 
       // 2. CARGA DE AGENDA (Aprovechando la relación Foreign Key creada)
+      // Usamos la misma lógica de filtro que en Agenda.tsx
       const { data: agendaData, error: agendaError } = await supabase
         .from('agenda')
         .select('*, leads(name)')
@@ -308,27 +309,32 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-5 space-y-3">
-            <h3 className="font-bold text-slate-800 text-sm mb-2">Accesos Rápidos</h3>
-            <button 
-              onClick={() => navigate('/leads')}
-              className="w-full py-3 bg-slate-900 text-white rounded-lg text-xs font-bold shadow hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
-            >
-              <Users size={14} /> Gestionar Clientes
-            </button>
-            <div className="grid grid-cols-2 gap-3">
-               <button 
-                onClick={() => navigate('/inventory')}
-                className="w-full py-3 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+          {/* ACCESOS RÁPIDOS */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="font-bold text-slate-800 text-sm">Accesos Rápidos</h3>
+            </div>
+            <div className="p-5 space-y-3">
+              <button 
+                onClick={() => navigate('/leads')}
+                className="w-full py-3 bg-slate-900 text-white rounded-lg text-xs font-bold shadow hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
               >
-                <Clock size={14} /> Inventario
+                <Users size={14} /> Gestionar Clientes
               </button>
-               <button 
-                onClick={() => navigate('/agenda')}
-                className="w-full py-3 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
-              >
-                <Calendar size={14} /> Agenda
-              </button>
+              <div className="grid grid-cols-2 gap-3">
+                 <button 
+                  onClick={() => navigate('/inventory')}
+                  className="w-full py-3 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                >
+                  <Clock size={14} /> Inventario
+                </button>
+                 <button 
+                  onClick={() => navigate('/agenda')}
+                  className="w-full py-3 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                >
+                  <Calendar size={14} /> Agenda
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -337,9 +343,10 @@ export default function Dashboard() {
   );
 }
 
+// Componente auxiliar para las tarjetas de estadísticas
 function StatCard({ title, value, change, isPositive, icon, trendIcon = true }: any) {
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-4">
         <div className="p-2 bg-slate-50 rounded-lg">{icon}</div>
         {trendIcon && (
