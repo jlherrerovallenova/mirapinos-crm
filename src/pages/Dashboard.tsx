@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   Trash2,
   Circle,
-  AlertCircle
+  AlertCircle,
+  Search
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -49,6 +50,9 @@ export default function Dashboard() {
   });
   const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
+  
+  // Estado para la búsqueda del cliente
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (session?.user.id) {
@@ -89,19 +93,17 @@ export default function Dashboard() {
         setRecentLeads(recentResponse.data);
       }
 
-      // 2. CARGA DE AGENDA (Aprovechando la relación Foreign Key creada)
-      // Usamos la misma lógica de filtro que en Agenda.tsx
+      // 2. CARGA DE AGENDA (Aprovechando la relación Foreign Key)
       const { data: agendaData, error: agendaError } = await supabase
         .from('agenda')
         .select('*, leads(name)')
         .eq('completed', false)
         .order('due_date', { ascending: true })
-        .limit(10);
+        .limit(20); // Aumentamos el límite para que el buscador tenga margen
 
       if (agendaError) {
         console.error("Error fetching agenda:", agendaError);
       } else if (agendaData) {
-        // Formateamos para manejar si leads viene como array o objeto
         const formattedData = (agendaData || []).map(item => ({
           ...item,
           leads: Array.isArray(item.leads) ? item.leads[0] : item.leads
@@ -117,34 +119,33 @@ export default function Dashboard() {
     }
   };
 
-  // --- ACCIONES DE LA AGENDA ---
+  // --- LÓGICA DE FILTRADO ---
+  const filteredAgenda = agenda.filter(task => 
+    task.leads?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    task.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
+  // --- ACCIONES DE LA AGENDA ---
   const toggleTask = async (task: AgendaItem) => {
     const newStatus = !task.completed;
-    
-    // Actualización optimista: removemos de la lista si se completa
     if (newStatus) {
        setAgenda(prev => prev.filter(t => t.id !== task.id));
     }
-
     try {
       const { error } = await supabase
         .from('agenda')
         .update({ completed: newStatus })
         .eq('id', task.id);
-      
       if (error) throw error;
     } catch (error) {
       console.error("Error actualizando tarea:", error);
-      loadDashboardData(); // Recarga en caso de fallo
+      loadDashboardData();
     }
   };
 
   const deleteTask = async (id: number) => {
     if (!window.confirm("¿Eliminar esta tarea de la agenda?")) return;
-    
     setAgenda(prev => prev.filter(t => t.id !== id));
-
     try {
       const { error } = await supabase.from('agenda').delete().eq('id', id);
       if (error) throw error;
@@ -213,28 +214,46 @@ export default function Dashboard() {
         
         {/* WIDGET: AGENDA DE ACCIONES */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[400px]">
-          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-              <Clock size={18} className="text-emerald-500" />
-              Agenda de Acciones (Pendientes)
-            </h3>
-            <button 
-              onClick={() => navigate('/agenda')}
-              className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors bg-emerald-50 px-3 py-1.5 rounded-full"
-            >
-              VER CALENDARIO
-            </button>
+          <div className="p-6 border-b border-slate-100 flex flex-col gap-4 bg-slate-50/50">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <Clock size={18} className="text-emerald-500" />
+                Agenda de Acciones (Pendientes)
+              </h3>
+              <button 
+                onClick={() => navigate('/agenda')}
+                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors bg-emerald-50 px-3 py-1.5 rounded-full"
+              >
+                VER CALENDARIO
+              </button>
+            </div>
+            
+            {/* BUSCADOR DE CLIENTE */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input
+                type="text"
+                placeholder="Buscar por cliente o tarea..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+              />
+            </div>
           </div>
 
           <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[500px]">
-            {agenda.length === 0 && !loading ? (
+            {filteredAgenda.length === 0 && !loading ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                 <Calendar size={48} className="mb-4 opacity-20 text-slate-500" />
-                <p className="text-sm font-medium text-slate-600">Todo al día</p>
-                <p className="text-xs opacity-60">No tienes acciones pendientes</p>
+                <p className="text-sm font-medium text-slate-600">
+                  {searchQuery ? 'No hay coincidencias' : 'Todo al día'}
+                </p>
+                <p className="text-xs opacity-60">
+                  {searchQuery ? 'Prueba con otro nombre' : 'No tienes acciones pendientes'}
+                </p>
               </div>
             ) : (
-              agenda.map((task) => {
+              filteredAgenda.map((task) => {
                 const isOverdue = new Date(task.due_date) < new Date();
                 return (
                   <div key={task.id} className="p-4 hover:bg-slate-50 transition-all flex items-center justify-between group bg-white">
@@ -309,7 +328,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ACCESOS RÁPIDOS */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 bg-slate-50/50">
               <h3 className="font-bold text-slate-800 text-sm">Accesos Rápidos</h3>
@@ -343,7 +361,6 @@ export default function Dashboard() {
   );
 }
 
-// Componente auxiliar para las tarjetas de estadísticas
 function StatCard({ title, value, change, isPositive, icon, trendIcon = true }: any) {
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
