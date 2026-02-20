@@ -1,105 +1,143 @@
 // src/pages/Login.tsx
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Loader2, Lock, Mail, AlertCircle } from 'lucide-react';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { 
+  Mail, 
+  Lock, 
+  Loader2, 
+  AlertCircle,
+  ArrowRight
+} from 'lucide-react';
 
 export default function Login() {
+  const { session, signIn } = useAuth();
+  const navigate = useNavigate();
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // Si ya hay sesión, redirigimos al Dashboard automáticamente
+  if (session) {
+    return <Navigate to="/" replace />;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-      
-      // Redirigir al dashboard si todo sale bien
+      const { error: authError } = await signIn(email, password);
+      if (authError) {
+        if (authError.message === 'Invalid login credentials') {
+          throw new Error('El correo o la contraseña no son correctos.');
+        }
+        throw authError;
+      }
       navigate('/');
-      
     } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión');
+      setError(err.message || 'Ocurrió un error al intentar iniciar sesión.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
-        
-        {/* Header del Login */}
-        <div className="bg-slate-900 p-8 text-center">
-          <div className="inline-flex p-3 bg-emerald-500/10 rounded-xl mb-4">
-            <LayoutDashboard className="text-emerald-500 w-8 h-8" />
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        {/* LOGO O ICONO */}
+        <div className="flex justify-center">
+          <div className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-200">
+            <Lock className="text-white" size={32} />
           </div>
-          <h1 className="text-2xl font-display font-bold text-white tracking-tight">Mirapinos CRM</h1>
-          <p className="text-slate-400 text-sm mt-2">Accede a tu panel de control</p>
         </div>
+        <h2 className="mt-6 text-center text-3xl font-display font-bold text-slate-900 tracking-tight">
+          Mirapinos CRM
+        </h2>
+        <p className="mt-2 text-center text-sm text-slate-500 font-medium">
+          Accede a tu panel de gestión inmobiliaria
+        </p>
+      </div>
 
-        {/* Formulario */}
-        <div className="p-8">
-          <form onSubmit={handleLogin} className="space-y-5">
-            
-            {error && (
-              <div className="p-4 bg-red-50 text-red-600 text-sm rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                <AlertCircle size={18} className="shrink-0" />
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email</label>
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-10 px-6 shadow-2xl shadow-slate-200/50 sm:rounded-[2.5rem] border border-slate-100 sm:px-12 animate-in fade-in zoom-in duration-500">
+          
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {/* EMAIL */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">
+                Correo Electrónico
+              </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                  type="email" 
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-slate-400" />
+                </div>
+                <input
+                  type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                  placeholder="admin@mirapinos.com"
+                  className="block w-full pl-11 pr-4 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all text-sm"
+                  placeholder="tu@email.com"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Contraseña</label>
+            {/* CONTRASEÑA */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">
+                Contraseña
+              </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                  type="password" 
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-slate-400" />
+                </div>
+                <input
+                  type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  className="block w-full pl-11 pr-4 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all text-sm"
                   placeholder="••••••••"
                 />
               </div>
             </div>
 
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-95 flex items-center justify-center gap-2"
-            >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : 'Iniciar Sesión'}
-            </button>
+            {/* MENSAJE DE ERROR */}
+            {error && (
+              <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-3 animate-in slide-in-from-top-2">
+                <AlertCircle className="text-red-500 shrink-0" size={18} />
+                <p className="text-xs text-red-700 font-bold leading-tight">{error}</p>
+              </div>
+            )}
+
+            {/* BOTÓN DE ACCESO */}
+            <div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex justify-center items-center gap-3 py-4 px-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {loading ? (
+                  <Loader2 className="animate-spin" size={20} />
+                ) : (
+                  <>
+                    Iniciar Sesión
+                    <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+            </div>
           </form>
-        </div>
-        
-        <div className="p-4 bg-slate-50 border-t border-slate-100 text-center">
-          <p className="text-xs text-slate-400">© 2025 Mirapinos. Todos los derechos reservados.</p>
+
+          <div className="mt-8 pt-8 border-t border-slate-50">
+            <p className="text-center text-xs text-slate-400 font-medium">
+              ¿Olvidaste tu contraseña? Contacta con el administrador.
+            </p>
+          </div>
         </div>
       </div>
     </div>
