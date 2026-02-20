@@ -46,6 +46,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
     setLoading(true);
 
     try {
+      // Sincronización con las columnas de la tabla inventory
       const { error } = await supabase
         .from('inventory')
         .insert([{
@@ -55,8 +56,6 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
           type: formData.type,
           status: formData.status,
           image_url: formData.image_url || null,
-          // Nota: Asegúrate de que estos campos existan en tu tabla de Supabase 
-          // o ajusta según la definición de src/types/supabase.ts
           location: formData.location,
           beds: parseInt(formData.beds) || 0,
           baths: parseInt(formData.baths) || 0,
@@ -67,6 +66,8 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
       
       onSuccess();
       onClose();
+      
+      // Resetear formulario
       setFormData({
         title: '',
         location: '',
@@ -79,9 +80,9 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
         image_url: '',
         description: ''
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating property:', error);
-      alert('Error al crear la propiedad. Revisa la consola para más detalles.');
+      alert('Error al crear la propiedad: ' + (error.message || 'Error desconocido'));
     } finally {
       setLoading(false);
     }
@@ -90,7 +91,8 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-200">
-        {/* Header */}
+        
+        {/* Cabecera */}
         <div className="px-10 py-8 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200">
@@ -98,7 +100,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
             </div>
             <div>
               <h2 className="text-2xl font-display font-bold text-slate-900">Nueva Propiedad</h2>
-              <p className="text-sm text-slate-500 font-medium">Completa los datos del activo inmobiliario</p>
+              <p className="text-sm text-slate-500 font-medium">Completa los datos técnicos del activo</p>
             </div>
           </div>
           <button onClick={onClose} className="p-3 hover:bg-slate-200 rounded-2xl transition-colors text-slate-400">
@@ -109,7 +111,8 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Columna Izquierda: Información Principal */}
+            
+            {/* Columna Izquierda: Identificación y Ubicación */}
             <div className="space-y-6">
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Título del Anuncio</label>
@@ -118,7 +121,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
                   required
                   value={formData.title}
                   onChange={handleChange}
-                  placeholder="Ej: Villa Lujosa con Vistas al Mar"
+                  placeholder="Ej: Villa Lujosa con Vistas"
                   className="w-full mt-2 px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all"
                 />
               </div>
@@ -132,7 +135,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
                     required
                     value={formData.location}
                     onChange={handleChange}
-                    placeholder="Calle, Ciudad, Provincia"
+                    placeholder="Ciudad, Zona o Calle"
                     className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all"
                   />
                 </div>
@@ -160,18 +163,18 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
                     name="type"
                     value={formData.type}
                     onChange={handleChange}
-                    className="w-full mt-2 px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold appearance-none cursor-pointer transition-all"
+                    className="w-full mt-2 px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold appearance-none cursor-pointer"
                   >
-                    <option value="house">Casa / Villa</option>
+                    <option value="house">Casa</option>
                     <option value="apartment">Apartamento</option>
                     <option value="land">Terreno</option>
-                    <option value="commercial">Local Comercial</option>
+                    <option value="commercial">Comercial</option>
                   </select>
                 </div>
               </div>
             </div>
 
-            {/* Columna Derecha: Detalles Técnicos */}
+            {/* Columna Derecha: Características */}
             <div className="space-y-6">
               <div className="grid grid-cols-3 gap-4">
                 <div>
@@ -183,7 +186,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
                       type="number"
                       value={formData.beds}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-3 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold"
+                      className="w-full pl-10 pr-3 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold text-center"
                     />
                   </div>
                 </div>
@@ -196,7 +199,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
                       type="number"
                       value={formData.baths}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-3 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold"
+                      className="w-full pl-10 pr-3 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold text-center"
                     />
                   </div>
                 </div>
@@ -209,21 +212,21 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
                       type="number"
                       value={formData.sqft}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-3 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold"
+                      className="w-full pl-10 pr-3 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold text-center"
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">URL de la Imagen</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">URL Imagen</label>
                 <div className="relative mt-2">
                   <ImageIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
                     name="image_url"
                     value={formData.image_url}
                     onChange={handleChange}
-                    placeholder="https://images.unsplash.com/..."
+                    placeholder="https://..."
                     className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all text-xs"
                   />
                 </div>
@@ -233,17 +236,16 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descripción</label>
                 <textarea
                   name="description"
-                  rows={3}
+                  rows={2}
                   value={formData.description}
                   onChange={handleChange}
-                  placeholder="Detalles adicionales, equipamiento..."
+                  placeholder="Detalles adicionales..."
                   className="w-full mt-2 px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all resize-none"
                 />
               </div>
             </div>
           </div>
 
-          {/* Footer del Modal */}
           <div className="mt-10 pt-8 border-t border-slate-100 flex items-center justify-end gap-4">
             <button
               type="button"
@@ -255,7 +257,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
             <button
               type="submit"
               disabled={loading}
-              className="px-10 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center gap-3 disabled:opacity-50"
+              className="px-10 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center gap-3 disabled:opacity-50 active:scale-95"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
               Publicar Propiedad
