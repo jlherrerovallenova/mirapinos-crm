@@ -14,7 +14,8 @@ import {
   Trash2,
   Circle,
   AlertCircle,
-  Search
+  Search,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -99,7 +100,7 @@ export default function Dashboard() {
         .select('*, leads(name)')
         .eq('completed', false)
         .order('due_date', { ascending: true })
-        .limit(20); // Aumentamos el límite para que el buscador tenga margen
+        .limit(20);
 
       if (agendaError) {
         console.error("Error fetching agenda:", agendaError);
@@ -174,9 +175,27 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Panel de Control</h1>
-        <p className="text-slate-500">Hola {session?.user.email?.split('@')[0]}, resumen de actividad.</p>
+      
+      {/* CABECERA CON CTAs RÁPIDOS */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Panel de Control</h1>
+          <p className="text-slate-500">Hola {session?.user.email?.split('@')[0]}, resumen de actividad.</p>
+        </div>
+        <div className="flex gap-3 w-full sm:w-auto">
+          <button 
+            onClick={() => navigate('/agenda')} 
+            className="flex-1 sm:flex-none bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+          >
+            <Calendar size={16} /> Nueva Tarea
+          </button>
+          <button 
+            onClick={() => navigate('/leads')} 
+            className="flex-1 sm:flex-none bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+          >
+            <Plus size={16} /> Nuevo Lead
+          </button>
+        </div>
       </div>
 
       {/* TARJETAS DE MÉTRICAS */}
@@ -315,12 +334,16 @@ export default function Dashboard() {
             </div>
             <div className="p-4 space-y-3">
               {recentLeads.map((lead) => (
-                <div key={lead.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors cursor-default">
-                  <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs border border-slate-200">
+                <div 
+                  key={lead.id} 
+                  onClick={() => navigate(`/leads/${lead.id}`)}
+                  className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group"
+                >
+                  <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs border border-slate-200 group-hover:bg-white group-hover:border-emerald-200 transition-colors">
                     {lead.name.substring(0, 2).toUpperCase()}
                   </div>
                   <div className="overflow-hidden">
-                    <p className="text-xs font-bold text-slate-800 truncate">{lead.name}</p>
+                    <p className="text-xs font-bold text-slate-800 truncate group-hover:text-emerald-700 transition-colors">{lead.name}</p>
                     <p className="text-[10px] text-slate-500 truncate">{lead.source || 'Sin origen'}</p>
                   </div>
                 </div>
