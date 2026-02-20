@@ -15,7 +15,8 @@ import {
   Download,
   ChevronLeft,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  FilterX
 } from 'lucide-react';
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
@@ -50,7 +51,11 @@ export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [availableDocs, setAvailableDocs] = useState<{name: string, url: string}[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Estados de Búsqueda y Filtros
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [sourceFilter, setSourceFilter] = useState<string>('');
   
   // Estados de Paginación
   const [page, setPage] = useState(1);
@@ -70,10 +75,10 @@ export default function Leads() {
     type: 'success' | 'error' | 'info';
   }>({ show: false, title: '', message: '', type: 'success' });
 
-  // Recargar datos cuando cambia la página o el término de búsqueda
+  // Recargar datos cuando cambia la página, la búsqueda o los filtros
   useEffect(() => {
     fetchLeads();
-  }, [page, searchTerm]); 
+  }, [page, searchTerm, statusFilter, sourceFilter]); 
 
   // Cargar documentos solo una vez al inicio
   useEffect(() => {
@@ -88,22 +93,29 @@ export default function Leads() {
     try {
       setLoading(true);
       
-      // Calcular rango para paginación (0-9, 10-19, etc.)
+      // Calcular rango para paginación
       const from = (page - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
 
       let query = supabase
         .from('leads')
-        .select('*', { count: 'exact' }) // Solicitamos el conteo total exacto
+        .select('*', { count: 'exact' })
         .order('created_at', { ascending: false });
 
-      // Si hay búsqueda, filtramos (Nota: la búsqueda en Supabase con 'or' y paginación puede ser compleja,
-      // para una app real grande se recomienda usar Full Text Search, aquí usamos ilike básico)
+      // Aplicar filtros acumulativos
       if (searchTerm) {
         query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
       }
+      
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
+      }
 
-      // Aplicamos paginación
+      if (sourceFilter) {
+        query = query.ilike('source', `%${sourceFilter}%`);
+      }
+
+      // Ejecutar consulta con paginación
       const { data, error, count } = await query.range(from, to);
 
       if (error) throw error;
@@ -138,32 +150,30 @@ export default function Leads() {
     setPage(1); // Resetear a página 1 al buscar
   };
 
+  const clearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('');
+    setSourceFilter('');
+    setPage(1);
+  };
+
+  const hasActiveFilters = searchTerm !== '' || statusFilter !== '' || sourceFilter !== '';
   const totalPages = Math.ceil(totalLeads / ITEMS_PER_PAGE);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
       
-      {/* HEADER SUPERIOR */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-10">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Leads</h1>
-          <p className="text-slate-500 text-xs font-medium">
-            {totalLeads} prospectos totales {searchTerm && `(filtrado)`}
-          </p>
-        </div>
+      {/* HEADER SUPERIOR Y CONTROLES */}
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Leads</h1>
+            <p className="text-slate-500 text-xs font-medium">
+              {totalLeads} prospectos {hasActiveFilters && `(filtrados)`}
+            </p>
+          </div>
 
-        <div className="flex flex-1 max-w-2xl items-center gap-3">
-            <div className="relative flex-1 group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={18} />
-                <input 
-                    type="text"
-                    placeholder="Buscar por nombre, email o teléfono..."
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
-                    value={searchTerm}
-                    onChange={handleSearch}
-                />
-            </div>
-            
+          <div className="flex items-center gap-3 w-full md:w-auto">
             <button 
                 onClick={() => setIsExportModalOpen(true)}
                 className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-emerald-600 transition-colors shadow-sm hidden sm:flex items-center gap-2"
@@ -175,10 +185,71 @@ export default function Leads() {
 
             <button 
                 onClick={() => setIsCreateModalOpen(true)}
-                className="px-5 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 shrink-0"
+                className="px-5 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 shrink-0 flex-1 md:flex-none justify-center"
             >
-                <UserPlus size={18} /> <span className="hidden sm:inline">Nuevo Lead</span>
+                <UserPlus size={18} /> <span className="inline">Nuevo Lead</span>
             </button>
+          </div>
+        </div>
+
+        {/* BARRA DE FILTROS Y BÚSQUEDA */}
+        <div className="flex flex-col lg:flex-row gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <div className="relative flex-1 w-full group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={18} />
+                <input 
+                    type="text"
+                    placeholder="Buscar por nombre, email o teléfono..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none shadow-sm"
+                    value={searchTerm}
+                    onChange={handleSearch}
+                />
+            </div>
+            
+            <div className="flex w-full lg:w-auto gap-3">
+              <div className="relative flex-1 lg:w-48">
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                    className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none appearance-none shadow-sm cursor-pointer text-slate-700"
+                  >
+                    <option value="">Todos los Estados</option>
+                    <option value="new">Nuevos</option>
+                    <option value="contacted">Contactados</option>
+                    <option value="qualified">Cualificados</option>
+                    <option value="proposal">Propuesta</option>
+                    <option value="negotiation">Negociación</option>
+                    <option value="closed">Cerrados</option>
+                    <option value="lost">Perdidos</option>
+                  </select>
+              </div>
+
+              <div className="relative flex-1 lg:w-48">
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <select
+                    value={sourceFilter}
+                    onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
+                    className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none appearance-none shadow-sm cursor-pointer text-slate-700"
+                  >
+                    <option value="">Cualquier Origen</option>
+                    <option value="Web">Web</option>
+                    <option value="Google">Google</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="Referido">Referido</option>
+                  </select>
+              </div>
+
+              {hasActiveFilters && (
+                <button 
+                  onClick={clearFilters}
+                  className="p-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors shadow-sm flex items-center justify-center shrink-0"
+                  title="Limpiar filtros"
+                >
+                  <FilterX size={18} />
+                </button>
+              )}
+            </div>
         </div>
       </div>
 
@@ -194,10 +265,14 @@ export default function Leads() {
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-slate-300">
                 <Search size={24} />
             </div>
-            <p className="text-slate-500 font-medium">No se encontraron leads.</p>
-            {searchTerm && (
-                <button onClick={() => { setSearchTerm(''); setPage(1); }} className="text-emerald-600 font-bold text-sm mt-2 hover:underline">
-                    Limpiar búsqueda
+            <p className="text-slate-500 font-medium text-center px-4">
+              {hasActiveFilters 
+                ? "No hay leads que coincidan con los filtros actuales." 
+                : "No hay leads registrados en la base de datos."}
+            </p>
+            {hasActiveFilters && (
+                <button onClick={clearFilters} className="text-emerald-600 font-bold text-sm mt-4 hover:underline px-4 py-2 bg-emerald-50 rounded-lg">
+                    Limpiar todos los filtros
                 </button>
             )}
           </div>
@@ -290,7 +365,7 @@ export default function Leads() {
               <button 
                 onClick={() => setPage(1)} 
                 disabled={page === 1}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 title="Primera página"
               >
                 <ChevronsLeft size={16} />
@@ -298,7 +373,7 @@ export default function Leads() {
               <button 
                 onClick={() => setPage(p => Math.max(1, p - 1))} 
                 disabled={page === 1}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 title="Anterior"
               >
                 <ChevronLeft size={16} />
@@ -311,7 +386,7 @@ export default function Leads() {
               <button 
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
                 disabled={page >= totalPages}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 title="Siguiente"
               >
                 <ChevronRight size={16} />
@@ -319,7 +394,7 @@ export default function Leads() {
               <button 
                 onClick={() => setPage(totalPages)} 
                 disabled={page >= totalPages}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 title="Última página"
               >
                 <ChevronsRight size={16} />
