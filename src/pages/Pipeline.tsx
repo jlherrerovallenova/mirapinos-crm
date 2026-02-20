@@ -1,145 +1,219 @@
 // src/pages/Pipeline.tsx
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Loader2, 
-  TrendingUp, 
-  DollarSign, 
-  MoreHorizontal,
-  ChevronRight
+  Building2, 
+  Globe, 
+  Smartphone, 
+  Users, 
+  HelpCircle,
+  MoreHorizontal
 } from 'lucide-react';
 import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 
-// Definición de las columnas del Pipeline
-const COLUMNS: { id: Lead['status']; title: string; color: string }[] = [
-  { id: 'new', title: 'Nuevos', color: 'bg-blue-500' },
-  { id: 'contacted', title: 'Contactados', color: 'bg-purple-500' },
-  { id: 'qualified', title: 'Cualificados', color: 'bg-emerald-500' },
-  { id: 'proposal', title: 'Propuesta', color: 'bg-amber-500' },
-  { id: 'negotiation', title: 'Negociación', color: 'bg-orange-500' }
+// Definición de las columnas del Kanban y sus estilos
+const COLUMNS = [
+  { id: 'new', title: 'Nuevos', color: 'border-blue-400', bg: 'bg-blue-50/50', text: 'text-blue-700' },
+  { id: 'contacted', title: 'Contactados', color: 'border-purple-400', bg: 'bg-purple-50/50', text: 'text-purple-700' },
+  { id: 'qualified', title: 'Cualificados', color: 'border-emerald-400', bg: 'bg-emerald-50/50', text: 'text-emerald-700' },
+  { id: 'proposal', title: 'Propuesta', color: 'border-amber-400', bg: 'bg-amber-50/50', text: 'text-amber-700' },
+  { id: 'negotiation', title: 'Negociación', color: 'border-orange-400', bg: 'bg-orange-50/50', text: 'text-orange-700' },
+  { id: 'closed', title: 'Ganados', color: 'border-slate-800', bg: 'bg-slate-100', text: 'text-slate-800' },
 ];
 
 export default function Pipeline() {
+  const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Estado para gestionar qué elemento se está arrastrando
+  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchLeads();
+    fetchPipelineLeads();
   }, []);
 
-  async function fetchLeads() {
+  const fetchPipelineLeads = async () => {
+    setLoading(true);
     try {
+      // Excluimos los leads con estado 'lost' (Perdidos) del tablero principal para mantenerlo limpio
       const { data, error } = await supabase
         .from('leads')
         .select('*')
+        .neq('status', 'lost')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       if (data) setLeads(data);
     } catch (error) {
-      console.error('Error fetching leads:', error);
+      console.error('Error fetching pipeline leads:', error);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  // Calcular el valor total del pipeline activo (excluyendo cerrados/perdidos)
-  const totalValue = leads
-    .filter(l => l.status !== 'closed' && l.status !== 'lost')
-    .reduce((acc, curr) => acc + (curr.value || 0), 0);
+  // --- LÓGICA DE DRAG & DROP NATIVO ---
+  const handleDragStart = (e: React.DragEvent, leadId: string) => {
+    setDraggedLeadId(leadId);
+    // Efecto visual al arrastrar
+    e.dataTransfer.effectAllowed = 'move';
+    // Requerido por Firefox para que el drag funcione
+    e.dataTransfer.setData('text/plain', leadId); 
+    
+    // Hacemos que la tarjeta original sea un poco transparente mientras se arrastra
+    setTimeout(() => {
+      const element = document.getElementById(`lead-card-${leadId}`);
+      if (element) element.classList.add('opacity-50');
+    }, 0);
+  };
+
+  const handleDragEnd = (e: React.DragEvent, leadId: string) => {
+    setDraggedLeadId(null);
+    const element = document.getElementById(`lead-card-${leadId}`);
+    if (element) element.classList.remove('opacity-50');
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // Necesario para permitir el "Drop"
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, newStatus: string) => {
+    e.preventDefault();
+    const leadId = e.dataTransfer.getData('text/plain') || draggedLeadId;
+    
+    if (!leadId) return;
+
+    const leadToMove = leads.find(l => l.id === leadId);
+    if (!leadToMove || leadToMove.status === newStatus) return;
+
+    // 1. Actualización Optimista (Actualiza la UI al instante sin esperar a la base de datos)
+    setLeads(prev => prev.map(lead => 
+      lead.id === leadId ? { ...lead, status: newStatus } : lead
+    ));
+
+    // 2. Actualización en Base de Datos (Supabase)
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ status: newStatus })
+        .eq('id', leadId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error actualizando estado en drop:', error);
+      // Si falla, revertimos recargando los datos
+      fetchPipelineLeads();
+    }
+    setDraggedLeadId(null);
+  };
+
+  // Helper visual para iconos de origen
+  const getSourceIcon = (sourceName: string | null) => {
+    if (!sourceName) return <HelpCircle size={12} />;
+    const lower = sourceName.toLowerCase();
+    if (lower.includes('web') || lower.includes('google')) return <Globe size={12} />;
+    if (lower.includes('insta') || lower.includes('facebook')) return <Smartphone size={12} />;
+    if (lower.includes('referido') || lower.includes('amigo')) return <Users size={12} />;
+    return <HelpCircle size={12} />;
+  };
 
   if (loading) {
     return (
-      <div className="h-96 flex flex-col items-center justify-center gap-4">
-        <Loader2 className="animate-spin text-emerald-600" size={40} />
-        <p className="text-slate-400 animate-pulse font-medium">Cargando túnel de ventas...</p>
+      <div className="flex flex-col items-center justify-center h-[70vh] text-slate-400 gap-4">
+        <Loader2 className="animate-spin" size={40} />
+        <p className="font-medium animate-pulse">Cargando tablero de ventas...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header con KPIs */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div className="flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500 overflow-hidden">
+      
+      {/* HEADER DEL TABLERO */}
+      <div className="flex justify-between items-end mb-6 shrink-0">
         <div>
-          <p className="text-emerald-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">Rendimiento Comercial</p>
-          <h1 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Túnel de Ventas</h1>
+          <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Pipeline de Ventas</h1>
+          <p className="text-slate-500 text-sm mt-1">Arrastra las tarjetas para avanzar de fase.</p>
         </div>
-        
-        <div className="flex gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 min-w-[200px]">
-            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-              <TrendingUp size={20} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Valor Activo</p>
-              <p className="text-lg font-bold text-slate-900">
-                {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(totalValue)}
-              </p>
-            </div>
-          </div>
+        <div className="text-sm font-bold text-slate-500 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+          Total Activos: <span className="text-slate-900">{leads.length}</span>
         </div>
-      </header>
+      </div>
 
-      {/* Tablero Kanban */}
-      <div className="flex gap-6 overflow-x-auto pb-8 min-h-[600px] -mx-4 px-4">
-        {COLUMNS.map((column) => {
-          const columnLeads = leads.filter(l => l.status === column.id);
-          const columnValue = columnLeads.reduce((acc, curr) => acc + (curr.value || 0), 0);
+      {/* CONTENEDOR KANBAN HORIZONTAL SCROLLABLE */}
+      <div className="flex-1 flex gap-6 overflow-x-auto pb-6 snap-x">
+        {COLUMNS.map(column => {
+          // Filtramos los leads que pertenecen a esta columna
+          const columnLeads = leads.filter(lead => (lead.status || 'new') === column.id);
+          const totalValue = columnLeads.length;
 
           return (
-            <div key={column.id} className="flex-shrink-0 w-80 flex flex-col gap-4">
+            <div 
+              key={column.id}
+              className={`flex flex-col min-w-[320px] max-w-[320px] rounded-2xl border ${column.bg} border-slate-200 shadow-sm snap-center`}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, column.id)}
+            >
               {/* Cabecera de Columna */}
-              <div className="flex items-center justify-between px-2">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${column.color}`}></div>
-                  <h3 className="font-bold text-slate-700 uppercase text-xs tracking-wider">{column.title}</h3>
-                  <span className="bg-slate-200 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    {columnLeads.length}
-                  </span>
-                </div>
-                <button className="text-slate-400 hover:text-slate-600">
-                  <MoreHorizontal size={16} />
-                </button>
+              <div className={`p-4 border-b border-slate-200/50 flex justify-between items-center rounded-t-2xl bg-white/50 backdrop-blur-sm border-t-4 ${column.color}`}>
+                <h3 className={`font-bold text-sm ${column.text} uppercase tracking-wider`}>
+                  {column.title}
+                </h3>
+                <span className="bg-white text-slate-700 px-2 py-1 rounded-md text-xs font-bold border border-slate-200 shadow-sm">
+                  {totalValue}
+                </span>
               </div>
 
-              {/* Contenedor de Tarjetas */}
-              <div className="bg-slate-50/50 p-3 rounded-3xl border border-slate-100 flex-1 space-y-3">
-                {columnLeads.map((lead) => (
-                  <div 
-                    key={lead.id}
-                    className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer group"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-bold text-slate-800 text-sm leading-tight group-hover:text-emerald-700 transition-colors">
-                        {lead.name}
-                      </h4>
-                    </div>
-                    
-                    <p className="text-[11px] text-slate-400 mb-4 line-clamp-1 italic">
-                      {lead.company || 'Sin empresa'}
-                    </p>
-
-                    <div className="flex items-center justify-between border-t border-slate-50 pt-3">
-                      <div className="flex items-center gap-1 text-slate-700 font-bold text-xs">
-                        <DollarSign size={12} className="text-emerald-500" />
-                        {lead.value ? new Intl.NumberFormat('es-ES').format(lead.value) : '0'}
-                      </div>
-                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 border border-white group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
-                        <ChevronRight size={12} />
-                      </div>
-                    </div>
+              {/* Contenedor de Tarjetas (Scrollable vertical) */}
+              <div className="p-3 flex-1 overflow-y-auto space-y-3 custom-scrollbar">
+                {columnLeads.length === 0 ? (
+                  <div className="h-24 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center text-slate-400 text-xs font-medium bg-white/40">
+                    Arrastra un cliente aquí
                   </div>
-                ))}
-                
-                {/* Indicador de valor de columna */}
-                <div className="pt-2 px-2">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase text-right">
-                    Subtotal: {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(columnValue)}
-                  </p>
-                </div>
+                ) : (
+                  columnLeads.map(lead => (
+                    <div
+                      key={lead.id}
+                      id={`lead-card-${lead.id}`}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, lead.id)}
+                      onDragEnd={(e) => handleDragEnd(e, lead.id)}
+                      onClick={() => navigate(`/leads/${lead.id}`)}
+                      className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-emerald-300 transition-all group"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-bold text-slate-900 text-sm truncate pr-2 group-hover:text-emerald-700 transition-colors">
+                          {lead.name}
+                        </h4>
+                        <button className="text-slate-300 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100">
+                          <MoreHorizontal size={16} />
+                        </button>
+                      </div>
+                      
+                      {lead.company && (
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-3">
+                          <Building2 size={12} className="text-slate-400" />
+                          <span className="truncate font-medium">{lead.company}</span>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                          {getSourceIcon(lead.source)}
+                          <span className="truncate max-w-[80px]">{lead.source || 'Directo'}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           );
