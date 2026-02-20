@@ -1,219 +1,230 @@
 // src/pages/Settings.tsx
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { 
   User, 
   Mail, 
   Shield, 
-  FileText, 
-  Upload, 
-  Trash2, 
-  ExternalLink,
-  Loader2,
-  Save,
-  Bell
+  LogOut, 
+  Save, 
+  Loader2, 
+  Camera,
+  Bell,
+  Palette
 } from 'lucide-react';
-import { AppNotification } from '../components/Shared';
 
-interface Document {
+interface Profile {
   id: string;
-  name: string;
-  url: string;
-  created_at: string;
+  email: string;
+  full_name: string;
+  avatar_url: string;
+  role: string;
 }
 
 export default function Settings() {
-  const { session } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [uploading, setUploading] = useState(false);
-  
-  const [notification, setNotification] = useState<{
-    show: boolean;
-    title: string;
-    message: string;
-    type: 'success' | 'error';
-  }>({ show: false, title: '', message: '', type: 'success' });
+  const { session, signOut } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState<Profile>({
+    id: '',
+    email: '',
+    full_name: '',
+    avatar_url: '',
+    role: 'agent'
+  });
 
   useEffect(() => {
-    fetchDocuments();
-  }, []);
+    if (session?.user.id) {
+      fetchProfile();
+    }
+  }, [session]);
 
-  async function fetchDocuments() {
+  const fetchProfile = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
-        .from('documents')
+        .from('profiles')
         .select('*')
-        .order('created_at', { ascending: false });
+        .eq('id', session?.user.id)
+        .single();
+
+      if (error) {
+        // Si no existe el perfil, lo usamos desde la sesión
+        console.warn('No se encontró perfil, usando datos de sesión.');
+        setProfile(prev => ({ ...prev, id: session!.user.id, email: session!.user.email || '' }));
+      } else if (data) {
+        setProfile(data as Profile);
+      }
+    } catch (error) {
+      console.error('Error cargando perfil:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session?.user.id) return;
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: session.user.id,
+          full_name: profile.full_name,
+          avatar_url: profile.avatar_url,
+          updated_at: new Date().toISOString(),
+        });
 
       if (error) throw error;
-      if (data) setDocuments(data);
+      alert('Perfil actualizado correctamente.');
     } catch (error) {
-      console.error('Error fetching documents:', error);
+      console.error('Error actualizando perfil:', error);
+      alert('Hubo un error al guardar los cambios.');
+    } finally {
+      setSaving(false);
     }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh] text-slate-400 gap-4">
+        <Loader2 className="animate-spin" size={40} />
+        <p className="font-medium animate-pulse">Cargando configuración...</p>
+      </div>
+    );
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      setUploading(true);
-      if (!e.target.files || e.target.files.length === 0) return;
-
-      const file = e.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `public/${fileName}`;
-
-      // 1. Subir a Storage
-      const { error: uploadError } = await supabase.storage
-        .from('docs')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      // 2. Obtener URL pública
-      const { data: urlData } = supabase.storage
-        .from('docs')
-        .getPublicUrl(filePath);
-
-      // 3. Registrar en base de datos
-      const { error: dbError } = await supabase
-        .from('documents')
-        .insert([{ name: file.name, url: urlData.publicUrl }]);
-
-      if (dbError) throw dbError;
-
-      showNotif('Éxito', 'Archivo subido correctamente', 'success');
-      fetchDocuments();
-    } catch (error) {
-      console.error('Error uploading:', error);
-      showNotif('Error', 'No se pudo subir el archivo', 'error');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const deleteDocument = async (id: string, url: string) => {
-    if (!confirm('¿Eliminar este documento?')) return;
-    try {
-      const { error } = await supabase.from('documents').delete().eq('id', id);
-      if (error) throw error;
-      setDocuments(documents.filter(d => d.id !== id));
-      showNotif('Eliminado', 'Documento borrado', 'success');
-    } catch (error) {
-      showNotif('Error', 'No se pudo eliminar', 'error');
-    }
-  };
-
-  const showNotif = (title: string, message: string, type: 'success' | 'error') => {
-    setNotification({ show: true, title, message, type });
-  };
-
   return (
-    <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-500">
-      <header>
-        <p className="text-emerald-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">Panel de Usuario</p>
-        <h1 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Configuración</h1>
-      </header>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Perfil */}
-        <div className="md:col-span-2 space-y-6">
-          <section className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-sm">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center">
-                <User size={24} />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900">Información del Perfil</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-6">
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email de Acceso</label>
-                <div className="mt-2 flex items-center gap-3 px-5 py-4 bg-slate-50 rounded-2xl text-slate-500 font-medium">
-                  <Mail size={18} /> {session?.user?.email}
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Rol de Usuario</label>
-                <div className="mt-2 flex items-center gap-3 px-5 py-4 bg-slate-50 rounded-2xl text-slate-500 font-medium italic">
-                  <Shield size={18} /> Administrador de Sistema
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Gestión de Documentos */}
-          <section className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-sm">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
-                  <FileText size={24} />
-                </div>
-                <h2 className="text-xl font-bold text-slate-900">Biblioteca de Archivos</h2>
-              </div>
-              
-              <label className="cursor-pointer px-6 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 text-sm shadow-lg shadow-slate-200">
-                {uploading ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
-                SUBIR
-                <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-              </label>
-            </div>
-
-            <div className="space-y-3">
-              {documents.map((doc) => (
-                <div key={doc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl group border border-transparent hover:border-emerald-100 hover:bg-emerald-50/30 transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-white rounded-lg text-slate-400">
-                      <FileText size={20} />
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-700 text-sm line-clamp-1">{doc.name}</p>
-                      <p className="text-[10px] text-slate-400">{new Date(doc.created_at).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <a href={doc.url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-blue-500"><ExternalLink size={18}/></a>
-                    <button onClick={() => deleteDocument(doc.id, doc.url)} className="p-2 text-slate-400 hover:text-red-500"><Trash2 size={18}/></button>
-                  </div>
-                </div>
-              ))}
-              {documents.length === 0 && <p className="text-center py-10 text-slate-400 text-sm italic">No hay documentos subidos</p>}
-            </div>
-          </section>
-        </div>
-
-        {/* Sidebar de Ajustes Rápidos */}
-        <div className="space-y-6">
-          <div className="bg-slate-900 rounded-[2rem] p-8 text-white">
-            <h3 className="font-bold mb-4 flex items-center gap-2"><Bell size={18} className="text-emerald-400" /> Notificaciones</h3>
-            <div className="space-y-4">
-              <Toggle label="Nuevos Leads" checked={true} />
-              <Toggle label="Ventas Cerradas" checked={true} />
-              <Toggle label="Alertas Stock" checked={false} />
-            </div>
-          </div>
-        </div>
+    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-10">
+      
+      {/* HEADER */}
+      <div>
+        <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Configuración</h1>
+        <p className="text-slate-500 mt-1">Gestiona tu cuenta, preferencias y ajustes del sistema.</p>
       </div>
 
-      {notification.show && (
-        <AppNotification 
-          title={notification.title} 
-          message={notification.message} 
-          type={notification.type} 
-          onClose={() => setNotification({ ...notification, show: false })} 
-        />
-      )}
-    </div>
-  );
-}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        {/* COLUMNA IZQUIERDA: MENÚ DE NAVEGACIÓN LATERAL */}
+        <div className="md:col-span-1 space-y-2">
+          <button className="w-full flex items-center gap-3 px-4 py-3 bg-white text-emerald-700 font-bold rounded-xl border border-emerald-100 shadow-sm transition-all text-sm">
+            <User size={18} /> Perfil del Agente
+          </button>
+          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 font-medium hover:bg-white hover:text-slate-900 rounded-xl transition-all text-sm">
+            <Bell size={18} /> Notificaciones
+          </button>
+          <button className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 font-medium hover:bg-white hover:text-slate-900 rounded-xl transition-all text-sm">
+            <Palette size={18} /> Apariencia
+          </button>
+          
+          <div className="pt-8 mt-8 border-t border-slate-200">
+            <button 
+              onClick={() => signOut()}
+              className="w-full flex items-center gap-3 px-4 py-3 text-red-600 font-bold hover:bg-red-50 rounded-xl transition-all text-sm"
+            >
+              <LogOut size={18} /> Cerrar Sesión
+            </button>
+          </div>
+        </div>
 
-function Toggle({ label, checked }: { label: string, checked: boolean }) {
-  return (
-    <div className="flex items-center justify-between py-2">
-      <span className="text-sm font-medium text-slate-300">{label}</span>
-      <div className={`w-10 h-5 rounded-full relative transition-colors ${checked ? 'bg-emerald-500' : 'bg-slate-700'}`}>
-        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${checked ? 'left-6' : 'left-1'}`}></div>
+        {/* COLUMNA DERECHA: FORMULARIO PRINCIPAL */}
+        <div className="md:col-span-2 space-y-6">
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-8 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="text-xl font-bold text-slate-900">Información Personal</h2>
+              <p className="text-sm text-slate-500 mt-1">Actualiza tu foto y nombre para que los clientes te reconozcan.</p>
+            </div>
+
+            <form onSubmit={handleSave} className="p-8 space-y-8">
+              
+              {/* AVATAR */}
+              <div className="flex items-center gap-6">
+                <div className="relative group">
+                  <div className="w-24 h-24 rounded-full bg-slate-100 border-4 border-white shadow-lg overflow-hidden flex items-center justify-center">
+                    {profile.avatar_url ? (
+                      <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={40} className="text-slate-300" />
+                    )}
+                  </div>
+                  <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer backdrop-blur-sm">
+                    <Camera size={24} className="text-white" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">URL del Avatar</label>
+                  <input
+                    type="url"
+                    value={profile.avatar_url || ''}
+                    onChange={(e) => setProfile({ ...profile, avatar_url: e.target.value })}
+                    placeholder="https://ejemplo.com/mifoto.jpg"
+                    className="w-full mt-2 px-5 py-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* CAMPOS DE TEXTO */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="sm:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre Completo</label>
+                  <div className="relative mt-2">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      type="text"
+                      value={profile.full_name || ''}
+                      onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+                      placeholder="Ej: Juan Pérez"
+                      className="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
+                  <div className="relative mt-2">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      type="email"
+                      disabled
+                      value={profile.email || ''}
+                      className="w-full pl-12 pr-5 py-4 bg-slate-100 border-none rounded-2xl text-slate-500 font-medium cursor-not-allowed"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-2 ml-1">El email no se puede cambiar aquí.</p>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Rol en el Sistema</label>
+                  <div className="relative mt-2">
+                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={18} />
+                    <input
+                      type="text"
+                      disabled
+                      value={profile.role?.toUpperCase() || 'AGENTE'}
+                      className="w-full pl-12 pr-5 py-4 bg-emerald-50 border-none rounded-2xl text-emerald-700 font-bold cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* BOTÓN GUARDAR */}
+              <div className="pt-4 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-8 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center gap-3 active:scale-95 disabled:opacity-50"
+                >
+                  {saving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                  {saving ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
       </div>
     </div>
   );
