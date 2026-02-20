@@ -146,7 +146,7 @@ export default function Pipeline() {
       </div>
 
       {/* CONTENEDOR KANBAN HORIZONTAL SCROLLABLE */}
-      <div className="flex-1 flex gap-6 overflow-x-auto pb-6 snap-x">
+      <div className="flex-1 flex gap-3 md:gap-4 overflow-x-auto pb-6 snap-x">
         {COLUMNS.map(column => {
           // Filtramos los leads que pertenecen a esta columna
           const columnLeads = leads.filter(lead => (lead.status || 'new') === column.id);
@@ -155,25 +155,25 @@ export default function Pipeline() {
           return (
             <div 
               key={column.id}
-              className={`flex flex-col min-w-[320px] max-w-[320px] rounded-2xl border ${column.bg} border-slate-200 shadow-sm snap-center`}
+              className={`flex flex-col min-w-[220px] flex-1 rounded-2xl border ${column.bg} border-slate-200 shadow-sm snap-center`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, column.id)}
             >
               {/* Cabecera de Columna */}
-              <div className={`p-4 border-b border-slate-200/50 flex justify-between items-center rounded-t-2xl bg-white/50 backdrop-blur-sm border-t-4 ${column.color}`}>
-                <h3 className={`font-bold text-sm ${column.text} uppercase tracking-wider`}>
+              <div className={`p-3 border-b border-slate-200/50 flex justify-between items-center rounded-t-2xl bg-white/50 backdrop-blur-sm border-t-4 ${column.color}`}>
+                <h3 className={`font-bold text-xs sm:text-sm ${column.text} uppercase tracking-wider truncate mr-2`}>
                   {column.title}
                 </h3>
-                <span className="bg-white text-slate-700 px-2 py-1 rounded-md text-xs font-bold border border-slate-200 shadow-sm">
+                <span className="bg-white text-slate-700 px-2 py-1 rounded-md text-xs font-bold border border-slate-200 shadow-sm shrink-0">
                   {totalValue}
                 </span>
               </div>
 
               {/* Contenedor de Tarjetas (Scrollable vertical) */}
-              <div className="p-3 flex-1 overflow-y-auto space-y-3 custom-scrollbar">
+              <div className="p-2 sm:p-3 flex-1 overflow-y-auto space-y-3 custom-scrollbar">
                 {columnLeads.length === 0 ? (
                   <div className="h-24 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center text-slate-400 text-xs font-medium bg-white/40">
-                    Arrastra un cliente aquí
+                    Arrastra aquí
                   </div>
                 ) : (
                   columnLeads.map(lead => (
@@ -184,30 +184,30 @@ export default function Pipeline() {
                       onDragStart={(e) => handleDragStart(e, lead.id)}
                       onDragEnd={(e) => handleDragEnd(e, lead.id)}
                       onClick={() => navigate(`/leads/${lead.id}`)}
-                      className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-emerald-300 transition-all group"
+                      className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-emerald-300 transition-all group"
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-bold text-slate-900 text-sm truncate pr-2 group-hover:text-emerald-700 transition-colors">
+                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm truncate pr-2 group-hover:text-emerald-700 transition-colors">
                           {lead.name}
                         </h4>
-                        <button className="text-slate-300 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100">
-                          <MoreHorizontal size={16} />
+                        <button className="text-slate-300 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100 hidden sm:block">
+                          <MoreHorizontal size={14} />
                         </button>
                       </div>
                       
                       {lead.company && (
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-3">
-                          <Building2 size={12} className="text-slate-400" />
+                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-500 mb-3">
+                          <Building2 size={12} className="text-slate-400 shrink-0" />
                           <span className="truncate font-medium">{lead.company}</span>
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
+                        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50 px-1.5 py-1 rounded border border-slate-100 w-fit">
                           {getSourceIcon(lead.source)}
-                          <span className="truncate max-w-[80px]">{lead.source || 'Directo'}</span>
+                          <span className="truncate max-w-[60px] sm:max-w-[80px]">{lead.source || 'Directo'}</span>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-medium">
+                        <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium whitespace-nowrap">
                           {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
                         </span>
                       </div>
