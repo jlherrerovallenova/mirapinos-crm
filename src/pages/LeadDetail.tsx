@@ -1,281 +1,300 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+// src/pages/LeadDetail.tsx
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import emailjs from '@emailjs/browser';
 import { 
-  ChevronRight, Phone, Mail, Send, FileText, 
-  CheckCircle2, MessageCircle, X, Loader2, Link as LinkIcon
+  ArrowLeft, 
+  Mail, 
+  Phone, 
+  Building2, 
+  Calendar as CalendarIcon, 
+  Clock, 
+  User, 
+  Loader2, 
+  CheckCircle2, 
+  Circle,
+  Save,
+  Trash2
 } from 'lucide-react';
+import type { Database } from '../types/supabase';
+
+type Lead = Database['public']['Tables']['leads']['Row'];
+type AgendaItem = Database['public']['Tables']['agenda']['Row'];
+
+const STATUS_OPTIONS = [
+  { value: 'new', label: 'Nuevo' },
+  { value: 'contacted', label: 'Contactado' },
+  { value: 'qualified', label: 'Cualificado' },
+  { value: 'proposal', label: 'Propuesta Enviada' },
+  { value: 'negotiation', label: 'En Negociación' },
+  { value: 'closed', label: 'Cerrado (Ganado)' },
+  { value: 'lost', label: 'Perdido' },
+];
 
 export default function LeadDetail() {
-  const { id } = useParams();
-  const [lead, setLead] = useState<any>(null);
-  const [events, setEvents] = useState<any[]>([]);
-  const [allDocuments, setAllDocuments] = useState<any[]>([]);
-  const [selectedDocs, setSelectedDocs] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'agenda' | 'docs'>('agenda');
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   
-  const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
-  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
-  const [isSending, setIsSending] = useState(false);
+  const [lead, setLead] = useState<Lead | null>(null);
+  const [tasks, setTasks] = useState<AgendaItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<string>('');
 
-  const [emailData, setEmailData] = useState({
-    subject: 'FINCA MIRAPINOS', 
-    body: ''
-  });
+  useEffect(() => {
+    if (id) {
+      fetchLeadData();
+    }
+  }, [id]);
 
-  const loadData = async () => {
-    if(!id) return;
-    const { data: l } = await supabase.from('leads').select('*').eq('id', id).single();
-    const { data: e } = await supabase.from('events').select('*').eq('leadId', id).order('date', { ascending: false });
-    const { data: d } = await supabase.from('documents').select('*').order('id', { ascending: false });
-    
-    if (l) setLead(l);
-    if (e) setEvents(e);
-    if (d) setAllDocuments(d);
-  };
-
-  useEffect(() => { loadData(); }, [id]);
-
-  const logActivity = async (method: string, detail: string) => {
-    await supabase.from('events').insert([{
-      leadId: id,
-      type: 'Documentación',
-      description: `Envío vía ${method}: ${detail}`,
-      date: new Date().toISOString()
-    }]);
-    loadData();
-  };
-
-  const toggleDocSelection = (doc: any) => {
-    setSelectedDocs(prev => prev.find(d => d.id === doc.id) ? prev.filter(d => d.id !== doc.id) : [...prev, doc]);
-  };
-
-  const handleSendWhatsApp = async () => {
-    if (selectedDocs.length === 0) return alert("Selecciona al menos un documento.");
-    
-    const docLinks = selectedDocs.map(d => `• ${d.name}: ${d.url}`).join('\n');
-    const message = `Hola ${lead.firstName}, desde Finca Mirapinos te adjuntamos la documentación solicitada:\n\n${docLinks}`;
-    window.open(`https://wa.me/${lead.phone.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
-    
-    await logActivity('WhatsApp', selectedDocs.map(d => d.name).join(', '));
-    setIsChannelModalOpen(false);
-    setSelectedDocs([]);
-  };
-
-  const openEmailComposer = () => {
-    setEmailData({
-      subject: 'FINCA MIRAPINOS',
-      body: `Hola ${lead.firstName},\n\nTal como acordamos, te envío adjunta la documentación sobre Finca Mirapinos.\n\nCualquier duda quedo a tu disposición.\n\nSaludos cordiales.`
-    });
-    setIsChannelModalOpen(false);
-    setIsEmailComposerOpen(true);
-  };
-
-  const handleFinalEmailSend = async () => {
-    if (!lead.email) return alert("El cliente no tiene email configurado.");
-    if (selectedDocs.length === 0) return alert("No hay documentos seleccionados.");
-    
-    setIsSending(true);
-
-    // --- PLAN B: SOLO TEXTO (Sin etiquetas HTML) ---
-    const linksList = selectedDocs.map(d => `• ${d.name}: ${d.url}`).join('\n');
-    const fullMessage = `${emailData.body}\n\n--------------------------------\nDOCUMENTACIÓN ADJUNTA:\n\n${linksList}\n--------------------------------`;
-    // ------------------------------------------------
-
-    const SERVICE_ID = "service_w8zzkn8";
-    const TEMPLATE_ID = "template_t3fn5js";
-    const PUBLIC_KEY = "UsY6LDpIJtiB91VMI";
-
-    const templateParams = {
-        subject: emailData.subject, 
-        message: fullMessage,
-        to_email: lead.email,
-        to_name: `${lead.firstName} ${lead.lastName}`,
-        reply_to: 'info@mirapinos.com'
-    };
-    
+  // 1. CARGA DE DATOS DEL CLIENTE Y SUS TAREAS
+  const fetchLeadData = async () => {
+    setLoading(true);
     try {
-      await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+      // Promesas en paralelo para mayor velocidad
+      const [leadResponse, agendaResponse] = await Promise.all([
+        supabase.from('leads').select('*').eq('id', id).single(),
+        supabase.from('agenda').select('*').eq('lead_id', id).order('due_date', { ascending: true })
+      ]);
 
-      await logActivity('Email App', selectedDocs.map(d => d.name).join(', '));
-      alert('¡Email enviado con éxito!');
-      setIsEmailComposerOpen(false);
-      setSelectedDocs([]);
-      setActiveTab('agenda');
-    } catch (error: any) {
-      console.error("Error EmailJS:", error);
-      alert(`Error al enviar el email: ${error?.text || 'Revisa la consola'}`);
+      if (leadResponse.error) throw leadResponse.error;
+      if (agendaResponse.error) throw agendaResponse.error;
+
+      setLead(leadResponse.data);
+      setCurrentStatus(leadResponse.data.status || 'new');
+      setTasks(agendaResponse.data || []);
+      
+    } catch (error) {
+      console.error("Error cargando perfil del lead:", error);
     } finally {
-      setIsSending(false);
+      setLoading(false);
     }
   };
 
-  if (!lead) return <div className="p-8">Cargando...</div>;
+  // 2. ACTUALIZACIÓN DE ESTADO (PIPELINE)
+  const handleStatusChange = async (newStatus: string) => {
+    if (!lead) return;
+    setCurrentStatus(newStatus);
+    setSavingStatus(true);
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ status: newStatus })
+        .eq('id', lead.id);
+      
+      if (error) throw error;
+      setLead({ ...lead, status: newStatus });
+    } catch (error) {
+      console.error("Error actualizando estado:", error);
+      setCurrentStatus(lead.status || 'new'); // Revertir si hay error
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  // 3. ACTUALIZACIÓN DE TAREAS VINCULADAS
+  const toggleTaskStatus = async (task: AgendaItem) => {
+    const newStatus = !task.completed;
+    // Actualización optimista en UI
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: newStatus } : t));
+    try {
+      const { error } = await supabase
+        .from('agenda')
+        .update({ completed: newStatus })
+        .eq('id', task.id);
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error actualizando tarea:", error);
+      fetchLeadData(); // Recargar datos si falla
+    }
+  };
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return `${date.toLocaleDateString('es-ES')} a las ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh] text-slate-400 gap-4">
+        <Loader2 className="animate-spin" size={40} />
+        <p className="font-medium animate-pulse">Cargando perfil del cliente...</p>
+      </div>
+    );
+  }
+
+  if (!lead) {
+    return (
+      <div className="text-center py-20">
+        <h2 className="text-2xl font-bold text-slate-800">Cliente no encontrado</h2>
+        <button onClick={() => navigate('/leads')} className="mt-4 text-emerald-600 font-bold hover:underline">
+          Volver a la lista
+        </button>
+      </div>
+    );
+  }
+
+  const pendingTasks = tasks.filter(t => !t.completed);
+  const completedTasks = tasks.filter(t => t.completed);
 
   return (
-    <div className="p-8 h-full flex flex-col animate-in fade-in">
-       {/* HEADER */}
-       <div className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/leads" className="p-2 bg-white rounded-xl shadow-sm text-slate-400 hover:text-slate-800"><ChevronRight className="rotate-180" size={20}/></Link>
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-5xl mx-auto pb-10">
+      
+      {/* BOTÓN DE RETROCESO */}
+      <button 
+        onClick={() => navigate('/leads')}
+        className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+      >
+        <ArrowLeft size={16} /> Volver a Leads
+      </button>
+
+      {/* CABECERA Y DATOS PRINCIPALES */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-6 sm:p-8 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+          <div className="flex items-center gap-5">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 border border-emerald-300 flex items-center justify-center text-emerald-700 font-bold text-2xl shrink-0 shadow-sm">
+              {lead.name?.substring(0, 2).toUpperCase() || <User />}
+            </div>
             <div>
-                <h2 className="text-3xl font-black text-slate-800 tracking-tighter">{lead.firstName} {lead.lastName}</h2>
-                <div className="flex gap-4 mt-2 text-sm text-slate-500 font-medium">
-                    <span className="flex items-center gap-2 text-pine-600 bg-pine-50 px-3 py-1 rounded-full"><Phone size={14}/> {lead.phone}</span>
-                    <span className="flex items-center gap-2 text-pine-600 bg-pine-50 px-3 py-1 rounded-full"><Mail size={14}/> {lead.email}</span>
-                </div>
+              <h1 className="text-2xl sm:text-3xl font-display font-bold text-slate-900 tracking-tight">
+                {lead.name}
+              </h1>
+              {lead.company && (
+                <p className="text-slate-500 font-medium flex items-center gap-1.5 mt-1">
+                  <Building2 size={16} /> {lead.company}
+                </p>
+              )}
             </div>
           </div>
-       </div>
 
-       <div className="flex gap-8 flex-1 overflow-hidden">
-          {/* PANEL IZQUIERDO */}
-          <div className="w-1/4 bg-white p-8 rounded-4xl border border-pine-100 h-full overflow-auto shadow-sm">
-             <h3 className="uppercase text-[10px] font-black tracking-[0.2em] text-pine-600 mb-8">Info Cliente</h3>
-             <div className="space-y-4">
-                <div className="p-4 bg-pine-50 rounded-2xl">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Origen</span>
-                  <p className="font-bold text-slate-800">{lead.source || 'Directo'}</p>
-                </div>
-                <div className="p-4 bg-pine-50 rounded-2xl">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Estado Actual</span>
-                  <p className="font-bold text-pine-600">{lead.stage}</p>
-                </div>
-             </div>
+          {/* ACCIONES DE CONTACTO RÁPIDO */}
+          <div className="flex gap-3 w-full md:w-auto">
+            {lead.phone && (
+              <a href={`tel:${lead.phone}`} className="flex-1 md:flex-none p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-sm">
+                <Phone size={16} /> Llamar
+              </a>
+            )}
+            {lead.email && (
+              <a href={`mailto:${lead.email}`} className="flex-1 md:flex-none p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-sm">
+                <Mail size={16} /> Email
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* METADATOS Y ESTADO */}
+        <div className="bg-slate-50 p-6 sm:p-8 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-4 col-span-2">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Información de Contacto</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 text-sm text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
+                <Mail className="text-slate-400" size={16} />
+                <span className="truncate">{lead.email || <span className="text-slate-400 italic">No proporcionado</span>}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
+                <Phone className="text-slate-400" size={16} />
+                <span>{lead.phone || <span className="text-slate-400 italic">No proporcionado</span>}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
+                <User className="text-slate-400" size={16} />
+                <span>Origen: <strong className="font-bold">{lead.source || 'Directo'}</strong></span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
+                <CalendarIcon className="text-slate-400" size={16} />
+                <span>Creado: <strong className="font-bold">{new Date(lead.created_at).toLocaleDateString()}</strong></span>
+              </div>
+            </div>
           </div>
 
-          {/* PANEL DERECHO: TABS */}
-          <div className="flex-1 bg-white rounded-4xl border border-pine-100 h-full flex flex-col overflow-hidden shadow-sm">
-             <div className="flex bg-pine-50/50 p-2 m-4 rounded-2xl">
-                <button onClick={() => setActiveTab('agenda')} className={`flex-1 py-3 text-[10px] uppercase font-black tracking-widest rounded-xl transition-all ${activeTab === 'agenda' ? 'bg-white text-pine-900 shadow-sm' : 'text-slate-400'}`}>Historial</button>
-                <button onClick={() => setActiveTab('docs')} className={`flex-1 py-3 text-[10px] uppercase font-black tracking-widest rounded-xl transition-all ${activeTab === 'docs' ? 'bg-white text-pine-900 shadow-sm' : 'text-slate-400'}`}>Documentos</button>
-             </div>
-             
-             <div className="p-8 overflow-auto flex-1">
-                {activeTab === 'docs' ? (
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center bg-slate-900 p-6 rounded-3xl text-white">
-                      <h4 className="text-lg font-bold">{selectedDocs.length} seleccionados</h4>
-                      <button 
-                        disabled={selectedDocs.length === 0}
-                        onClick={() => setIsChannelModalOpen(true)}
-                        className="px-8 py-4 bg-pine-600 text-white rounded-2xl font-black text-xs uppercase hover:bg-emerald-500 disabled:opacity-30"
-                      >
-                        Enviar Documentos
-                      </button>
-                    </div>
-                    {allDocuments.length === 0 && <p className="text-center text-slate-400 py-10">No hay documentos disponibles. Sube archivos en Configuración.</p>}
-                    <div className="grid grid-cols-2 gap-4">
-                      {allDocuments.map(doc => (
-                        <div key={doc.id} onClick={() => toggleDocSelection(doc)} className={`p-6 rounded-3xl border-2 cursor-pointer flex items-center justify-between transition-all ${selectedDocs.find(d => d.id === doc.id) ? 'border-pine-600 bg-pine-50/50' : 'border-slate-50 bg-white'}`}>
-                          <div className="flex items-center gap-5">
-                            <div className={`p-4 rounded-2xl ${selectedDocs.find(d => d.id === doc.id) ? 'bg-pine-600 text-white' : 'bg-slate-100 text-slate-400'}`}><FileText size={24}/></div>
-                            <p className="font-black text-slate-800 text-sm">{doc.name}</p>
-                          </div>
-                          {selectedDocs.find(d => d.id === doc.id) && <CheckCircle2 className="text-pine-600" size={24}/>}
-                        </div>
-                      ))}
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Estado en el Pipeline</h3>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative">
+              <select
+                value={currentStatus}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                disabled={savingStatus}
+                className={`w-full p-2.5 rounded-lg border text-sm font-bold transition-all outline-none appearance-none cursor-pointer ${savingStatus ? 'opacity-50' : 'hover:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20'}`}
+              >
+                {STATUS_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              {savingStatus && <Save className="absolute right-6 top-1/2 -translate-y-1/2 text-emerald-600 animate-pulse" size={16} />}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* AGENDA VINCULADA */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <Clock className="text-emerald-500" size={20} /> Historial y Tareas
+          </h2>
+          {/* Aquí iría un botón para abrir un modal de 'Nueva Tarea' pre-vinculada a este cliente */}
+          <button className="text-sm font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors">
+            + Agendar Tarea
+          </button>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          {tasks.length === 0 ? (
+            <div className="p-10 text-center flex flex-col items-center justify-center text-slate-500">
+              <CalendarIcon size={40} className="text-slate-300 mb-3" />
+              <p className="font-medium">No hay tareas asociadas a este cliente.</p>
+              <p className="text-sm opacity-70">Crea una llamada o visita para empezar el seguimiento.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {pendingTasks.map(task => (
+                <div key={task.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors group">
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => toggleTaskStatus(task)}
+                      className="text-slate-300 hover:text-emerald-500 transition-colors"
+                    >
+                      <Circle size={24} />
+                    </button>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-200 mb-1 inline-block">
+                        {task.type}
+                      </span>
+                      <p className="font-bold text-slate-800 text-sm">{task.title}</p>
+                      <p className={`text-xs mt-0.5 ${new Date(task.due_date) < new Date() ? 'text-red-500 font-bold' : 'text-slate-500'}`}>
+                        {formatDateTime(task.due_date)}
+                      </p>
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-6">
-                    {events.map(e => (
-                      <div key={e.id} className="relative pl-8 border-l-2 border-pine-100 pb-6">
-                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-4 border-pine-600"></div>
-                        <span className="text-[10px] font-black uppercase text-pine-600 bg-pine-50 px-3 py-1 rounded-lg">{e.type}</span>
-                        <p className="font-semibold text-slate-700 text-sm mt-2">{e.description}</p>
-                        <p className="text-[10px] text-slate-400 mt-1">{new Date(e.date).toLocaleString()}</p>
+                </div>
+              ))}
+
+              {completedTasks.length > 0 && (
+                <div className="bg-slate-50/50">
+                  <div className="px-4 py-2 bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Completadas ({completedTasks.length})
+                  </div>
+                  {completedTasks.map(task => (
+                    <div key={task.id} className="p-4 flex items-center justify-between opacity-60 hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-4">
+                        <button 
+                          onClick={() => toggleTaskStatus(task)}
+                          className="text-emerald-500 hover:text-slate-400 transition-colors"
+                        >
+                          <CheckCircle2 size={24} />
+                        </button>
+                        <div>
+                          <p className="font-medium text-slate-700 line-through text-sm">{task.title}</p>
+                          <p className="text-xs text-slate-500">{task.type} • {formatDateTime(task.due_date)}</p>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-             </div>
-          </div>
-       </div>
-
-       {/* MODAL 1: SELECCIÓN DE CANAL */}
-       {isChannelModalOpen && (
-         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-           <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in">
-              <div className="p-8 border-b border-slate-50 flex justify-between items-center">
-                <h3 className="font-bold text-xl">Enviar Documentación</h3>
-                <button onClick={() => setIsChannelModalOpen(false)}><X/></button>
-              </div>
-              <div className="p-8 space-y-4">
-                <button onClick={handleSendWhatsApp} className="w-full flex items-center gap-4 p-6 rounded-3xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all">
-                  <MessageCircle size={24}/> <span className="font-bold uppercase text-xs">Enviar por WhatsApp</span>
-                </button>
-                <button onClick={openEmailComposer} className="w-full flex items-center gap-4 p-6 rounded-3xl bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-600 hover:text-white transition-all">
-                  <Mail size={24}/> <span className="font-bold uppercase text-xs">Previsualizar Email</span>
-                </button>
-              </div>
-           </div>
-         </div>
-       )}
-
-       {/* MODAL 2: PREVISUALIZACIÓN Y ENVÍO DE EMAIL */}
-       {isEmailComposerOpen && (
-         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-           <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 flex flex-col max-h-[90vh]">
-              {/* Header Modal */}
-              <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50 shrink-0">
-                <div>
-                  <h3 className="font-bold text-xl text-slate-900">Previsualización del Correo</h3>
-                  <p className="text-xs text-slate-500 font-medium">Destinatario: {lead.email}</p>
-                </div>
-                <button onClick={() => setIsEmailComposerOpen(false)} className="p-2 hover:bg-white rounded-xl transition-colors"><X/></button>
-              </div>
-
-              {/* Body Modal (Scrollable) */}
-              <div className="p-8 space-y-6 overflow-y-auto">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Asunto (Fijo)</label>
-                  <input 
-                    className="w-full p-4 bg-slate-100 text-slate-500 rounded-2xl border-none outline-none font-bold cursor-not-allowed"
-                    value={emailData.subject}
-                    readOnly
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mensaje Personalizado</label>
-                  <textarea 
-                    rows={6}
-                    className="w-full p-6 bg-slate-50 rounded-3xl border-none outline-none focus:ring-2 focus:ring-blue-500/20 font-medium text-slate-600 text-sm leading-relaxed resize-none"
-                    value={emailData.body}
-                    onChange={(e) => setEmailData({...emailData, body: e.target.value})}
-                  />
-                </div>
-                
-                {/* Bloque Visual de Adjuntos */}
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Documentación a adjuntar automáticamente</label>
-                    <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100">
-                        <div className="flex items-center gap-2 mb-3 text-blue-700 font-bold text-xs uppercase border-b border-blue-100 pb-2">
-                            <LinkIcon size={14}/> {selectedDocs.length} Enlaces se añadirán al final del correo
-                        </div>
-                        <ul className="space-y-2">
-                            {selectedDocs.map(doc => (
-                                <li key={doc.id} className="flex items-center gap-3 text-xs text-slate-600 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
-                                    <FileText size={14} className="text-blue-400"/>
-                                    <span className="font-semibold truncate">{doc.name}</span>
-                                </li>
-                            ))}
-                        </ul>
                     </div>
+                  ))}
                 </div>
-
-                <button 
-                  onClick={handleFinalEmailSend}
-                  disabled={isSending}
-                  className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50 shrink-0"
-                >
-                  {isSending ? <Loader2 className="animate-spin" size={18}/> : <><Send size={18}/> Enviar Email Definitivo</>}
-                </button>
-              </div>
-           </div>
-         </div>
-       )}
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
