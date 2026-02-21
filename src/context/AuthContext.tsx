@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
+import { Loader2 } from 'lucide-react'; // Importamos el icono de carga
 
 // Definimos un tipo para el perfil del usuario basado en tu tabla de base de datos
 interface Profile {
@@ -48,12 +49,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // 1. Obtener la sesión activa al cargar la app
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchProfile(session.user.id);
+        }
+      })
+      .catch((error) => {
+        console.error('Error al obtener la sesión de Supabase:', error);
+      })
+      .finally(() => {
+        // Aseguramos que la carga termine SIEMPRE, haya éxito o error
+        setLoading(false);
+      });
 
     // 2. Suscribirse a cambios (Login, Logout, Cambio de Contraseña)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -99,9 +109,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshProfile
   };
 
+  // Si está cargando la sesión inicial, mostramos la pantalla de carga a nivel global
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-slate-50 font-sans">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="animate-spin text-emerald-600 h-10 w-10" />
+          <p className="text-slate-400 text-sm animate-pulse">Cargando sistema...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
