@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
-import { Loader2 } from 'lucide-react'; // Importamos el icono de carga
+import { Loader2 } from 'lucide-react';
 
 // Definimos un tipo para el perfil del usuario basado en tu tabla de base de datos
 interface Profile {
@@ -15,11 +15,11 @@ interface Profile {
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  profile: Profile | null; // Datos extendidos del usuario
+  profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<{ error: any }>;
-  refreshProfile: () => Promise<void>; // Para actualizar el nombre/foto desde Settings
+  refreshProfile: () => Promise<void>; 
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,16 +30,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Función para obtener los datos extra del perfil desde la tabla 'profiles'
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Obteniendo perfil para el usuario:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Aviso: No se pudo obtener el perfil de la base de datos:', error.message);
+        setProfile(null);
+        return; // Salimos sin lanzar el error para no bloquear el inicio
+      }
+      
       setProfile(data);
     } catch (error) {
       console.error('Error cargando el perfil del usuario:', error);
@@ -48,38 +53,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // 1. Obtener la sesión activa al cargar la app
-    supabase.auth.getSession()
-      .then(async ({ data: { session } }) => {
+    let mounted = true;
+
+    const initAuth = async () => {
+      try {
+        console.log('1. Conectando con Supabase para verificar sesión...');
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) throw error;
+
+        console.log('2. Respuesta recibida. Sesión:', data.session ? 'Activa' : 'Inexistente');
+        
+        if (mounted) {
+          setSession(data.session);
+          setUser(data.session?.user ?? null);
+          
+          if (data.session?.user) {
+            await fetchProfile(data.session.user.id);
+          }
+        }
+      } catch (error: any) {
+        console.error('❌ Error crítico al iniciar la sesión:', error.message || error);
+      } finally {
+        if (mounted) {
+          console.log('3. Carga inicial completada.');
+          setLoading(false);
+        }
+      }
+    };
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔄 Evento de Autenticación detectado:', event);
+      if (mounted) {
         setSession(session);
         setUser(session?.user ?? null);
+        
         if (session?.user) {
           await fetchProfile(session.user.id);
+        } else {
+          setProfile(null);
         }
-      })
-      .catch((error) => {
-        console.error('Error al obtener la sesión de Supabase:', error);
-      })
-      .finally(() => {
-        // Aseguramos que la carga termine SIEMPRE, haya éxito o error
+        
         setLoading(false);
-      });
-
-    // 2. Suscribirse a cambios (Login, Logout, Cambio de Contraseña)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
       }
-      
-      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // MECANISMO DE SEGURIDAD (TIMEOUT)
+    // Si después de 4 segundos Supabase no responde, forzamos la carga a false
+    const fallbackTimer = setTimeout(() => {
+      if (mounted) {
+        console.warn('⚠️ TIMEOUT: La conexión a Supabase tardó demasiado. Forzando la entrada a la app...');
+        setLoading(false);
+      }
+    }, 4000);
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      clearTimeout(fallbackTimer);
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -109,13 +143,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshProfile
   };
 
-  // Si está cargando la sesión inicial, mostramos la pantalla de carga a nivel global
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-50 font-sans">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-emerald-600 h-10 w-10" />
-          <p className="text-slate-400 text-sm animate-pulse">Cargando sistema...</p>
+          <p className="text-slate-400 text-sm animate-pulse">Conectando con la base de datos...</p>
         </div>
       </div>
     );
