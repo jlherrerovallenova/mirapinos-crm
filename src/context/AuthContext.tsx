@@ -30,6 +30,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /**
+   * Obtiene los datos de la tabla 'profiles' para el usuario autenticado.
+   * Si falla, permite continuar para no bloquear la app.
+   */
   const fetchProfile = async (userId: string) => {
     try {
       console.log('Obteniendo perfil para el usuario:', userId);
@@ -40,14 +44,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) {
+        // Si hay un error (ej. RLS o tabla no creada), informamos pero no bloqueamos
         console.warn('Aviso: No se pudo obtener el perfil de la base de datos:', error.message);
         setProfile(null);
-        return; // Salimos sin lanzar el error para no bloquear el inicio
+        return; 
       }
       
       setProfile(data);
     } catch (error) {
-      console.error('Error cargando el perfil del usuario:', error);
+      console.error('Error inesperado cargando el perfil:', error);
       setProfile(null);
     }
   };
@@ -55,6 +60,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
 
+    /**
+     * Inicialización de la sesión al cargar la app
+     */
     const initAuth = async () => {
       try {
         console.log('1. Conectando con Supabase para verificar sesión...');
@@ -62,15 +70,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) throw error;
 
-        console.log('2. Respuesta recibida. Sesión:', data.session ? 'Activa' : 'Inexistente');
-        
         if (mounted) {
-          setSession(data.session);
-          setUser(data.session?.user ?? null);
+          const currentSession = data.session;
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
           
-          if (data.session?.user) {
-            await fetchProfile(data.session.user.id);
+          if (currentSession?.user) {
+            await fetchProfile(currentSession.user.id);
           }
+          console.log('2. Respuesta recibida. Sesión:', currentSession ? 'Activa' : 'Inexistente');
         }
       } catch (error: any) {
         console.error('❌ Error crítico al iniciar la sesión:', error.message || error);
@@ -84,26 +92,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    /**
+     * Escucha cambios en el estado de autenticación (Login, Logout, Token renovado)
+     */
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('🔄 Evento de Autenticación detectado:', event);
+      
       if (mounted) {
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
         
-        if (session?.user) {
-          await fetchProfile(session.user.id);
+        if (currentSession?.user) {
+          await fetchProfile(currentSession.user.id);
         } else {
           setProfile(null);
         }
         
+        // Aseguramos que el loading termine tras un cambio de estado
         setLoading(false);
       }
     });
 
-    // MECANISMO DE SEGURIDAD (TIMEOUT)
-    // Si después de 4 segundos Supabase no responde, forzamos la carga a false
+    /**
+     * MECANISMO DE SEGURIDAD (TIMEOUT)
+     * Si tras 4 segundos no hay respuesta de red, permitimos el renderizado
+     * para que las rutas protegidas decidan si redirigir o no.
+     */
     const fallbackTimer = setTimeout(() => {
-      if (mounted) {
+      if (mounted && loading) {
         console.warn('⚠️ TIMEOUT: La conexión a Supabase tardó demasiado. Forzando la entrada a la app...');
         setLoading(false);
       }
@@ -117,16 +133,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    return await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    return { error };
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    setProfile(null);
+    return await supabase.auth.signOut();
   };
 
   const refreshProfile = async () => {
@@ -143,12 +158,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshProfile
   };
 
+  // Pantalla de carga profesional mientras se verifica la identidad
   if (loading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-slate-50 font-sans">
+      <div className="h-screen w-full flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-emerald-600 h-10 w-10" />
-          <p className="text-slate-400 text-sm animate-pulse">Conectando con la base de datos...</p>
+          <p className="text-slate-400 text-sm animate-pulse">
+            Sincronizando con Mirapinos CRM...
+          </p>
         </div>
       </div>
     );
