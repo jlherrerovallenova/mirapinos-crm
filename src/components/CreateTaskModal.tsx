@@ -1,234 +1,232 @@
 // src/components/CreateTaskModal.tsx
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, User, Search, Check } from 'lucide-react';
+import { X, Calendar, Clock, User, Save, Loader2, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import type { Database } from '../types/supabase';
 
-interface CreateTaskModalProps {
+type Lead = Database['public']['Tables']['leads']['Row'];
+
+interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  initialLeadId?: string;
 }
 
-export default function CreateTaskModal({ isOpen, onClose, onSuccess, initialLeadId }: CreateTaskModalProps) {
+export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
   const { session } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [leads, setLeads] = useState<{ id: string; name: string }[]>([]);
-  
-  // Estados del formulario
-  const [title, setTitle] = useState('');
-  const [type, setType] = useState('Llamada');
-  const [dueDate, setDueDate] = useState('');
-  const [dueTime, setDueTime] = useState('10:00');
-  const [selectedLeadId, setSelectedLeadId] = useState(initialLeadId || '');
-  
-  // Estados para el buscador de contactos
   const [searchTerm, setSearchTerm] = useState('');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
+  const [formData, setFormData] = useState({
+    title: '',
+    type: 'Llamada',
+    date: new Date().toISOString().split('T')[0],
+    time: '10:00',
+  });
+
+  // Buscar leads cuando el usuario escribe
   useEffect(() => {
-    if (isOpen) {
-      fetchLeads();
-      if (initialLeadId) setSelectedLeadId(initialLeadId);
-    }
-  }, [isOpen, initialLeadId]);
+    const delayDebounceFn = setTimeout(() => {
+      if (searchTerm.length > 2) {
+        searchLeads();
+      } else {
+        setLeads([]);
+      }
+    }, 300);
 
-  const fetchLeads = async () => {
-    const { data } = await supabase
-      .from('leads')
-      .select('id, name')
-      .order('name', { ascending: true });
-    if (data) setLeads(data);
-  };
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
+  async function searchLeads() {
+    setIsSearching(true);
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .ilike('name', `%${searchTerm}%`)
+        .limit(5);
+
+      if (error) throw error;
+      setLeads(data || []);
+    } catch (error) {
+      console.error('Error buscando leads:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!session?.user.id) return;
+    if (!session?.user.id || !formData.title) return;
 
     setLoading(true);
     try {
-      const fullDateTime = new Date(`${dueDate}T${dueTime}`).toISOString();
+      const dateTime = new Date(`${formData.date}T${formData.time}:00`).toISOString();
 
       const { error } = await supabase.from('agenda').insert([
         {
-          title,
-          type,
-          due_date: fullDateTime,
-          lead_id: selectedLeadId || null,
+          title: formData.title,
+          type: formData.type,
+          due_date: dateTime,
           user_id: session.user.id,
-          completed: false
-        }
+          lead_id: selectedLead?.id || null, // Puede ser nula si es una tarea general
+          completed: false,
+        },
       ]);
 
       if (error) throw error;
-      
+
       onSuccess();
       onClose();
-      // Limpiar formulario
-      setTitle('');
-      setSelectedLeadId('');
+      // Reset form
+      setFormData({
+        title: '',
+        type: 'Llamada',
+        date: new Date().toISOString().split('T')[0],
+        time: '10:00',
+      });
+      setSelectedLead(null);
       setSearchTerm('');
     } catch (error) {
-      console.error('Error al crear tarea:', error);
-      alert('Error al crear la tarea. Revisa los datos.');
+      console.error('Error creating task:', error);
+      alert('No se pudo crear la tarea');
     } finally {
       setLoading(false);
     }
   };
 
-  // Filtrado de clientes para el buscador
-  const filteredLeads = leads.filter(lead => 
-    lead.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const selectedLeadName = leads.find(l => l.id === selectedLeadId)?.name || '';
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-in zoom-in duration-200">
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-3xl">
-          <h2 className="text-xl font-bold text-slate-900">Nueva Acción</h2>
-          <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition-colors border border-transparent hover:border-slate-200">
-            <X size={20} className="text-slate-400" />
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+          <h2 className="text-lg font-bold text-slate-800">Nueva Tarea en Agenda</h2>
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
+            <X size={20} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Título de la tarea */}
-          <div>
-            <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Asunto de la acción</label>
-            <input
-              required
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ej: Llamar para seguimiento"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm"
-            />
-          </div>
-
-          {/* Buscador de Contacto Relacionado */}
-          <div className="relative">
-            <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Contacto Relacionado</label>
-            <div className="relative">
-              <div 
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white flex items-center justify-between cursor-pointer hover:border-slate-300 transition-all"
-              >
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <User size={16} className="text-slate-400 shrink-0" />
-                  <span className={`text-sm truncate ${selectedLeadId ? 'text-slate-900 font-medium' : 'text-slate-400'}`}>
-                    {selectedLeadName || 'Seleccionar cliente...'}
-                  </span>
+          {/* VINCULAR CLIENTE */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vincular a Cliente (Opcional)</label>
+            {selectedLead ? (
+              <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                    {selectedLead.name.substring(0,2).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-bold text-emerald-800">{selectedLead.name}</span>
                 </div>
-                <Search size={16} className="text-slate-400 shrink-0" />
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedLead(null)}
+                  className="text-emerald-600 hover:text-red-500 transition-colors"
+                >
+                  <X size={16} />
+                </button>
               </div>
-
-              {/* Menú Desplegable con Buscador */}
-              {isDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-xl z-[60] overflow-hidden animate-in slide-in-from-top-2 duration-200">
-                  <div className="p-2 border-b border-slate-100">
-                    <input
-                      autoFocus
-                      type="text"
-                      placeholder="Escribe para buscar..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500/10"
-                    />
+            ) : (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Buscar cliente por nombre..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:bg-white focus:border-emerald-500 transition-all outline-none"
+                />
+                {isSearching && <Loader2 className="absolute right-3 top-3 animate-spin text-slate-400" size={16} />}
+                
+                {leads.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+                    {leads.map(lead => (
+                      <button
+                        key={lead.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedLead(lead);
+                          setLeads([]);
+                          setSearchTerm('');
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 flex items-center gap-3 border-b border-slate-50 last:border-0"
+                      >
+                        <User size={14} className="text-slate-400" />
+                        <span className="font-medium text-slate-700">{lead.name}</span>
+                      </button>
+                    ))}
                   </div>
-                  <div className="max-h-48 overflow-y-auto">
-                    {filteredLeads.length > 0 ? (
-                      filteredLeads.map((lead) => (
-                        <div
-                          key={lead.id}
-                          onClick={() => {
-                            setSelectedLeadId(lead.id);
-                            setIsDropdownOpen(false);
-                            setSearchTerm('');
-                          }}
-                          className="px-4 py-2.5 hover:bg-emerald-50 cursor-pointer flex items-center justify-between group transition-colors"
-                        >
-                          <span className="text-sm text-slate-700 group-hover:text-emerald-700">{lead.name}</span>
-                          {selectedLeadId === lead.id && <Check size={14} className="text-emerald-500" />}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-4 py-3 text-xs text-slate-400 text-center">No se encontraron clientes</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            {/* Tipo de Acción */}
+          <div className="space-y-4">
             <div>
-              <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Tipo</label>
-              <select
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm appearance-none bg-white"
-              >
-                <option value="Llamada">📞 Llamada</option>
-                <option value="Visita">🏠 Visita</option>
-                <option value="Email">📧 Email</option>
-                <option value="Otro">📝 Otro</option>
-              </select>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">¿Qué hay que hacer?</label>
+              <input
+                required
+                placeholder="Ej: Llamar para confirmar visita..."
+                className="w-full mt-1 px-4 py-3 bg-slate-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-emerald-500 transition-all text-sm font-medium"
+                value={formData.title}
+                onChange={(e) => setFormData({...formData, title: e.target.value})}
+              />
             </div>
 
-            {/* Fecha */}
-            <div>
-              <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2 text-center">Fecha</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo</label>
+                <select
+                  className="w-full mt-1 px-4 py-3 bg-slate-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-emerald-500 transition-all text-sm font-bold text-slate-700"
+                  value={formData.type}
+                  onChange={(e) => setFormData({...formData, type: e.target.value})}
+                >
+                  <option value="Llamada">📞 Llamada</option>
+                  <option value="Email">📧 Email</option>
+                  <option value="Visita">🏠 Visita</option>
+                  <option value="Reunión">🤝 Reunión</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fecha</label>
                 <input
-                  required
                   type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm"
+                  required
+                  className="w-full mt-1 px-4 py-3 bg-slate-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-emerald-500 transition-all text-sm font-medium"
+                  value={formData.date}
+                  onChange={(e) => setFormData({...formData, date: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Hora estimada</label>
+              <div className="relative mt-1">
+                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="time"
+                  required
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-emerald-500 transition-all text-sm font-medium"
+                  value={formData.time}
+                  onChange={(e) => setFormData({...formData, time: e.target.value})}
                 />
               </div>
             </div>
           </div>
 
-          {/* Hora */}
-          <div>
-            <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Hora prevista</label>
-            <div className="relative">
-              <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                required
-                type="time"
-                value={dueTime}
-                onChange={(e) => setDueTime(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm"
-              />
-            </div>
-          </div>
-
-          {/* Botones de acción */}
-          <div className="pt-4 flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all active:scale-95"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-3 bg-slate-900 text-white font-bold rounded-xl shadow-lg hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center"
-            >
-              {loading ? 'Guardando...' : 'Crear Tarea'}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all active:scale-[0.98] shadow-lg shadow-slate-200 mt-2"
+          >
+            {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+            CREAR TAREA EN AGENDA
+          </button>
         </form>
       </div>
     </div>
