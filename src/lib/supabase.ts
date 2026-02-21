@@ -2,19 +2,23 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/supabase';
 
-const supabaseUrl = 'https://nbrbggvdtbvaoxsllemf.supabase.co';
-const supabaseAnonKey = 'sb_publishable_Xu11tC3ME-aYxuMxVrOZdw_WVrgM2mD';
+// Uso de variables de entorno para evitar conflictos con valores obsoletos
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error("Faltan las variables de entorno de Supabase. Revisa tu archivo .env");
+}
 
 export const supabase = createClient<Database>(
-  supabaseUrl, 
-  supabaseAnonKey,
+  supabaseUrl || '', 
+  supabaseAnonKey || '',
   {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true
     },
-    // Blindaje: Reintentos automáticos en caso de fallo de red
     global: {
       fetch: (url, options) => {
         return fetch(url, { ...options, keepalive: true });
