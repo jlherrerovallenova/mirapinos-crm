@@ -55,8 +55,25 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   }, [lead.id]);
 
   async function fetchDocuments() {
-    const { data } = await supabase.from('documents').select('name, url').order('created_at', { ascending: false });
-    if (data) setAvailableDocs(data);
+    try {
+      // Consultamos directamente al bucket 'documents' en el Storage
+      const { data, error } = await supabase.storage.from('documents').list();
+      
+      if (error) throw error;
+
+      if (data) {
+        const validFiles = data.filter(file => file.name !== '.emptyFolderPlaceholder');
+        
+        const docsWithUrls = validFiles.map(file => {
+          const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(file.name);
+          return { name: file.name, url: publicUrl };
+        });
+        
+        setAvailableDocs(docsWithUrls);
+      }
+    } catch (error) {
+      console.error('Error cargando documentos desde el storage:', error);
+    }
   }
 
   async function fetchHistory() {
