@@ -11,7 +11,10 @@ import {
   Loader2, 
   Camera,
   Bell,
-  Palette
+  Palette,
+  Upload,
+  Trash2,
+  FileText
 } from 'lucide-react';
 
 interface Profile {
@@ -20,6 +23,11 @@ interface Profile {
   full_name: string;
   avatar_url: string;
   role: string;
+}
+
+interface AppDocument {
+  name: string;
+  url: string;
 }
 
 export default function Settings() {
@@ -34,9 +42,15 @@ export default function Settings() {
     role: 'agent'
   });
 
+  // Estados para la gestión de documentos
+  const [documents, setDocuments] = useState<AppDocument[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(true);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+
   useEffect(() => {
     if (session?.user.id) {
       fetchProfile();
+      fetchDocuments();
     }
   }, [session]);
 
@@ -50,7 +64,6 @@ export default function Settings() {
         .single();
 
       if (error) {
-        // Si no existe el perfil, lo usamos desde la sesión
         console.warn('No se encontró perfil, usando datos de sesión.');
         setProfile(prev => ({ ...prev, id: session!.user.id, email: session!.user.email || '' }));
       } else if (data) {
@@ -63,7 +76,33 @@ export default function Settings() {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const fetchDocuments = async () => {
+    try {
+      setLoadingDocs(true);
+      // Asumimos que el bucket se llama 'documents'
+      const { data, error } = await supabase.storage.from('documents').list();
+      
+      if (error) throw error;
+
+      if (data) {
+        // Filtramos carpetas o archivos ocultos de Supabase (como .emptyFolderPlaceholder)
+        const validFiles = data.filter(file => file.name !== '.emptyFolderPlaceholder');
+        
+        const docsWithUrls = validFiles.map(file => {
+          const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(file.name);
+          return { name: file.name, url: publicUrl };
+        });
+        
+        setDocuments(docsWithUrls);
+      }
+    } catch (error) {
+      console.error('Error cargando documentos:', error);
+    } finally {
+      setLoadingDocs(false);
+    }
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session?.user.id) return;
     
@@ -85,6 +124,47 @@ export default function Settings() {
       alert('Hubo un error al guardar los cambios.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingDoc(true);
+    try {
+      const { error } = await supabase.storage
+        .from('documents')
+        .upload(file.name, file, { 
+          upsert: true // Sobrescribe si el archivo con el mismo nombre ya existe
+        });
+
+      if (error) throw error;
+      
+      fetchDocuments(); // Refrescar la lista tras subir
+    } catch (error) {
+      console.error('Error subiendo documento:', error);
+      alert('Error al subir el documento. Revisa los permisos de Supabase Storage.');
+    } finally {
+      setUploadingDoc(false);
+      if (e.target) e.target.value = ''; // Resetear el input
+    }
+  };
+
+  const handleDeleteDocument = async (fileName: string) => {
+    if (!window.confirm(`¿Estás seguro de eliminar permanentemente el documento "${fileName}"?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.storage.from('documents').remove([fileName]);
+      if (error) throw error;
+      
+      // Actualizamos el estado local para reflejar el borrado sin recargar
+      setDocuments(prev => prev.filter(doc => doc.name !== fileName));
+    } catch (error) {
+      console.error('Error eliminando documento:', error);
+      alert('Error al eliminar el documento.');
     }
   };
 
@@ -130,15 +210,17 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* COLUMNA DERECHA: FORMULARIO PRINCIPAL */}
+        {/* COLUMNA DERECHA: FORMULARIO PRINCIPAL Y DOCUMENTOS */}
         <div className="md:col-span-2 space-y-6">
+          
+          {/* SECCIÓN 1: INFORMACIÓN PERSONAL */}
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-8 border-b border-slate-100 bg-slate-50/50">
               <h2 className="text-xl font-bold text-slate-900">Información Personal</h2>
               <p className="text-sm text-slate-500 mt-1">Actualiza tu foto y nombre para que los clientes te reconozcan.</p>
             </div>
 
-            <form onSubmit={handleSave} className="p-8 space-y-8">
+            <form onSubmit={handleSaveProfile} className="p-8 space-y-8">
               
               {/* AVATAR */}
               <div className="flex items-center gap-6">
@@ -223,8 +305,73 @@ export default function Settings() {
               </div>
             </form>
           </div>
-        </div>
 
+          {/* SECCIÓN 2: GESTIÓN DE DOCUMENTOS (Funcionalidad Restaurada) */}
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Documentos del Sistema</h2>
+                <p className="text-sm text-slate-500 mt-1">Archivos disponibles para adjuntar y enviar a los clientes.</p>
+              </div>
+              
+              {/* Botón de Subida */}
+              <div>
+                <label className={`cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 ${uploadingDoc ? 'opacity-70 pointer-events-none' : ''}`}>
+                  {uploadingDoc ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                  {uploadingDoc ? 'Subiendo...' : 'Subir Documento'}
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    onChange={handleFileUpload} 
+                    disabled={uploadingDoc}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" 
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="p-8">
+              {loadingDocs ? (
+                <div className="flex justify-center items-center py-8 text-slate-400">
+                  <Loader2 className="animate-spin" size={24} />
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="text-center py-8 px-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-500 text-sm">
+                  <FileText size={32} className="mx-auto mb-3 text-slate-300" />
+                  No hay documentos almacenados en el sistema.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {documents.map((doc, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 hover:border-slate-300 transition-all bg-slate-50/50 group">
+                      <div className="flex items-center gap-4 overflow-hidden">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                          <FileText size={18} className="text-blue-600" />
+                        </div>
+                        <a 
+                          href={doc.url} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="text-sm font-bold text-slate-700 hover:text-blue-600 truncate transition-colors"
+                        >
+                          {doc.name}
+                        </a>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteDocument(doc.name)}
+                        className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        title="Eliminar documento"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   );
