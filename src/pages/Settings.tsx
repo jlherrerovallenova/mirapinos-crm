@@ -79,13 +79,11 @@ export default function Settings() {
   const fetchDocuments = async () => {
     try {
       setLoadingDocs(true);
-      // Asumimos que el bucket se llama 'documents'
       const { data, error } = await supabase.storage.from('documents').list();
       
       if (error) throw error;
 
       if (data) {
-        // Filtramos carpetas o archivos ocultos de Supabase (como .emptyFolderPlaceholder)
         const validFiles = data.filter(file => file.name !== '.emptyFolderPlaceholder');
         
         const docsWithUrls = validFiles.map(file => {
@@ -133,21 +131,28 @@ export default function Settings() {
 
     setUploadingDoc(true);
     try {
+      // 1. Limpiamos el nombre del archivo de tildes, eñes y caracteres especiales
+      const cleanFileName = file.name
+        .normalize("NFD") // Separa las letras de sus acentos
+        .replace(/[\u0300-\u036f]/g, "") // Elimina los acentos
+        .replace(/[^a-zA-Z0-9.-]/g, "_"); // Reemplaza espacios y símbolos por guiones bajos
+
+      // 2. Subimos usando el nombre limpio
       const { error } = await supabase.storage
         .from('documents')
-        .upload(file.name, file, { 
-          upsert: true // Sobrescribe si el archivo con el mismo nombre ya existe
+        .upload(cleanFileName, file, { 
+          upsert: true 
         });
 
       if (error) throw error;
       
-      fetchDocuments(); // Refrescar la lista tras subir
+      fetchDocuments();
     } catch (error) {
       console.error('Error subiendo documento:', error);
-      alert('Error al subir el documento. Revisa los permisos de Supabase Storage.');
+      alert('Error al subir el documento. Revisa la consola para más detalles.');
     } finally {
       setUploadingDoc(false);
-      if (e.target) e.target.value = ''; // Resetear el input
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -160,7 +165,6 @@ export default function Settings() {
       const { error } = await supabase.storage.from('documents').remove([fileName]);
       if (error) throw error;
       
-      // Actualizamos el estado local para reflejar el borrado sin recargar
       setDocuments(prev => prev.filter(doc => doc.name !== fileName));
     } catch (error) {
       console.error('Error eliminando documento:', error);
@@ -180,7 +184,6 @@ export default function Settings() {
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-10">
       
-      {/* HEADER */}
       <div>
         <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Configuración</h1>
         <p className="text-slate-500 mt-1">Gestiona tu cuenta, preferencias y ajustes del sistema.</p>
@@ -188,7 +191,6 @@ export default function Settings() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         
-        {/* COLUMNA IZQUIERDA: MENÚ DE NAVEGACIÓN LATERAL */}
         <div className="md:col-span-1 space-y-2">
           <button className="w-full flex items-center gap-3 px-4 py-3 bg-white text-emerald-700 font-bold rounded-xl border border-emerald-100 shadow-sm transition-all text-sm">
             <User size={18} /> Perfil del Agente
@@ -210,10 +212,8 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* COLUMNA DERECHA: FORMULARIO PRINCIPAL Y DOCUMENTOS */}
         <div className="md:col-span-2 space-y-6">
           
-          {/* SECCIÓN 1: INFORMACIÓN PERSONAL */}
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-8 border-b border-slate-100 bg-slate-50/50">
               <h2 className="text-xl font-bold text-slate-900">Información Personal</h2>
@@ -222,7 +222,6 @@ export default function Settings() {
 
             <form onSubmit={handleSaveProfile} className="p-8 space-y-8">
               
-              {/* AVATAR */}
               <div className="flex items-center gap-6">
                 <div className="relative group">
                   <div className="w-24 h-24 rounded-full bg-slate-100 border-4 border-white shadow-lg overflow-hidden flex items-center justify-center">
@@ -248,7 +247,6 @@ export default function Settings() {
                 </div>
               </div>
 
-              {/* CAMPOS DE TEXTO */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="sm:col-span-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre Completo</label>
@@ -292,7 +290,6 @@ export default function Settings() {
                 </div>
               </div>
 
-              {/* BOTÓN GUARDAR */}
               <div className="pt-4 flex justify-end">
                 <button
                   type="submit"
@@ -306,7 +303,6 @@ export default function Settings() {
             </form>
           </div>
 
-          {/* SECCIÓN 2: GESTIÓN DE DOCUMENTOS (Funcionalidad Restaurada) */}
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
@@ -314,7 +310,6 @@ export default function Settings() {
                 <p className="text-sm text-slate-500 mt-1">Archivos disponibles para adjuntar y enviar a los clientes.</p>
               </div>
               
-              {/* Botón de Subida */}
               <div>
                 <label className={`cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 ${uploadingDoc ? 'opacity-70 pointer-events-none' : ''}`}>
                   {uploadingDoc ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
