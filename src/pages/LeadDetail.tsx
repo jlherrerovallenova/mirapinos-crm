@@ -6,7 +6,6 @@ import {
   ArrowLeft, 
   Mail, 
   Phone, 
-  Building2, 
   Calendar as CalendarIcon, 
   Clock, 
   User, 
@@ -14,7 +13,8 @@ import {
   CheckCircle2, 
   Circle,
   Save,
-  Trash2
+  Pencil,
+  X
 } from 'lucide-react';
 import type { Database } from '../types/supabase';
 
@@ -38,6 +38,17 @@ export default function LeadDetail() {
   const [lead, setLead] = useState<Lead | null>(null);
   const [tasks, setTasks] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Estados para la edición de la ficha
+  const [isEditing, setIsEditing] = useState(false);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    source: 'Web'
+  });
+
   const [savingStatus, setSavingStatus] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<string>('');
 
@@ -62,6 +73,12 @@ export default function LeadDetail() {
 
       setLead(leadResponse.data);
       setCurrentStatus(leadResponse.data.status || 'new');
+      setFormData({
+        name: leadResponse.data.name || '',
+        email: leadResponse.data.email || '',
+        phone: leadResponse.data.phone || '',
+        source: leadResponse.data.source || 'Web'
+      });
       setTasks(agendaResponse.data || []);
       
     } catch (error) {
@@ -71,7 +88,33 @@ export default function LeadDetail() {
     }
   };
 
-  // 2. ACTUALIZACIÓN DE ESTADO (PIPELINE)
+  // 2. ACTUALIZACIÓN DE DATOS DEL CLIENTE
+  const handleSaveDetails = async () => {
+    if (!lead) return;
+    setSavingDetails(true);
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          source: formData.source
+        })
+        .eq('id', lead.id);
+      
+      if (error) throw error;
+      setLead({ ...lead, ...formData });
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error actualizando datos:", error);
+      alert("Error al guardar los cambios.");
+    } finally {
+      setSavingDetails(false);
+    }
+  };
+
+  // 3. ACTUALIZACIÓN DE ESTADO (PIPELINE)
   const handleStatusChange = async (newStatus: string) => {
     if (!lead) return;
     setCurrentStatus(newStatus);
@@ -92,7 +135,7 @@ export default function LeadDetail() {
     }
   };
 
-  // 3. ACTUALIZACIÓN DE TAREAS VINCULADAS
+  // 4. ACTUALIZACIÓN DE TAREAS VINCULADAS
   const toggleTaskStatus = async (task: AgendaItem) => {
     const newStatus = !task.completed;
     // Actualización optimista en UI
@@ -151,33 +194,73 @@ export default function LeadDetail() {
       {/* CABECERA Y DATOS PRINCIPALES */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-6 sm:p-8 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-5 w-full md:w-auto">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 border border-emerald-300 flex items-center justify-center text-emerald-700 font-bold text-2xl shrink-0 shadow-sm">
-              {lead.name?.substring(0, 2).toUpperCase() || <User />}
+              {(isEditing ? formData.name : lead.name)?.substring(0, 2).toUpperCase() || <User />}
             </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-display font-bold text-slate-900 tracking-tight">
-                {lead.name}
-              </h1>
-              {lead.company && (
-                <p className="text-slate-500 font-medium flex items-center gap-1.5 mt-1">
-                  <Building2 size={16} /> {lead.company}
-                </p>
+            <div className="flex-1 w-full">
+              {isEditing ? (
+                <input 
+                  type="text"
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  className="w-full text-2xl sm:text-3xl font-display font-bold text-slate-900 tracking-tight bg-slate-50 border-b-2 border-emerald-500 outline-none px-2 py-1 rounded transition-colors"
+                  placeholder="Nombre Completo"
+                />
+              ) : (
+                <h1 className="text-2xl sm:text-3xl font-display font-bold text-slate-900 tracking-tight">
+                  {lead.name}
+                </h1>
               )}
             </div>
           </div>
 
-          {/* ACCIONES DE CONTACTO RÁPIDO */}
-          <div className="flex gap-3 w-full md:w-auto">
-            {lead.phone && (
-              <a href={`tel:${lead.phone}`} className="flex-1 md:flex-none p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-sm">
-                <Phone size={16} /> Llamar
-              </a>
-            )}
-            {lead.email && (
-              <a href={`mailto:${lead.email}`} className="flex-1 md:flex-none p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-sm">
-                <Mail size={16} /> Email
-              </a>
+          {/* ACCIONES DE CONTACTO RÁPIDO Y EDICIÓN */}
+          <div className="flex flex-wrap gap-3 w-full md:w-auto">
+            {isEditing ? (
+              <>
+                <button 
+                  onClick={() => {
+                    setIsEditing(false);
+                    setFormData({
+                      name: lead.name || '',
+                      email: lead.email || '',
+                      phone: lead.phone || '',
+                      source: lead.source || 'Web'
+                    });
+                  }} 
+                  className="flex-1 md:flex-none p-2.5 px-4 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all font-bold text-sm flex items-center justify-center gap-2"
+                >
+                  <X size={16} /> Cancelar
+                </button>
+                <button 
+                  onClick={handleSaveDetails}
+                  disabled={savingDetails}
+                  className="flex-1 md:flex-none p-2.5 px-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-bold text-sm shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {savingDetails ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} 
+                  Guardar
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  onClick={() => setIsEditing(true)}
+                  className="flex-1 md:flex-none p-3 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-sm"
+                >
+                  <Pencil size={16} /> Editar
+                </button>
+                {lead.phone && (
+                  <a href={`tel:${lead.phone}`} className="flex-1 md:flex-none p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-sm">
+                    <Phone size={16} /> Llamar
+                  </a>
+                )}
+                {lead.email && (
+                  <a href={`mailto:${lead.email}`} className="flex-1 md:flex-none p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-sm">
+                    <Mail size={16} /> Email
+                  </a>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -187,22 +270,66 @@ export default function LeadDetail() {
           <div className="space-y-4 col-span-2">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Información de Contacto</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              
               <div className="flex items-center gap-3 text-sm text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
-                <Mail className="text-slate-400" size={16} />
-                <span className="truncate">{lead.email || <span className="text-slate-400 italic">No proporcionado</span>}</span>
+                <Mail className="text-slate-400 shrink-0" size={16} />
+                {isEditing ? (
+                  <input 
+                    type="email"
+                    value={formData.email}
+                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    className="w-full bg-slate-50 border-b-2 border-emerald-500 outline-none px-2 py-1 rounded font-medium"
+                    placeholder="correo@ejemplo.com"
+                  />
+                ) : (
+                  <span className="truncate w-full">{lead.email || <span className="text-slate-400 italic">No proporcionado</span>}</span>
+                )}
               </div>
+
               <div className="flex items-center gap-3 text-sm text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
-                <Phone className="text-slate-400" size={16} />
-                <span>{lead.phone || <span className="text-slate-400 italic">No proporcionado</span>}</span>
+                <Phone className="text-slate-400 shrink-0" size={16} />
+                {isEditing ? (
+                  <input 
+                    type="tel"
+                    value={formData.phone}
+                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                    className="w-full bg-slate-50 border-b-2 border-emerald-500 outline-none px-2 py-1 rounded font-medium"
+                    placeholder="600 000 000"
+                  />
+                ) : (
+                  <span className="w-full">{lead.phone || <span className="text-slate-400 italic">No proporcionado</span>}</span>
+                )}
               </div>
+
               <div className="flex items-center gap-3 text-sm text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
-                <User className="text-slate-400" size={16} />
-                <span>Origen: <strong className="font-bold">{lead.source || 'Directo'}</strong></span>
+                <User className="text-slate-400 shrink-0" size={16} />
+                {isEditing ? (
+                  <div className="flex items-center gap-2 w-full">
+                    <span className="whitespace-nowrap">Origen:</span>
+                    <select 
+                      value={formData.source}
+                      onChange={e => setFormData({...formData, source: e.target.value})}
+                      className="w-full bg-slate-50 border-b-2 border-emerald-500 outline-none px-2 py-1 rounded font-bold cursor-pointer"
+                    >
+                      <option value="Idealista">Idealista</option>
+                      <option value="Web">Web</option>
+                      <option value="Instagram">Instagram</option>
+                      <option value="Facebook">Facebook</option>
+                      <option value="Referido">Referido</option>
+                      <option value="Llamada">Llamada</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </div>
+                ) : (
+                  <span className="w-full">Origen: <strong className="font-bold">{lead.source || 'Directo'}</strong></span>
+                )}
               </div>
+
               <div className="flex items-center gap-3 text-sm text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
-                <CalendarIcon className="text-slate-400" size={16} />
-                <span>Creado: <strong className="font-bold">{new Date(lead.created_at).toLocaleDateString()}</strong></span>
+                <CalendarIcon className="text-slate-400 shrink-0" size={16} />
+                <span className="w-full">Creado: <strong className="font-bold">{new Date(lead.created_at).toLocaleDateString()}</strong></span>
               </div>
+              
             </div>
           </div>
 
