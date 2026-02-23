@@ -12,6 +12,9 @@ import {
 import emailjs from '@emailjs/browser';
 import { supabase } from '../../lib/supabase';
 
+// Importamos la imagen de la firma (asegúrate de que la ruta sea correcta según tu estructura)
+import firmaImg from '../../assets/Firma.png'; 
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -46,6 +49,23 @@ export default function EmailComposerModal({
 
   if (!isOpen) return null;
 
+  // Función para convertir la firma a Base64 para que sea visible en el email
+  const getBase64Signature = async (): Promise<string> => {
+    try {
+      const response = await fetch(firmaImg);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error("Error cargando la firma:", error);
+      return '';
+    }
+  };
+
   const toggleDoc = (doc: { name: string; url: string }) => {
     setSelectedDocs(prev => 
       prev.find(d => d.url === doc.url) 
@@ -54,7 +74,6 @@ export default function EmailComposerModal({
     );
   };
 
-  // Función para registrar el envío en la tabla sent_documents
   const saveHistory = async (sentMethod: 'email' | 'whatsapp') => {
     if (selectedDocs.length === 0) return;
 
@@ -72,7 +91,6 @@ export default function EmailComposerModal({
 
       if (error) throw error;
       
-      // Notificamos al componente padre para que refresque el historial
       if (onSentSuccess) onSentSuccess();
     } catch (error) {
       console.error('Error al guardar el historial:', error);
@@ -86,6 +104,9 @@ export default function EmailComposerModal({
 
     try {
       if (method === 'email') {
+        // Obtenemos la firma en base64
+        const base64Signature = await getBase64Signature();
+
         const htmlDocs = selectedDocs.length > 0 
           ? `<br><br><strong>Documentos adjuntos:</strong><br>` + 
             selectedDocs.map(d => 
@@ -93,12 +114,24 @@ export default function EmailComposerModal({
             ).join('<br>')
           : '';
 
+        // Construimos el cuerpo HTML incluyendo la firma al final
+        const htmlFullMessage = `
+          <div style="font-family: sans-serif; line-height: 1.5; color: #334155;">
+            ${message.replace(/\n/g, '<br>')}
+            ${htmlDocs}
+            <br><br>
+            <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+              <img src="${base64Signature}" alt="Firma Mirapinos" style="width: 200px; height: auto; display: block;" />
+            </div>
+          </div>
+        `;
+
         const templateParams = {
           to_name: leadName,
           to_email: leadEmail,
           subject: subject,
-          message: message.replace(/\n/g, '<br>'), 
-          html_docs: htmlDocs, 
+          // Enviamos el contenido procesado como HTML
+          message_html: htmlFullMessage, 
         };
 
         const result = await emailjs.send(
@@ -114,7 +147,7 @@ export default function EmailComposerModal({
           setTimeout(onClose, 2000);
         }
       } else {
-        // Lógica WhatsApp
+        // Lógica WhatsApp (se mantiene igual ya que WhatsApp no soporta firmas HTML/Base64)
         if (!leadPhone) {
           alert("El cliente no tiene teléfono configurado.");
           setLoading(false);
@@ -133,8 +166,6 @@ export default function EmailComposerModal({
         const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMsg}`;
         
         window.open(whatsappUrl, '_blank');
-        
-        // En WhatsApp registramos el historial inmediatamente al abrir la pestaña
         await saveHistory('whatsapp');
         setStatus('success');
         setTimeout(onClose, 1000);
