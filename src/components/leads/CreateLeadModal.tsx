@@ -17,7 +17,6 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
     name: '',
     email: '',
     phone: '',
-    company: '',
     source: 'Web'
   });
 
@@ -82,7 +81,6 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
           name: formData.name,
           email: formData.email || null,
           phone: formData.phone || null,
-          company: formData.company || null,
           source: formData.source,
           status: 'new'
         }]);
@@ -90,7 +88,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
       if (error) throw error;
 
       // Reset y Cierre
-      setFormData({ name: '', email: '', phone: '', company: '', source: 'Web' });
+      setFormData({ name: '', email: '', phone: '', source: 'Web' });
       onSuccess();
       onClose();
 
@@ -157,32 +155,21 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Empresa</label>
-              <input
-                type="text"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                placeholder="Opcional"
-                value={formData.company}
-                onChange={e => setFormData({...formData, company: e.target.value})}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Origen</label>
-              <select
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-slate-700 cursor-pointer"
-                value={formData.source}
-                onChange={e => setFormData({...formData, source: e.target.value})}
-              >
-                <option value="Web">Web</option>
-                <option value="Instagram">Instagram</option>
-                <option value="Facebook">Facebook</option>
-                <option value="Referido">Referido</option>
-                <option value="Llamada">Llamada</option>
-                <option value="Otro">Otro</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Origen</label>
+            <select
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-slate-700 cursor-pointer"
+              value={formData.source}
+              onChange={e => setFormData({...formData, source: e.target.value})}
+            >
+              <option value="Idealista">Idealista</option>
+              <option value="Web">Web</option>
+              <option value="Instagram">Instagram</option>
+              <option value="Facebook">Facebook</option>
+              <option value="Referido">Referido</option>
+              <option value="Llamada">Llamada</option>
+              <option value="Otro">Otro</option>
+            </select>
           </div>
 
           <div className="pt-4 flex gap-3">
