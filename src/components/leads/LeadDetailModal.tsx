@@ -43,9 +43,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     email: lead.email || '',
     phone: lead.phone || '',
     status: lead.status || 'new',
-    source: lead.source || '',
-    notes: lead.notes || '',
-    company: lead.company || ''
+    source: lead.source || 'Web',
+    notes: lead.notes || ''
   });
 
   useEffect(() => {
@@ -254,7 +253,20 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Origen</label>
                         <div className="relative">
                           <Compass className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input name="source" value={formData.source} onChange={handleChange} placeholder="Web, Insta..." className="w-full mt-1 pl-10 pr-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium border border-transparent focus:bg-white focus:border-emerald-500 transition-all" />
+                          <select 
+                            name="source" 
+                            value={formData.source} 
+                            onChange={handleChange} 
+                            className="w-full mt-1 pl-10 pr-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium border border-transparent focus:bg-white focus:border-emerald-500 transition-all appearance-none cursor-pointer text-slate-700"
+                          >
+                            <option value="Idealista">Idealista</option>
+                            <option value="Web">Web</option>
+                            <option value="Instagram">Instagram</option>
+                            <option value="Facebook">Facebook</option>
+                            <option value="Referido">Referido</option>
+                            <option value="Llamada">Llamada</option>
+                            <option value="Otro">Otro</option>
+                          </select>
                         </div>
                       </div>
                     </div>
