@@ -138,26 +138,22 @@ const Settings = () => {
   };
 
   const calculatePayments = (price: number) => {
-    const ivaRate = 0.10;
-    const priceIva = price * ivaRate;
-    const totalConIva = price + priceIva;
-    
-    // Basado en el documento "Forma pago Mirapinos.pdf"
+    const iva = price * 0.10;
+    const totalWithIva = price + iva;
     const reserva = 6000;
-    const diezPorCientoTotal = totalConIva * 0.10;
-    const pagoContrato = diezPorCientoTotal - reserva;
-    
-    const diezPorCientoAplazado = totalConIva * 0.10;
-    const cuotaMensual = diezPorCientoAplazado / 18;
-    
-    const ochentaPorCientoFinal = totalConIva * 0.80;
+    const contrato10 = (price * 0.10) - reserva;
+    const contratoIva = (price * 0.10) * 0.10;
+    const cuotas10 = price * 0.10;
+    const cuotaMensualTotal = (cuotas10 + (cuotas10 * 0.10)) / 18;
+    const escritura80 = price * 0.80;
+    const escrituraIva = escritura80 * 0.10;
 
     return {
-      totalConIva,
+      totalWithIva,
       reserva,
-      pagoContrato,
-      cuotaMensual,
-      pagoFinal: ochentaPorCientoFinal
+      contratoTotal: contrato10 + contratoIva,
+      cuotaMensualTotal,
+      escrituraTotal: escritura80 + escrituraIva
     };
   };
 
@@ -177,182 +173,167 @@ const Settings = () => {
 
       if (uploadError) throw uploadError;
 
-      setNotification({ show: true, message: 'Documento subido con éxito', type: 'success' });
+      setNotification({ show: true, message: 'Documento subido', type: 'success' });
       fetchDocuments();
     } catch (error) {
-      setNotification({ show: true, message: 'Error al subir el documento', type: 'error' });
+      setNotification({ show: true, message: 'Error al subir', type: 'error' });
     } finally {
       setUploading(false);
     }
   };
 
   const handleDeleteDocument = async (name: string) => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este documento?')) return;
+    if (!window.confirm('¿Eliminar documento?')) return;
     try {
       const { error } = await supabase.storage.from('system-documents').remove([name]);
       if (error) throw error;
-      setNotification({ show: true, message: 'Documento eliminado', type: 'success' });
       setDocuments(docs => docs.filter(d => d.name !== name));
     } catch (error) {
-      setNotification({ show: true, message: 'Error al eliminar', type: 'error' });
+      console.error(error);
     }
   };
 
-  const filteredDocs = documents.filter(doc => 
-    doc.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
-      {/* Cabecera */}
-      <div className="flex items-center justify-between">
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-100 rounded-lg">
             <SettingsIcon className="w-6 h-6 text-blue-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Panel de Configuración</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Configuración del Sistema</h1>
         </div>
         <button
           onClick={handleSaveSettings}
           disabled={loading}
-          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-all shadow-md disabled:opacity-50"
+          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-all shadow-sm disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save size={20} />}
-          Guardar Cambios
+          Guardar cambios
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Columna Izquierda: Simulador */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Lógica de Forma de Pago PREVIA al resto */}
+        <div className="xl:col-span-2 space-y-6">
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-2 mb-6 text-blue-700">
-              <Calculator size={22} />
-              <h2 className="text-xl font-bold">Cálculo de Forma de Pago</h2>
+            <div className="flex items-center gap-2 mb-6">
+              <Calculator className="text-blue-600" size={24} />
+              <h2 className="text-xl font-bold">Simulador Forma de Pago (Mirapinos)</h2>
             </div>
             
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-600 mb-2">Precio Base de la Vivienda (sin IVA)</label>
-              <div className="relative max-w-sm">
+            <div className="mb-8">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Introduzca el precio base de la vivienda</label>
+              <div className="relative max-w-xs">
                 <Euro className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input
                   type="number"
                   value={basePrice || ''}
                   onChange={(e) => setBasePrice(Number(e.target.value))}
-                  placeholder="Introduce el precio..."
-                  className="w-full pl-10 pr-4 py-3 border-2 border-blue-50 rounded-xl focus:border-blue-400 outline-none text-lg transition-all"
+                  placeholder="Ej: 395000"
+                  className="w-full pl-10 pr-4 py-3 border-2 border-blue-100 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 outline-none text-lg font-medium transition-all"
                 />
               </div>
             </div>
 
             {payments ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-500">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                  <p className="text-xs font-bold text-gray-400 uppercase">Total (IVA Incl. 10%)</p>
-                  <p className="text-xl font-bold text-gray-900">{payments.totalConIva.toLocaleString('es-ES')} €</p>
+                  <p className="text-xs text-gray-500 font-bold uppercase mb-1">Total con IVA (10%)</p>
+                  <p className="text-lg font-bold text-gray-900">{payments.totalWithIva.toLocaleString('es-ES')} €</p>
                 </div>
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                  <p className="text-xs font-bold text-blue-600 uppercase">Firma Contrato (10%)</p>
-                  <p className="text-xl font-bold text-blue-800">{payments.pagoContrato.toLocaleString('es-ES')} €</p>
-                  <p className="text-[10px] text-blue-500">Ya descontados 6.000€ de reserva</p>
+                  <p className="text-xs text-blue-600 font-bold uppercase mb-1">Contrato (10%)</p>
+                  <p className="text-lg font-bold text-blue-700">{payments.contratoTotal.toLocaleString('es-ES')} €</p>
+                  <p className="text-[10px] text-blue-500 mt-1">(-6.000€ reserva incl.)</p>
                 </div>
                 <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                  <p className="text-xs font-bold text-indigo-600 uppercase">18 Cuotas Mensuales</p>
-                  <p className="text-xl font-bold text-indigo-800">{payments.cuotaMensual.toLocaleString('es-ES', { maximumFractionDigits: 2 })} €</p>
+                  <p className="text-xs text-indigo-600 font-bold uppercase mb-1">18 Cuotas Mensuales</p>
+                  <p className="text-lg font-bold text-indigo-700">{payments.cuotaMensualTotal.toLocaleString('es-ES', { maximumFractionDigits: 2 })} €</p>
+                  <p className="text-[10px] text-indigo-500 mt-1">IVA Incluido cada mes</p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg border border-green-100">
-                  <p className="text-xs font-bold text-green-600 uppercase">Escritura Final (80%)</p>
-                  <p className="text-xl font-bold text-green-800">{payments.pagoFinal.toLocaleString('es-ES')} €</p>
+                  <p className="text-xs text-green-600 font-bold uppercase mb-1">Escritura (80%)</p>
+                  <p className="text-lg font-bold text-green-700">{payments.escrituraTotal.toLocaleString('es-ES')} €</p>
                 </div>
               </div>
             ) : (
-              <div className="py-10 text-center bg-blue-50/30 border-2 border-dashed border-blue-100 rounded-xl">
-                <p className="text-blue-400 text-sm">Introduce un importe para desglosar los pagos según la promoción Mirapinos</p>
+              <div className="py-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                <p className="text-gray-400">Introduzca un precio para ver el desglose automático de pagos</p>
               </div>
             )}
           </div>
 
-          {/* Documentos */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          {/* Documentos del Sistema */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <FileCode size={20} className="text-blue-600" />
-                Documentos del Sistema
-              </h2>
-              <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-blue-600 hover:text-white rounded-lg cursor-pointer transition-all">
+              <div>
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <FileCode size={20} className="text-blue-600" />
+                  Documentos del Sistema
+                </h2>
+              </div>
+              <label className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-100 transition-all border border-blue-200">
                 {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload size={18} />}
-                <span className="text-sm font-bold">Subir Archivo</span>
+                <span className="text-sm font-bold">Subir</span>
                 <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
               </label>
             </div>
             
-            <div className="p-4 bg-gray-50/50">
-              <div className="relative mb-4">
+            <div className="p-4 border-b border-gray-50">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
                   type="text"
-                  placeholder="Filtrar documentos..."
+                  placeholder="Buscar archivos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
-              <div className="max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                {filteredDocs.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {filteredDocs.map((doc, i) => (
-                      <div key={i} className="bg-white p-3 rounded-lg border border-gray-100 flex items-center justify-between group shadow-sm">
-                        <div className="flex items-center gap-2 truncate">
-                          <FileText className="text-gray-400" size={18} />
-                          <span className="text-xs font-medium truncate">{doc.name}</span>
-                        </div>
-                        <div className="flex gap-1">
-                          <a href={doc.url} download className="p-1.5 text-blue-500 hover:bg-blue-50 rounded"><Download size={14} /></a>
-                          <button onClick={() => handleDeleteDocument(doc.name)} className="p-1.5 text-red-500 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
-                        </div>
-                      </div>
-                    ))}
+            </div>
+
+            <div className="p-6 bg-gray-50 max-h-[400px] overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {documents.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase())).map((doc, i) => (
+                  <div key={i} className="bg-white p-3 rounded-lg border border-gray-200 flex items-center justify-between group hover:border-blue-300 transition-all">
+                    <div className="flex items-center gap-3 truncate">
+                      <FileText className="text-blue-500 shrink-0" size={20} />
+                      <span className="text-sm font-medium truncate text-gray-700">{doc.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <a href={doc.url} download className="p-2 text-gray-400 hover:text-blue-600"><Download size={16} /></a>
+                      <button onClick={() => handleDeleteDocument(doc.name)} className="p-2 text-gray-400 hover:text-red-600"><Trash2 size={16} /></button>
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-center text-gray-400 text-sm py-4">No hay archivos coincidentes</p>
-                )}
+                ))}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Columna Derecha: Ajustes */}
+        {/* Configuración General */}
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <h2 className="text-lg font-semibold mb-4">Ajustes Generales</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Empresa</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Comercial</label>
                 <input
                   type="text"
                   value={formData.company_name}
                   onChange={(e) => setFormData({...formData, company_name: e.target.value})}
-                  className="w-full p-2 border border-gray-200 rounded-lg focus:border-blue-500 outline-none"
+                  className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <label className="flex items-center justify-between p-2 rounded hover:bg-gray-50 cursor-pointer">
-                <span className="text-sm">Notificaciones Email</span>
+              <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                <span className="text-sm text-gray-700">Notificaciones</span>
                 <input
                   type="checkbox"
                   checked={formData.email_notifications}
                   onChange={(e) => setFormData({...formData, email_notifications: e.target.checked})}
-                  className="w-4 h-4 text-blue-600 rounded"
+                  className="w-4 h-4 text-blue-600"
                 />
-              </label>
-              <label className="flex items-center justify-between p-2 rounded hover:bg-gray-50 cursor-pointer">
-                <span className="text-sm">Asignación Automática</span>
-                <input
-                  type="checkbox"
-                  checked={formData.auto_assignment}
-                  onChange={(e) => setFormData({...formData, auto_assignment: e.target.checked})}
-                  className="w-4 h-4 text-blue-600 rounded"
-                />
-              </label>
+              </div>
             </div>
           </div>
         </div>
@@ -369,4 +350,4 @@ const Settings = () => {
   );
 };
 
-export default Settings;
+export default Settings; 
