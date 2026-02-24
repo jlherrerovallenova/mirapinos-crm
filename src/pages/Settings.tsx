@@ -12,6 +12,8 @@ import {
   FileCode,
   Loader2
 } from 'lucide-react';
+// Cambiamos la importación para que sea nombrada si es necesario, 
+// o verificamos que el componente exista.
 import { AppNotification } from '../components/AppNotification';
 
 interface SystemDocument {
@@ -253,21 +255,21 @@ const Settings = () => {
             <h2 className="text-lg font-semibold mb-4">Automatización</h2>
             <div className="space-y-4">
               <label className="flex items-center justify-between cursor-pointer group">
-                <span className="text-sm text-gray-700 group-hover:text-gray-900">Notificaciones Email</span>
+                <span className="text-sm text-gray-700">Notificaciones Email</span>
                 <input
                   type="checkbox"
                   checked={formData.email_notifications}
                   onChange={(e) => setFormData({...formData, email_notifications: e.target.checked})}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 transition-all"
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
               </label>
               <label className="flex items-center justify-between cursor-pointer group">
-                <span className="text-sm text-gray-700 group-hover:text-gray-900">Asignación automática</span>
+                <span className="text-sm text-gray-700">Asignación automática</span>
                 <input
                   type="checkbox"
                   checked={formData.auto_assignment}
                   onChange={(e) => setFormData({...formData, auto_assignment: e.target.checked})}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 transition-all"
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
               </label>
             </div>
@@ -275,8 +277,8 @@ const Settings = () => {
         </div>
 
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-full">
-            <div className="p-6 border-b border-gray-100 bg-white sticky top-0 z-10">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-100 bg-white">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -302,49 +304,34 @@ const Settings = () => {
                   placeholder="Buscar documentos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
             </div>
 
-            <div className="p-6 bg-gray-50 flex-grow">
-              <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="p-6 bg-gray-50">
+              <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {filteredDocuments.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {filteredDocuments.map((doc, index) => (
                       <div 
                         key={index} 
-                        className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all group flex items-center justify-between"
+                        className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-all flex items-center justify-between"
                       >
                         <div className="flex items-center gap-3 truncate">
-                          <div className="p-2 bg-blue-50 rounded text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                          <div className="p-2 bg-blue-50 rounded text-blue-600">
                             <FileText size={20} />
                           </div>
                           <div className="truncate">
-                            <p className="text-sm font-semibold text-gray-800 truncate" title={doc.name}>
-                              {doc.name}
-                            </p>
-                            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
-                              {doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : 'Archivo'}
-                            </p>
+                            <p className="text-sm font-semibold text-gray-800 truncate">{doc.name}</p>
+                            <p className="text-[10px] text-gray-400 uppercase">{doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : 'Archivo'}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0 ml-2">
-                          <a
-                            href={doc.url}
-                            download
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Descargar"
-                          >
+                        <div className="flex items-center gap-1 shrink-0">
+                          <a href={doc.url} download target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
                             <Download size={18} />
                           </a>
-                          <button
-                            onClick={() => handleDeleteDocument(doc.name)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Eliminar"
-                          >
+                          <button onClick={() => handleDeleteDocument(doc.name)} className="p-2 text-gray-400 hover:text-red-600 transition-colors">
                             <Trash2 size={18} />
                           </button>
                         </div>
@@ -352,11 +339,8 @@ const Settings = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-200">
-                    <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <FileText className="text-gray-300" size={32} />
-                    </div>
-                    <p className="text-gray-500 font-medium">No se han encontrado documentos</p>
+                  <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-200">
+                    <p className="text-gray-500">No hay documentos cargados</p>
                   </div>
                 )}
               </div>
