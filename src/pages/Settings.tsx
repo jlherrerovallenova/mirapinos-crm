@@ -10,9 +10,7 @@ import {
   Search,
   Settings as SettingsIcon,
   FileCode,
-  Loader2,
-  Calculator,
-  Euro
+  Loader2
 } from 'lucide-react';
 import { AppNotification } from '../components/AppNotification';
 
@@ -29,7 +27,6 @@ const Settings = () => {
   const [uploading, setUploading] = useState(false);
   const [documents, setDocuments] = useState<SystemDocument[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [basePrice, setBasePrice] = useState<number>(0);
   const [notification, setNotification] = useState<{
     show: boolean;
     message: string;
@@ -137,31 +134,10 @@ const Settings = () => {
     }
   };
 
-  const calculatePayments = (price: number) => {
-    const iva = price * 0.10;
-    const totalWithIva = price + iva;
-    const reserva = 6000;
-    const contrato10 = (price * 0.10) - reserva;
-    const contratoIva = (price * 0.10) * 0.10;
-    const cuotas10 = price * 0.10;
-    const cuotaMensualTotal = (cuotas10 + (cuotas10 * 0.10)) / 18;
-    const escritura80 = price * 0.80;
-    const escrituraIva = escritura80 * 0.10;
-
-    return {
-      totalWithIva,
-      reserva,
-      contratoTotal: contrato10 + contratoIva,
-      cuotaMensualTotal,
-      escrituraTotal: escritura80 + escrituraIva
-    };
-  };
-
-  const payments = basePrice > 0 ? calculatePayments(basePrice) : null;
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       if (!e.target.files || e.target.files.length === 0) return;
+      
       setUploading(true);
       const file = e.target.files[0];
       const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
@@ -173,166 +149,216 @@ const Settings = () => {
 
       if (uploadError) throw uploadError;
 
-      setNotification({ show: true, message: 'Documento subido', type: 'success' });
+      setNotification({
+        show: true,
+        message: 'Documento subido correctamente',
+        type: 'success'
+      });
       fetchDocuments();
     } catch (error) {
-      setNotification({ show: true, message: 'Error al subir', type: 'error' });
+      setNotification({
+        show: true,
+        message: 'Error al subir el documento',
+        type: 'error'
+      });
     } finally {
       setUploading(false);
     }
   };
 
   const handleDeleteDocument = async (name: string) => {
-    if (!window.confirm('¿Eliminar documento?')) return;
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este documento?')) return;
+
     try {
-      const { error } = await supabase.storage.from('system-documents').remove([name]);
+      const { error } = await supabase.storage
+        .from('system-documents')
+        .remove([name]);
+
       if (error) throw error;
+
+      setNotification({
+        show: true,
+        message: 'Documento eliminado correctamente',
+        type: 'success'
+      });
       setDocuments(docs => docs.filter(d => d.name !== name));
     } catch (error) {
-      console.error(error);
+      setNotification({
+        show: true,
+        message: 'Error al eliminar el documento',
+        type: 'error'
+      });
     }
   };
 
+  const filteredDocuments = documents.filter(doc => 
+    doc.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-100 rounded-lg">
             <SettingsIcon className="w-6 h-6 text-blue-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Configuración del Sistema</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Configuración</h1>
+            <p className="text-sm text-gray-500">Administra las preferencias generales del sistema</p>
+          </div>
         </div>
         <button
           onClick={handleSaveSettings}
           disabled={loading}
-          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-all shadow-sm disabled:opacity-50"
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save size={20} />}
           Guardar cambios
         </button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Lógica de Forma de Pago PREVIA al resto */}
-        <div className="xl:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-2 mb-6">
-              <Calculator className="text-blue-600" size={24} />
-              <h2 className="text-xl font-bold">Simulador Forma de Pago (Mirapinos)</h2>
-            </div>
-            
-            <div className="mb-8">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Introduzca el precio base de la vivienda</label>
-              <div className="relative max-w-xs">
-                <Euro className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="number"
-                  value={basePrice || ''}
-                  onChange={(e) => setBasePrice(Number(e.target.value))}
-                  placeholder="Ej: 395000"
-                  className="w-full pl-10 pr-4 py-3 border-2 border-blue-100 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 outline-none text-lg font-medium transition-all"
-                />
-              </div>
-            </div>
-
-            {payments ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                  <p className="text-xs text-gray-500 font-bold uppercase mb-1">Total con IVA (10%)</p>
-                  <p className="text-lg font-bold text-gray-900">{payments.totalWithIva.toLocaleString('es-ES')} €</p>
-                </div>
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                  <p className="text-xs text-blue-600 font-bold uppercase mb-1">Contrato (10%)</p>
-                  <p className="text-lg font-bold text-blue-700">{payments.contratoTotal.toLocaleString('es-ES')} €</p>
-                  <p className="text-[10px] text-blue-500 mt-1">(-6.000€ reserva incl.)</p>
-                </div>
-                <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                  <p className="text-xs text-indigo-600 font-bold uppercase mb-1">18 Cuotas Mensuales</p>
-                  <p className="text-lg font-bold text-indigo-700">{payments.cuotaMensualTotal.toLocaleString('es-ES', { maximumFractionDigits: 2 })} €</p>
-                  <p className="text-[10px] text-indigo-500 mt-1">IVA Incluido cada mes</p>
-                </div>
-                <div className="p-4 bg-green-50 rounded-lg border border-green-100">
-                  <p className="text-xs text-green-600 font-bold uppercase mb-1">Escritura (80%)</p>
-                  <p className="text-lg font-bold text-green-700">{payments.escrituraTotal.toLocaleString('es-ES')} €</p>
-                </div>
-              </div>
-            ) : (
-              <div className="py-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                <p className="text-gray-400">Introduzca un precio para ver el desglose automático de pagos</p>
-              </div>
-            )}
-          </div>
-
-          {/* Documentos del Sistema */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <FileCode size={20} className="text-blue-600" />
-                  Documentos del Sistema
-                </h2>
-              </div>
-              <label className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-100 transition-all border border-blue-200">
-                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload size={18} />}
-                <span className="text-sm font-bold">Subir</span>
-                <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-              </label>
-            </div>
-            
-            <div className="p-4 border-b border-gray-50">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Buscar archivos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="p-6 bg-gray-50 max-h-[400px] overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {documents.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase())).map((doc, i) => (
-                  <div key={i} className="bg-white p-3 rounded-lg border border-gray-200 flex items-center justify-between group hover:border-blue-300 transition-all">
-                    <div className="flex items-center gap-3 truncate">
-                      <FileText className="text-blue-500 shrink-0" size={20} />
-                      <span className="text-sm font-medium truncate text-gray-700">{doc.name}</span>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <a href={doc.url} download className="p-2 text-gray-400 hover:text-blue-600"><Download size={16} /></a>
-                      <button onClick={() => handleDeleteDocument(doc.name)} className="p-2 text-gray-400 hover:text-red-600"><Trash2 size={16} /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Configuración General */}
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h2 className="text-lg font-semibold mb-4">Ajustes Generales</h2>
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <SettingsIcon size={18} className="text-gray-500" />
+              General
+            </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Comercial</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Empresa</label>
                 <input
                   type="text"
                   value={formData.company_name}
                   onChange={(e) => setFormData({...formData, company_name: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  placeholder="Ej: Mirapinos"
                 />
               </div>
-              <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                <span className="text-sm text-gray-700">Notificaciones</span>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Idioma del Sistema</label>
+                <select 
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={formData.default_language}
+                  onChange={(e) => setFormData({...formData, default_language: e.target.value})}
+                >
+                  <option value="es">Español</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <h2 className="text-lg font-semibold mb-4">Automatización</h2>
+            <div className="space-y-4">
+              <label className="flex items-center justify-between cursor-pointer group">
+                <span className="text-sm text-gray-700 group-hover:text-gray-900">Notificaciones Email</span>
                 <input
                   type="checkbox"
                   checked={formData.email_notifications}
                   onChange={(e) => setFormData({...formData, email_notifications: e.target.checked})}
-                  className="w-4 h-4 text-blue-600"
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 transition-all"
                 />
+              </label>
+              <label className="flex items-center justify-between cursor-pointer group">
+                <span className="text-sm text-gray-700 group-hover:text-gray-900">Asignación automática</span>
+                <input
+                  type="checkbox"
+                  checked={formData.auto_assignment}
+                  onChange={(e) => setFormData({...formData, auto_assignment: e.target.checked})}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 transition-all"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-full">
+            <div className="p-6 border-b border-gray-100 bg-white sticky top-0 z-10">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <FileCode size={20} className="text-blue-600" />
+                    Documentos del Sistema
+                  </h2>
+                  <p className="text-sm text-gray-500">Gestiona las plantillas para el equipo</p>
+                </div>
+                
+                <label className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all ${
+                  uploading ? 'bg-gray-50 text-gray-400 border-gray-200' : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
+                }`}>
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload size={18} />}
+                  <span className="font-medium text-sm">{uploading ? 'Subiendo...' : 'Subir archivo'}</span>
+                  <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+                </label>
+              </div>
+
+              <div className="mt-6 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Buscar documentos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="p-6 bg-gray-50 flex-grow">
+              <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                {filteredDocuments.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredDocuments.map((doc, index) => (
+                      <div 
+                        key={index} 
+                        className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all group flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3 truncate">
+                          <div className="p-2 bg-blue-50 rounded text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                            <FileText size={20} />
+                          </div>
+                          <div className="truncate">
+                            <p className="text-sm font-semibold text-gray-800 truncate" title={doc.name}>
+                              {doc.name}
+                            </p>
+                            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                              {doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : 'Archivo'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                          <a
+                            href={doc.url}
+                            download
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Descargar"
+                          >
+                            <Download size={18} />
+                          </a>
+                          <button
+                            onClick={() => handleDeleteDocument(doc.name)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-200">
+                    <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FileText className="text-gray-300" size={32} />
+                    </div>
+                    <p className="text-gray-500 font-medium">No se han encontrado documentos</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -350,4 +376,4 @@ const Settings = () => {
   );
 };
 
-export default Settings; 
+export default Settings;
