@@ -1,5 +1,6 @@
 // src/pages/Leads.tsx
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Search, 
@@ -48,12 +49,13 @@ const getStatusBadge = (status: Lead['status']) => {
 };
 
 export default function Leads() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [availableDocs, setAvailableDocs] = useState<{name: string, url: string}[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Estados de Búsqueda y Filtros
-  const [searchTerm, setSearchTerm] = useState('');
+  // Estados de Búsqueda y Filtros sincronizados con la URL
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [sourceFilter, setSourceFilter] = useState<string>('');
   
@@ -75,6 +77,18 @@ export default function Leads() {
     type: 'success' | 'error' | 'info';
   }>({ show: false, title: '', message: '', type: 'success' });
 
+  // Sincronizar el estado interno si la URL cambia (ej. al usar el buscador global)
+  useEffect(() => {
+    const query = searchParams.get('search');
+    if (query !== null && query !== searchTerm) {
+      setSearchTerm(query);
+      setPage(1);
+    } else if (query === null && searchTerm !== '') {
+      setSearchTerm('');
+      setPage(1);
+    }
+  }, [searchParams]);
+
   // Recargar datos cuando cambia la página, la búsqueda o los filtros
   useEffect(() => {
     fetchLeads();
@@ -93,7 +107,6 @@ export default function Leads() {
     try {
       setLoading(true);
       
-      // Calcular rango para paginación
       const from = (page - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
 
@@ -102,7 +115,6 @@ export default function Leads() {
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false });
 
-      // Aplicar filtros acumulativos
       if (searchTerm) {
         query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
       }
@@ -115,7 +127,6 @@ export default function Leads() {
         query = query.ilike('source', `%${sourceFilter}%`);
       }
 
-      // Ejecutar consulta con paginación
       const { data, error, count } = await query.range(from, to);
 
       if (error) throw error;
@@ -146,8 +157,17 @@ export default function Leads() {
   };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setPage(1); // Resetear a página 1 al buscar
+    const value = e.target.value;
+    setSearchTerm(value);
+    setPage(1);
+    
+    // Actualizar la URL
+    if (value) {
+      searchParams.set('search', value);
+    } else {
+      searchParams.delete('search');
+    }
+    setSearchParams(searchParams, { replace: true });
   };
 
   const clearFilters = () => {
@@ -155,6 +175,10 @@ export default function Leads() {
     setStatusFilter('');
     setSourceFilter('');
     setPage(1);
+    
+    // Limpiar URL
+    searchParams.delete('search');
+    setSearchParams(searchParams, { replace: true });
   };
 
   const hasActiveFilters = searchTerm !== '' || statusFilter !== '' || sourceFilter !== '';
