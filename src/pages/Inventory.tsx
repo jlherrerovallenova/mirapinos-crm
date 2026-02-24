@@ -1,5 +1,6 @@
 // src/pages/Inventory.tsx
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Search, 
@@ -19,11 +20,24 @@ import type { Database } from '../types/supabase';
 type Property = Database['public']['Tables']['inventory']['Row'];
 
 export default function Inventory() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Inicializamos el valor utilizando la URL
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [filterType, setFilterType] = useState<string>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Sincronizar el estado interno si la URL cambia
+  useEffect(() => {
+    const query = searchParams.get('search');
+    if (query !== null && query !== searchTerm) {
+      setSearchTerm(query);
+    } else if (query === null && searchTerm !== '') {
+      setSearchTerm('');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchProperties();
@@ -45,6 +59,19 @@ export default function Inventory() {
       setLoading(false);
     }
   }
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    
+    // Actualizar la URL dinámicamente
+    if (value) {
+      searchParams.set('search', value);
+    } else {
+      searchParams.delete('search');
+    }
+    setSearchParams(searchParams, { replace: true });
+  };
 
   const filteredProperties = properties.filter(prop => {
     const matchesSearch = (prop.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
@@ -85,7 +112,7 @@ export default function Inventory() {
             placeholder="Buscar por título o ubicación..."
             className="w-full pl-12 pr-4 py-4 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none shadow-sm"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearch}
           />
         </div>
         <div className="flex gap-2">
