@@ -1,7 +1,8 @@
 // src/layouts/MainLayout.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { AppNotification } from '../components/AppNotification';
 import { 
   LayoutDashboard, 
   Users, 
@@ -20,6 +21,11 @@ export default function MainLayout() {
   const { session, loading, signOut } = useAuth();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // Estados para el buscador y notificaciones
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationData, setNotificationData] = useState({ title: '', message: '', type: 'info' as 'success' | 'error' | 'info' });
 
   // 1. PANTALLA DE CARGA
   if (loading) {
@@ -41,11 +47,45 @@ export default function MainLayout() {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
 
+  // Manejador del buscador
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) return;
+    
+    // Aquí podrías redirigir a una página de resultados o filtrar una lista global
+    setNotificationData({
+      title: "Búsqueda activada",
+      message: `Buscando "${searchTerm}" en el sistema...`,
+      type: 'info'
+    });
+    setShowNotification(true);
+  };
+
+  // Manejador de notificaciones
+  const handleBellClick = () => {
+    setNotificationData({
+      title: "Notificaciones",
+      message: "No tienes avisos pendientes en este momento.",
+      type: 'info'
+    });
+    setShowNotification(true);
+  };
+
   // 3. APP PRINCIPAL
   return (
     <div className="flex h-screen bg-slate-100 font-sans text-slate-900 overflow-hidden">
       
-      {/* OVERLAY PARA MÓVIL: Se muestra cuando el menú está abierto en pantallas pequeñas */}
+      {/* Componente de Notificación Global */}
+      {showNotification && (
+        <AppNotification 
+          title={notificationData.title}
+          message={notificationData.message}
+          type={notificationData.type}
+          onClose={() => setShowNotification(false)}
+        />
+      )}
+
+      {/* OVERLAY PARA MÓVIL */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-slate-900/50 z-30 lg:hidden backdrop-blur-sm"
@@ -68,7 +108,6 @@ export default function MainLayout() {
             </div>
             <span className="text-white font-display font-bold text-lg tracking-tight">Mirapinos</span>
           </div>
-          {/* Botón para cerrar en móvil */}
           <button onClick={closeSidebar} className="lg:hidden text-slate-400 hover:text-white">
             <X size={20} />
           </button>
@@ -113,7 +152,6 @@ export default function MainLayout() {
         {/* Header */}
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm z-10 flex-shrink-0">
           <div className="flex items-center gap-4">
-             {/* Botón Hamburguesa para abrir el menú */}
              <button 
                onClick={toggleSidebar} 
                className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
@@ -129,16 +167,24 @@ export default function MainLayout() {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
-            <div className="relative hidden md:block">
+            {/* Buscador Funcional */}
+            <form onSubmit={handleSearch} className="relative hidden md:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input 
                 type="text" 
-                placeholder="Buscar..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar clientes o propiedades..." 
                 className="pl-9 pr-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all w-48 lg:w-64 placeholder:text-slate-400 font-medium"
               />
-            </div>
+            </form>
             <div className="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div>
-            <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg relative transition-colors">
+            
+            {/* Botón de Campana Funcional */}
+            <button 
+              onClick={handleBellClick}
+              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg relative transition-colors"
+            >
               <Bell size={20} />
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
             </button>
