@@ -9,9 +9,12 @@ import {
   Download, 
   Search,
   Settings as SettingsIcon,
-  FileCode
+  FileCode,
+  Loader2
 } from 'lucide-react';
-import AppNotification from '../components/AppNotification';
+// Cambiamos la importación para que sea nombrada si es necesario, 
+// o verificamos que el componente exista.
+import { AppNotification } from '../components/AppNotification';
 
 interface SystemDocument {
   name: string;
@@ -37,15 +40,42 @@ const Settings = () => {
   });
 
   const [formData, setFormData] = useState({
-    company_name: 'Mirapinos CRM',
+    company_name: '',
     email_notifications: true,
     auto_assignment: false,
     default_language: 'es'
   });
 
   useEffect(() => {
-    fetchDocuments();
-  }, []);
+    if (user) {
+      fetchSettings();
+      fetchDocuments();
+    }
+  }, [user]);
+
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('settings')
+        .select('*')
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      if (data) {
+        setFormData({
+          company_name: data.company_name || '',
+          email_notifications: data.email_notifications ?? true,
+          auto_assignment: data.auto_assignment ?? false,
+          default_language: data.default_language || 'es'
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchDocuments = async () => {
     try {
@@ -77,19 +107,47 @@ const Settings = () => {
     }
   };
 
+  const handleSaveSettings = async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('settings')
+        .upsert({ 
+          id: 1,
+          ...formData,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      setNotification({
+        show: true,
+        message: 'Configuración guardada correctamente',
+        type: 'success'
+      });
+    } catch (error) {
+      setNotification({
+        show: true,
+        message: 'Error al guardar la configuración',
+        type: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       if (!e.target.files || e.target.files.length === 0) return;
       
       setUploading(true);
       const file = e.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+      const fileName = `${Date.now()}_${cleanName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('system-documents')
-        .upload(filePath, file);
+        .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
@@ -125,7 +183,7 @@ const Settings = () => {
         message: 'Documento eliminado correctamente',
         type: 'success'
       });
-      fetchDocuments();
+      setDocuments(docs => docs.filter(d => d.name !== name));
     } catch (error) {
       setNotification({
         show: true,
@@ -146,19 +204,22 @@ const Settings = () => {
           <div className="p-2 bg-blue-100 rounded-lg">
             <SettingsIcon className="w-6 h-6 text-blue-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Configuración</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Configuración</h1>
+            <p className="text-sm text-gray-500">Administra las preferencias generales del sistema</p>
+          </div>
         </div>
         <button
-          onClick={() => setNotification({ show: true, message: 'Configuración guardada', type: 'success' })}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          onClick={handleSaveSettings}
+          disabled={loading}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
         >
-          <Save size={20} />
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save size={20} />}
           Guardar cambios
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Panel Izquierdo: General */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -172,11 +233,12 @@ const Settings = () => {
                   type="text"
                   value={formData.company_name}
                   onChange={(e) => setFormData({...formData, company_name: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  placeholder="Ej: Mirapinos"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Idioma por defecto</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Idioma del Sistema</label>
                 <select 
                   className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   value={formData.default_language}
@@ -184,16 +246,15 @@ const Settings = () => {
                 >
                   <option value="es">Español</option>
                   <option value="en">English</option>
-                  <option value="fr">Français</option>
                 </select>
               </div>
             </div>
           </div>
 
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h2 className="text-lg font-semibold mb-4">Preferencias</h2>
+            <h2 className="text-lg font-semibold mb-4">Automatización</h2>
             <div className="space-y-4">
-              <label className="flex items-center justify-between cursor-pointer">
+              <label className="flex items-center justify-between cursor-pointer group">
                 <span className="text-sm text-gray-700">Notificaciones Email</span>
                 <input
                   type="checkbox"
@@ -202,7 +263,7 @@ const Settings = () => {
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
               </label>
-              <label className="flex items-center justify-between cursor-pointer">
+              <label className="flex items-center justify-between cursor-pointer group">
                 <span className="text-sm text-gray-700">Asignación automática</span>
                 <input
                   type="checkbox"
@@ -215,31 +276,27 @@ const Settings = () => {
           </div>
         </div>
 
-        {/* Panel Derecho: Documentos del Sistema */}
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-100 bg-white">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold flex items-center gap-2">
                     <FileCode size={20} className="text-blue-600" />
                     Documentos del Sistema
                   </h2>
-                  <p className="text-sm text-gray-500">Gestiona las plantillas y archivos públicos</p>
+                  <p className="text-sm text-gray-500">Gestiona las plantillas para el equipo</p>
                 </div>
                 
-                <label className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-lg cursor-pointer border border-gray-300 transition-colors">
-                  {uploading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent" />
-                  ) : (
-                    <Upload size={18} />
-                  )}
-                  <span>Subir Documento</span>
+                <label className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer border transition-all ${
+                  uploading ? 'bg-gray-50 text-gray-400 border-gray-200' : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
+                }`}>
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload size={18} />}
+                  <span className="font-medium text-sm">{uploading ? 'Subiendo...' : 'Subir archivo'}</span>
                   <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
                 </label>
               </div>
 
-              {/* Buscador de documentos */}
               <div className="mt-6 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
@@ -247,64 +304,43 @@ const Settings = () => {
                   placeholder="Buscar documentos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
             </div>
 
-            {/* Lista de Documentos con Scroll */}
             <div className="p-6 bg-gray-50">
-              <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {filteredDocuments.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {filteredDocuments.map((doc, index) => (
                       <div 
                         key={index} 
-                        className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all group"
+                        className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-all flex items-center justify-between"
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3 truncate">
-                            <div className="p-2 bg-blue-50 rounded text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                              <FileText size={20} />
-                            </div>
-                            <div className="truncate">
-                              <p className="text-sm font-medium text-gray-800 truncate" title={doc.name}>
-                                {doc.name}
-                              </p>
-                              {doc.size && (
-                                <p className="text-xs text-gray-500">
-                                  {(doc.size / 1024).toFixed(1)} KB
-                                </p>
-                              )}
-                            </div>
+                        <div className="flex items-center gap-3 truncate">
+                          <div className="p-2 bg-blue-50 rounded text-blue-600">
+                            <FileText size={20} />
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <a
-                              href={doc.url}
-                              download
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                              title="Descargar"
-                            >
-                              <Download size={16} />
-                            </a>
-                            <button
-                              onClick={() => handleDeleteDocument(doc.name)}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                              title="Eliminar"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                          <div className="truncate">
+                            <p className="text-sm font-semibold text-gray-800 truncate">{doc.name}</p>
+                            <p className="text-[10px] text-gray-400 uppercase">{doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : 'Archivo'}</p>
                           </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <a href={doc.url} download target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
+                            <Download size={18} />
+                          </a>
+                          <button onClick={() => handleDeleteDocument(doc.name)} className="p-2 text-gray-400 hover:text-red-600 transition-colors">
+                            <Trash2 size={18} />
+                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-200">
-                    <FileText className="mx-auto text-gray-300 mb-2" size={40} />
-                    <p className="text-gray-500">No se encontraron documentos</p>
+                    <p className="text-gray-500">No hay documentos cargados</p>
                   </div>
                 )}
               </div>
@@ -324,4 +360,4 @@ const Settings = () => {
   );
 };
 
-export default Settings; 
+export default Settings;
