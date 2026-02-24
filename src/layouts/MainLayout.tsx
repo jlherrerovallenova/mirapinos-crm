@@ -1,6 +1,6 @@
 // src/layouts/MainLayout.tsx
 import React, { useState, useEffect } from 'react';
-import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
+import { Outlet, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AppNotification } from '../components/AppNotification';
 import { 
@@ -20,12 +20,17 @@ import {
 export default function MainLayout() {
   const { session, loading, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Estados para el buscador y notificaciones
   const [searchTerm, setSearchTerm] = useState('');
   const [showNotification, setShowNotification] = useState(false);
-  const [notificationData, setNotificationData] = useState({ title: '', message: '', type: 'info' as 'success' | 'error' | 'info' });
+  const [notificationData, setNotificationData] = useState({ 
+    title: '', 
+    message: '', 
+    type: 'info' as 'success' | 'error' | 'info' 
+  });
 
   // 1. PANTALLA DE CARGA
   if (loading) {
@@ -47,18 +52,26 @@ export default function MainLayout() {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
 
-  // Manejador del buscador
+  // Manejador del buscador: Redirige a la sección correspondiente con el parámetro de búsqueda
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchTerm.trim()) return;
+    const query = searchTerm.trim();
     
-    // Aquí podrías redirigir a una página de resultados o filtrar una lista global
-    setNotificationData({
-      title: "Búsqueda activada",
-      message: `Buscando "${searchTerm}" en el sistema...`,
-      type: 'info'
-    });
-    setShowNotification(true);
+    if (!query) return;
+
+    // Lógica de redirección inteligente según lo que el usuario busque
+    if (location.pathname.includes('leads') || location.pathname === '/') {
+      navigate(`/leads?search=${encodeURIComponent(query)}`);
+    } else if (location.pathname.includes('inventory')) {
+      navigate(`/inventory?search=${encodeURIComponent(query)}`);
+    } else {
+      setNotificationData({
+        title: "Búsqueda",
+        message: `Buscando "${query}" en todo el sistema...`,
+        type: 'info'
+      });
+      setShowNotification(true);
+    }
   };
 
   // Manejador de notificaciones
@@ -71,11 +84,9 @@ export default function MainLayout() {
     setShowNotification(true);
   };
 
-  // 3. APP PRINCIPAL
   return (
     <div className="flex h-screen bg-slate-100 font-sans text-slate-900 overflow-hidden">
       
-      {/* Componente de Notificación Global */}
       {showNotification && (
         <AppNotification 
           title={notificationData.title}
@@ -85,7 +96,6 @@ export default function MainLayout() {
         />
       )}
 
-      {/* OVERLAY PARA MÓVIL */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-slate-900/50 z-30 lg:hidden backdrop-blur-sm"
@@ -93,14 +103,12 @@ export default function MainLayout() {
         />
       )}
 
-      {/* SIDEBAR */}
       <aside className={`
         fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col shadow-xl 
         transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         
-        {/* Logo Section */}
         <div className="h-16 flex items-center justify-between px-6 bg-slate-950 border-b border-slate-800">
           <div className="flex items-center">
             <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center text-white font-bold mr-3 shadow-lg shadow-emerald-900/20">
@@ -113,7 +121,6 @@ export default function MainLayout() {
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 mt-2">Principal</p>
           <SidebarItem to="/" icon={<LayoutDashboard size={18} />} label="Panel de Control" active={location.pathname === '/'} onClick={closeSidebar} />
@@ -125,7 +132,6 @@ export default function MainLayout() {
           <SidebarItem to="/settings" icon={<Settings size={18} />} label="Configuración" active={location.pathname === '/settings'} onClick={closeSidebar} />
         </nav>
 
-        {/* User Footer */}
         <div className="p-4 bg-slate-950 border-t border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-bold text-xs shadow-md uppercase">
@@ -146,10 +152,8 @@ export default function MainLayout() {
         </div>
       </aside>
 
-      {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
-        {/* Header */}
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm z-10 flex-shrink-0">
           <div className="flex items-center gap-4">
              <button 
@@ -162,12 +166,13 @@ export default function MainLayout() {
                {location.pathname === '/' ? 'Resumen General' : 
                 location.pathname.includes('leads') ? 'Gestión de Clientes' : 
                 location.pathname.includes('pipeline') ? 'Túnel de Ventas' :
+                location.pathname.includes('inventory') ? 'Inventario de Propiedades' :
                 'Panel de Administración'}
              </h2>
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
-            {/* Buscador Funcional */}
+            {/* Buscador con manejo de envío (Submit) */}
             <form onSubmit={handleSearch} className="relative hidden md:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input 
@@ -180,7 +185,6 @@ export default function MainLayout() {
             </form>
             <div className="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div>
             
-            {/* Botón de Campana Funcional */}
             <button 
               onClick={handleBellClick}
               className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg relative transition-colors"
@@ -191,10 +195,10 @@ export default function MainLayout() {
           </div>
         </header>
 
-        {/* Área de Scroll */}
         <div className="flex-1 overflow-auto p-4 md:p-8 bg-slate-100/50">
           <div className="max-w-7xl mx-auto pb-10">
-            <Outlet />
+            {/* Pasamos el término de búsqueda a las rutas hijas si fuera necesario */}
+            <Outlet context={{ searchTerm }} />
           </div>
         </div>
       </main>
@@ -202,7 +206,6 @@ export default function MainLayout() {
   );
 }
 
-// Componente auxiliar para items del menú
 interface SidebarItemProps {
   to: string;
   icon: React.ReactNode;
