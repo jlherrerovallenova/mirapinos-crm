@@ -213,6 +213,7 @@ export default function Dashboard() {
               isPositive={true} 
               icon={<Users className="text-slate-900" size={20} />} 
               trendIcon={false}
+              onClick={() => navigate('/leads')}
             />
             {stats.topSources.map((source, index) => (
               <StatCard 
@@ -223,6 +224,7 @@ export default function Dashboard() {
                 isPositive={true} 
                 icon={getSourceIcon(source.name)} 
                 trendIcon={true}
+                onClick={() => navigate(`/leads?source=${encodeURIComponent(source.name)}`)}
               />
             ))}
           </>
@@ -336,7 +338,7 @@ export default function Dashboard() {
               {recentLeads.map((lead) => (
                 <div 
                   key={lead.id} 
-                  onClick={() => navigate(`/leads/${lead.id}`)}
+                  onClick={() => navigate(`/leads?search=${encodeURIComponent(lead.name)}`)}
                   className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group"
                 >
                   <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs border border-slate-200 group-hover:bg-white group-hover:border-emerald-200 transition-colors">
@@ -384,9 +386,14 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ title, value, change, isPositive, icon, trendIcon = true }: any) {
+function StatCard({ title, value, change, isPositive, icon, trendIcon = true, onClick }: any) {
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+    <div 
+      onClick={onClick}
+      className={`bg-white p-6 rounded-xl shadow-sm border border-slate-200 transition-all duration-200 ${
+        onClick ? 'cursor-pointer hover:shadow-lg hover:border-emerald-200 hover:-translate-y-1' : ''
+      }`}
+    >
       <div className="flex justify-between items-start mb-4">
         <div className="p-2 bg-slate-50 rounded-lg">{icon}</div>
         {trendIcon && (
