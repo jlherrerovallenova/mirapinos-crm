@@ -56,8 +56,8 @@ export default function Leads() {
   
   // Estados de Búsqueda y Filtros sincronizados con la URL
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [sourceFilter, setSourceFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
+  const [sourceFilter, setSourceFilter] = useState<string>(searchParams.get('source') || '');
   
   // Estados de Paginación
   const [page, setPage] = useState(1);
@@ -77,16 +77,11 @@ export default function Leads() {
     type: 'success' | 'error' | 'info';
   }>({ show: false, title: '', message: '', type: 'success' });
 
-  // Sincronizar el estado interno si la URL cambia (ej. al usar el buscador global)
+  // Sincronizar el estado interno si la URL cambia (ej. al navegar desde el Dashboard)
   useEffect(() => {
-    const query = searchParams.get('search');
-    if (query !== null && query !== searchTerm) {
-      setSearchTerm(query);
-      setPage(1);
-    } else if (query === null && searchTerm !== '') {
-      setSearchTerm('');
-      setPage(1);
-    }
+    setSearchTerm(searchParams.get('search') || '');
+    setStatusFilter(searchParams.get('status') || '');
+    setSourceFilter(searchParams.get('source') || '');
   }, [searchParams]);
 
   // Recargar datos cuando cambia la página, la búsqueda o los filtros
@@ -156,18 +151,34 @@ export default function Leads() {
     setEmailLead(lead);
   };
 
+  const updateURLParams = (key: string, value: string) => {
+    if (value) {
+      searchParams.set(key, value);
+    } else {
+      searchParams.delete(key);
+    }
+    setSearchParams(searchParams, { replace: true });
+  };
+
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
     setPage(1);
-    
-    // Actualizar la URL
-    if (value) {
-      searchParams.set('search', value);
-    } else {
-      searchParams.delete('search');
-    }
-    setSearchParams(searchParams, { replace: true });
+    updateURLParams('search', value);
+  };
+
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setStatusFilter(value);
+    setPage(1);
+    updateURLParams('status', value);
+  };
+
+  const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setSourceFilter(value);
+    setPage(1);
+    updateURLParams('source', value);
   };
 
   const clearFilters = () => {
@@ -176,9 +187,8 @@ export default function Leads() {
     setSourceFilter('');
     setPage(1);
     
-    // Limpiar URL
-    searchParams.delete('search');
-    setSearchParams(searchParams, { replace: true });
+    // Limpiar todos los parámetros de la URL
+    setSearchParams({}, { replace: true });
   };
 
   const hasActiveFilters = searchTerm !== '' || statusFilter !== '' || sourceFilter !== '';
@@ -187,7 +197,6 @@ export default function Leads() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
       
-      {/* HEADER SUPERIOR Y CONTROLES */}
       <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -216,7 +225,6 @@ export default function Leads() {
           </div>
         </div>
 
-        {/* BARRA DE FILTROS Y BÚSQUEDA */}
         <div className="flex flex-col lg:flex-row gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
             <div className="relative flex-1 w-full group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={18} />
@@ -234,7 +242,7 @@ export default function Leads() {
                   <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <select
                     value={statusFilter}
-                    onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                    onChange={handleStatusChange}
                     className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none appearance-none shadow-sm cursor-pointer text-slate-700"
                   >
                     <option value="">Todos los Estados</option>
@@ -252,7 +260,7 @@ export default function Leads() {
                   <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <select
                     value={sourceFilter}
-                    onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
+                    onChange={handleSourceChange}
                     className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none appearance-none shadow-sm cursor-pointer text-slate-700"
                   >
                     <option value="">Cualquier Origen</option>
@@ -261,6 +269,7 @@ export default function Leads() {
                     <option value="Instagram">Instagram</option>
                     <option value="Facebook">Facebook</option>
                     <option value="Referido">Referido</option>
+                    {/* Añade aquí más opciones si tus widgets tienen otros nombres, como "Idealista" o "WhatsApp" */}
                   </select>
               </div>
 
@@ -277,7 +286,6 @@ export default function Leads() {
         </div>
       </div>
 
-      {/* LISTA PRINCIPAL */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center py-20 text-slate-400 gap-4">
@@ -302,7 +310,6 @@ export default function Leads() {
           </div>
         ) : (
           <div className="divide-y divide-slate-100 flex-1">
-            {/* Cabecera de tabla */}
             <div className="grid grid-cols-12 gap-4 p-4 bg-slate-50/50 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 hidden md:grid">
                 <div className="col-span-4 pl-2">Prospecto</div>
                 <div className="col-span-2">Estado</div>
@@ -311,7 +318,6 @@ export default function Leads() {
                 <div className="col-span-1 text-right pr-4">Acciones</div>
             </div>
 
-            {/* Filas */}
             {leads.map((lead) => (
               <div 
                 key={lead.id}
@@ -378,7 +384,6 @@ export default function Leads() {
           </div>
         )}
 
-        {/* --- BARRA DE PAGINACIÓN --- */}
         {totalLeads > 0 && (
           <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
             <span className="text-xs text-slate-500 font-medium">
@@ -428,7 +433,6 @@ export default function Leads() {
         )}
       </div>
 
-      {/* --- MODALES --- */}
       <ExportLeadsModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} />
       
       <CreateLeadModal 
