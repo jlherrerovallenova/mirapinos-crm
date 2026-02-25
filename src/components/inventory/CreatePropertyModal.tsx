@@ -3,14 +3,14 @@ import React, { useState } from 'react';
 import { 
   X, 
   Home, 
-  MapPin, 
+  Hash, 
+  Maximize, 
+  Ruler, 
   BedDouble, 
   Bath, 
-  Square, 
   Euro, 
   Loader2, 
-  Save,
-  Image as ImageIcon
+  Save
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -23,21 +23,19 @@ interface Props {
 export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    title: '',
-    location: '',
-    price: '',
-    type: 'house',
-    status: 'available',
-    beds: '',
-    baths: '',
-    sqft: '',
-    image_url: '',
-    description: ''
+    modelo: '1. OLIVO',
+    numero_vivienda: '',
+    superficie_parcela: '',
+    superficie_util: '',
+    superficie_construida: '',
+    habitaciones: '',
+    banos: '',
+    precio: ''
   });
 
   if (!isOpen) return null;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
@@ -46,20 +44,18 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
     setLoading(true);
 
     try {
-      // Sincronización con las columnas de la tabla inventory
+      // Sincronización con las nuevas columnas de la tabla inventory
       const { error } = await supabase
         .from('inventory')
         .insert([{
-          title: formData.title,
-          description: formData.description,
-          price: parseFloat(formData.price) || 0,
-          type: formData.type,
-          status: formData.status,
-          image_url: formData.image_url || null,
-          location: formData.location,
-          beds: parseInt(formData.beds) || 0,
-          baths: parseInt(formData.baths) || 0,
-          sqft: parseInt(formData.sqft) || 0
+          modelo: formData.modelo,
+          numero_vivienda: formData.numero_vivienda,
+          superficie_parcela: parseFloat(formData.superficie_parcela) || 0,
+          superficie_util: parseFloat(formData.superficie_util) || 0,
+          superficie_construida: parseFloat(formData.superficie_construida) || 0,
+          habitaciones: parseInt(formData.habitaciones) || 0,
+          banos: parseInt(formData.banos) || 0,
+          precio: parseFloat(formData.precio) || 0
         }]);
 
       if (error) throw error;
@@ -69,16 +65,14 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
       
       // Resetear formulario
       setFormData({
-        title: '',
-        location: '',
-        price: '',
-        type: 'house',
-        status: 'available',
-        beds: '',
-        baths: '',
-        sqft: '',
-        image_url: '',
-        description: ''
+        modelo: '1. OLIVO',
+        numero_vivienda: '',
+        superficie_parcela: '',
+        superficie_util: '',
+        superficie_construida: '',
+        habitaciones: '',
+        banos: '',
+        precio: ''
       });
     } catch (error: any) {
       console.error('Error creating property:', error);
@@ -90,7 +84,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+      <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-200">
         
         {/* Cabecera */}
         <div className="px-10 py-8 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
@@ -110,140 +104,143 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* Columna Izquierda: Identificación y Ubicación */}
-            <div className="space-y-6">
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Título del Anuncio</label>
+            {/* 1. MODELO */}
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Modelo</label>
+              <div className="relative mt-2">
+                <Home className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <select
+                  name="modelo"
+                  value={formData.modelo}
+                  onChange={handleChange}
+                  className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold appearance-none cursor-pointer text-slate-700"
+                >
+                  <option value="1. OLIVO">1. OLIVO</option>
+                  <option value="2. ARCE">2. ARCE</option>
+                </select>
+              </div>
+            </div>
+
+            {/* 2. Nº DE VIVIENDA */}
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nº de Vivienda</label>
+              <div className="relative mt-2">
+                <Hash className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input
-                  name="title"
+                  name="numero_vivienda"
                   required
-                  value={formData.title}
+                  value={formData.numero_vivienda}
                   onChange={handleChange}
-                  placeholder="Ej: Villa Lujosa con Vistas"
-                  className="w-full mt-2 px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ubicación</label>
-                <div className="relative mt-2">
-                  <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <input
-                    name="location"
-                    required
-                    value={formData.location}
-                    onChange={handleChange}
-                    placeholder="Ciudad, Zona o Calle"
-                    className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio (€)</label>
-                  <div className="relative mt-2">
-                    <Euro className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                      name="price"
-                      type="number"
-                      required
-                      value={formData.price}
-                      onChange={handleChange}
-                      placeholder="0.00"
-                      className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold transition-all"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo</label>
-                  <select
-                    name="type"
-                    value={formData.type}
-                    onChange={handleChange}
-                    className="w-full mt-2 px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold appearance-none cursor-pointer"
-                  >
-                    <option value="house">Casa</option>
-                    <option value="apartment">Apartamento</option>
-                    <option value="land">Terreno</option>
-                    <option value="commercial">Comercial</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Columna Derecha: Características */}
-            <div className="space-y-6">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Hab.</label>
-                  <div className="relative mt-2">
-                    <BedDouble className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      name="beds"
-                      type="number"
-                      value={formData.beds}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-3 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold text-center"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Baños</label>
-                  <div className="relative mt-2">
-                    <Bath className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      name="baths"
-                      type="number"
-                      value={formData.baths}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-3 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold text-center"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">m²</label>
-                  <div className="relative mt-2">
-                    <Square className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      name="sqft"
-                      type="number"
-                      value={formData.sqft}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-3 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold text-center"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">URL Imagen</label>
-                <div className="relative mt-2">
-                  <ImageIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <input
-                    name="image_url"
-                    value={formData.image_url}
-                    onChange={handleChange}
-                    placeholder="https://..."
-                    className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descripción</label>
-                <textarea
-                  name="description"
-                  rows={2}
-                  value={formData.description}
-                  onChange={handleChange}
-                  placeholder="Detalles adicionales..."
-                  className="w-full mt-2 px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all resize-none"
+                  placeholder="Ej: 14A"
+                  className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-medium transition-all"
                 />
               </div>
             </div>
+
+            {/* 3. SUPERFICIE PARCELA */}
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Superficie Parcela (m²)</label>
+              <div className="relative mt-2">
+                <Maximize className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  name="superficie_parcela"
+                  type="number"
+                  required
+                  value={formData.superficie_parcela}
+                  onChange={handleChange}
+                  placeholder="0"
+                  className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold transition-all"
+                />
+              </div>
+            </div>
+
+            {/* 4. SUPERFICIE UTIL */}
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Superficie Útil (m²)</label>
+              <div className="relative mt-2">
+                <Ruler className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  name="superficie_util"
+                  type="number"
+                  required
+                  value={formData.superficie_util}
+                  onChange={handleChange}
+                  placeholder="0"
+                  className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold transition-all"
+                />
+              </div>
+            </div>
+
+            {/* 5. SUPERFICIE CONSTRUIDA */}
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Superficie Construida (m²)</label>
+              <div className="relative mt-2">
+                <Ruler className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  name="superficie_construida"
+                  type="number"
+                  required
+                  value={formData.superficie_construida}
+                  onChange={handleChange}
+                  placeholder="0"
+                  className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold transition-all"
+                />
+              </div>
+            </div>
+
+            {/* 6. HABITACIONES */}
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Habitaciones</label>
+              <div className="relative mt-2">
+                <BedDouble className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  name="habitaciones"
+                  type="number"
+                  required
+                  value={formData.habitaciones}
+                  onChange={handleChange}
+                  placeholder="0"
+                  className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold transition-all"
+                />
+              </div>
+            </div>
+
+            {/* 7. BAÑOS */}
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Baños</label>
+              <div className="relative mt-2">
+                <Bath className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  name="banos"
+                  type="number"
+                  required
+                  value={formData.banos}
+                  onChange={handleChange}
+                  placeholder="0"
+                  className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold transition-all"
+                />
+              </div>
+            </div>
+
+            {/* 8. PRECIO */}
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio (€)</label>
+              <div className="relative mt-2">
+                <Euro className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  name="precio"
+                  type="number"
+                  required
+                  value={formData.precio}
+                  onChange={handleChange}
+                  placeholder="0.00"
+                  className="w-full pl-14 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold transition-all"
+                />
+              </div>
+            </div>
+
           </div>
 
           <div className="mt-10 pt-8 border-t border-slate-100 flex items-center justify-end gap-4">
@@ -260,7 +257,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
               className="px-10 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center gap-3 disabled:opacity-50 active:scale-95"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-              Publicar Propiedad
+              Guardar Propiedad
             </button>
           </div>
         </form>
