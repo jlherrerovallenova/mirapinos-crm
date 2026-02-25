@@ -82,35 +82,40 @@ export interface Database {
         Row: {
           id: string
           created_at: string
-          title: string
-          description: string | null
-          price: number
-          type: string | null
-          status: 'available' | 'reserved' | 'sold'
-          image_url: string | null
+          modelo: string
+          numero_vivienda: string
+          superficie_parcela: number
+          superficie_util: number
+          superficie_construida: number
+          habitaciones: number
+          banos: number
+          precio: number
         }
         Insert: {
           id?: string
           created_at?: string
-          title: string
-          description?: string | null
-          price: number
-          type?: string | null
-          status?: 'available' | 'reserved' | 'sold'
-          image_url?: string | null
+          modelo: string
+          numero_vivienda: string
+          superficie_parcela: number
+          superficie_util: number
+          superficie_construida: number
+          habitaciones: number
+          banos: number
+          precio: number
         }
         Update: {
           id?: string
           created_at?: string
-          title?: string
-          description?: string | null
-          price?: number
-          type?: string | null
-          status?: 'available' | 'reserved' | 'sold'
-          image_url?: string | null
+          modelo?: string
+          numero_vivienda?: string
+          superficie_parcela?: number
+          superficie_util?: number
+          superficie_construida?: number
+          habitaciones?: number
+          banos?: number
+          precio?: number
         }
       }
-      // TABLA AGENDA ACTUALIZADA
       agenda: {
         Row: {
           id: number
@@ -118,7 +123,7 @@ export interface Database {
           lead_id: string | null
           title: string
           type: string
-          due_date: string // Timestamp (fecha + hora)
+          due_date: string
           completed: boolean
           user_id: string | null
         }
