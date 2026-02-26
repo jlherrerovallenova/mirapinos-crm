@@ -1,10 +1,9 @@
 // src/context/AuthContext.tsx
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
 
-// Definimos un tipo para el perfil del usuario basado en tu tabla de base de datos
 interface Profile {
   id: string;
   full_name: string | null;
@@ -29,14 +28,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const isInitialMount = useRef(true);
 
-  /**
-   * Obtiene los datos de la tabla 'profiles' para el usuario autenticado.
-   * Si falla, permite continuar para no bloquear la app.
-   */
   const fetchProfile = async (userId: string) => {
     try {
-      console.log('Obteniendo perfil para el usuario:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -44,12 +39,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) {
-        // Si hay un error (ej. RLS o tabla no creada), informamos pero no bloqueamos
-        console.warn('Aviso: No se pudo obtener el perfil de la base de datos:', error.message);
+        console.warn('Aviso: Perfil no encontrado o error de RLS:', error.message);
         setProfile(null);
         return; 
       }
-      
       setProfile(data);
     } catch (error) {
       console.error('Error inesperado cargando el perfil:', error);
@@ -60,43 +53,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
 
-    /**
-     * Inicialización de la sesión al cargar la app
-     */
     const initAuth = async () => {
       try {
-        console.log('1. Conectando con Supabase para verificar sesión...');
-        const { data, error } = await supabase.auth.getSession();
+        // Intentamos obtener la sesión actual
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
         if (error) throw error;
 
         if (mounted) {
-          const currentSession = data.session;
           setSession(currentSession);
           setUser(currentSession?.user ?? null);
           
           if (currentSession?.user) {
             await fetchProfile(currentSession.user.id);
           }
-          console.log('2. Respuesta recibida. Sesión:', currentSession ? 'Activa' : 'Inexistente');
         }
       } catch (error: any) {
-        console.error('❌ Error crítico al iniciar la sesión:', error.message || error);
+        console.error('❌ Error inicializando sesión:', error.message);
       } finally {
         if (mounted) {
-          console.log('3. Carga inicial completada.');
           setLoading(false);
+          isInitialMount.current = false;
         }
       }
     };
 
-    initAuth();
-
-    /**
-     * Escucha cambios en el estado de autenticación (Login, Logout, Token renovado)
-     */
+    // Suscribirse a cambios ANTES de inicializar para capturar eventos rápidos
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      console.log('🔄 Evento de Autenticación detectado:', event);
+      console.log('🔄 Cambio de Auth:', event);
       
       if (mounted) {
         setSession(currentSession);
@@ -108,22 +92,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProfile(null);
         }
         
-        // Aseguramos que el loading termine tras un cambio de estado
-        setLoading(false);
+        // Solo quitamos el loading si ya pasó la inicialización o si es un evento definitivo
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+          setLoading(false);
+        }
       }
     });
 
-    /**
-     * MECANISMO DE SEGURIDAD (TIMEOUT)
-     * Si tras 4 segundos no hay respuesta de red, permitimos el renderizado
-     * para que las rutas protegidas decidan si redirigir o no.
-     */
+    initAuth();
+
     const fallbackTimer = setTimeout(() => {
       if (mounted && loading) {
-        console.warn('⚠️ TIMEOUT: La conexión a Supabase tardó demasiado. Forzando la entrada a la app...');
+        console.warn('⚠️ Fallback: Forzando desactivación de carga por lentitud de red.');
         setLoading(false);
       }
-    }, 4000);
+    }, 6000); // Aumentado a 6 segundos para dar margen
 
     return () => {
       mounted = false;
@@ -133,10 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    return await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    return await supabase.auth.signInWithPassword({ email, password });
   };
 
   const signOut = async () => {
@@ -148,35 +128,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user?.id) await fetchProfile(user.id);
   };
 
-  const value = {
-    session,
-    user,
-    profile,
-    loading,
-    signIn,
-    signOut,
-    refreshProfile
-  };
+  const value = { session, user, profile, loading, signIn, signOut, refreshProfile };
 
-  // Pantalla de carga profesional mientras se verifica la identidad
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-emerald-600 h-10 w-10" />
-          <p className="text-slate-400 text-sm animate-pulse">
-            Sincronizando con Mirapinos CRM...
-          </p>
+          <p className="text-slate-400 text-sm animate-pulse">Sincronizando con Mirapinos CRM...</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
