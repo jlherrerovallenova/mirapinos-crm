@@ -33,7 +33,6 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
     return cleanPhone.length >= 9;
   };
 
-  // VERSIÓN SIMPLIFICADA: Evitamos el uso de .or() para prevenir bloqueos de sintaxis
   const checkDuplicates = async (email: string, phone: string) => {
     if (!email && !phone) return false;
     
@@ -79,13 +78,14 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
         throw new Error('Ya existe un cliente registrado con este email o teléfono.');
       }
 
+      // CORRECCIÓN: Se cambia 'user_id' por 'assigned_to' que es la columna que sí existe en el esquema
       const payload: any = {
         name: formData.name,
         email: formData.email || null,
         phone: formData.phone || null,
         source: formData.source,
         status: 'new',
-        user_id: user.id
+        assigned_to: user.id
       };
 
       const { error } = await supabase
@@ -98,7 +98,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
           throw new Error('Permiso denegado por seguridad (RLS). Tu usuario no tiene privilegios de escritura.');
         }
         if (error.code === '42703') {
-           throw new Error('Error de esquema: La columna "user_id" no existe en tu tabla "leads" en Supabase.');
+           throw new Error('Error de esquema: La columna especificada no existe en tu tabla "leads" en Supabase.');
         }
         throw error;
       }
@@ -111,8 +111,6 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
       console.error('❌ Error creating lead:', error);
       setErrorMsg(error.message || 'Ocurrió un error de red al guardar. Revisa la consola.');
     } finally {
-      // Al quitar el fetch mutado, garantizamos que el bloque finally siempre se ejecute
-      // quitando el estado de carga y evitando que el botón se quede "pillado"
       setLoading(false);
     }
   };
