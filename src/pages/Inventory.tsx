@@ -9,7 +9,8 @@ import {
   Home, 
   BedDouble, 
   Bath,
-  AlertCircle
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import CreatePropertyModal from '../components/inventory/CreatePropertyModal';
@@ -33,6 +34,10 @@ export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  
+  // Estados para el nuevo modal de confirmación de borrado
+  const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchProperties();
@@ -55,23 +60,25 @@ export default function Inventory() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const confirmed = window.confirm('¿Estás seguro de que deseas eliminar esta propiedad? Esta acción no se puede deshacer.');
-    if (!confirmed) return;
+  const confirmDelete = async () => {
+    if (!propertyToDelete) return;
     
     try {
+      setIsDeleting(true);
       const { error } = await supabase
         .from('inventory')
         .delete()
-        .eq('id', id);
+        .eq('id', propertyToDelete.id);
 
       if (error) throw error;
 
-      // Actualización del estado local para que el cambio sea instantáneo en la UI
-      setProperties(prev => prev.filter(p => p.id !== id));
+      setProperties(prev => prev.filter(p => p.id !== propertyToDelete.id));
+      setPropertyToDelete(null);
     } catch (error) {
       console.error('Error deleting property:', error);
-      alert('Error al intentar eliminar el registro. Por favor, inténtelo de nuevo.');
+      alert('Error al intentar eliminar el registro.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -174,7 +181,7 @@ export default function Inventory() {
                           <Edit2 size={18} />
                         </button>
                         <button 
-                          onClick={() => handleDelete(property.id)}
+                          onClick={() => setPropertyToDelete(property)}
                           className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                         >
                           <Trash2 size={18} />
@@ -193,6 +200,39 @@ export default function Inventory() {
           </div>
         )}
       </div>
+
+      {/* Modal de Confirmación de Borrado Profesional */}
+      {propertyToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 text-center">
+              <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertTriangle size={40} />
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">¿Eliminar vivienda?</h3>
+              <p className="text-slate-500 font-medium mb-8">
+                Estás a punto de borrar la vivienda <span className="text-slate-900 font-bold">{propertyToDelete.numero_vivienda}</span> (Modelo {propertyToDelete.modelo}). Esta acción no se puede deshacer.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPropertyToDelete(null)}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-4 bg-red-600 text-white font-bold rounded-2xl shadow-lg shadow-red-100 hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? <Loader2 className="animate-spin" size={20} /> : 'Sí, eliminar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <CreatePropertyModal
