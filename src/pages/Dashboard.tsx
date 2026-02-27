@@ -159,10 +159,10 @@ export default function Dashboard() {
   // --- HELPERS DE UI ---
   const getSourceIcon = (sourceName: string) => {
     const lower = sourceName.toLowerCase();
-    if (lower.includes('web') || lower.includes('google')) return <Globe className="text-blue-600" size={20} />;
-    if (lower.includes('insta') || lower.includes('facebook')) return <Smartphone className="text-purple-600" size={20} />;
-    if (lower.includes('referido') || lower.includes('amigo')) return <Users className="text-emerald-600" size={20} />;
-    return <HelpCircle className="text-slate-400" size={20} />;
+    if (lower.includes('web') || lower.includes('google')) return <Globe className="text-blue-600" size={16} />;
+    if (lower.includes('insta') || lower.includes('facebook')) return <Smartphone className="text-purple-600" size={16} />;
+    if (lower.includes('referido') || lower.includes('amigo')) return <Users className="text-emerald-600" size={16} />;
+    return <HelpCircle className="text-slate-400" size={16} />;
   };
 
   const formatDateTime = (dateString: string) => {
@@ -198,11 +198,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* TARJETAS DE MÉTRICAS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* TARJETAS DE MÉTRICAS COMPACTAS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {loading ? (
            Array(4).fill(0).map((_, i) => (
-             <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-32 animate-pulse" />
+             <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-24 animate-pulse" />
            ))
         ) : (
           <>
@@ -211,7 +211,7 @@ export default function Dashboard() {
               value={stats.totalLeads.toString()} 
               change="Base de Datos" 
               isPositive={true} 
-              icon={<Users className="text-slate-900" size={20} />} 
+              icon={<Users className="text-slate-900" size={16} />} 
               trendIcon={false}
               onClick={() => navigate('/leads')}
             />
@@ -390,21 +390,23 @@ function StatCard({ title, value, change, isPositive, icon, trendIcon = true, on
   return (
     <div 
       onClick={onClick}
-      className={`bg-white p-6 rounded-xl shadow-sm border border-slate-200 transition-all duration-200 ${
-        onClick ? 'cursor-pointer hover:shadow-lg hover:border-emerald-200 hover:-translate-y-1' : ''
+      className={`bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all duration-200 flex flex-col justify-between ${
+        onClick ? 'cursor-pointer hover:shadow-md hover:border-emerald-200 hover:-translate-y-0.5' : ''
       }`}
     >
-      <div className="flex justify-between items-start mb-4">
-        <div className="p-2 bg-slate-50 rounded-lg">{icon}</div>
+      <div className="flex justify-between items-start mb-2">
+        <div className="p-1.5 bg-slate-50 rounded-lg">{icon}</div>
         {trendIcon && (
-          <div className={`flex items-center text-xs font-bold ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
-            {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+          <div className={`flex items-center text-[10px] font-bold ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
+            {isPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
             <span className="ml-1">{change}</span>
           </div>
         )}
       </div>
-      <p className="text-slate-500 text-sm font-medium">{title}</p>
-      <h4 className="text-2xl font-bold text-slate-900 mt-1">{value}</h4>
+      <div>
+        <p className="text-slate-500 text-xs font-medium">{title}</p>
+        <h4 className="text-xl font-bold text-slate-900 mt-0.5">{value}</h4>
+      </div>
     </div>
   );
 }
