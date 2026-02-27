@@ -12,7 +12,8 @@ import {
   X,
   Settings as SettingsIcon,
   User as UserIcon,
-  FolderOpen
+  FolderOpen,
+  Upload
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -35,6 +36,7 @@ const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'profile' | 'documents'>('profile');
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Estados de Documentos
   const [documents, setDocuments] = useState<SystemDocument[]>([]);
@@ -92,6 +94,32 @@ const Settings: React.FC = () => {
       console.error('Error cargando documentos:', error);
     } finally {
       setLoadingDocs(false);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const { error } = await supabase.storage.from('documents').upload(file.name, file);
+      
+      if (error) {
+        if (error.message.includes('already exists')) {
+          alert('Ya existe un archivo con ese nombre en el repositorio.');
+        } else {
+          throw error;
+        }
+      } else {
+        fetchDocuments(); // Recargar la lista tras subir
+      }
+    } catch (error) {
+      console.error('Error al subir documento:', error);
+      alert('Error al subir el archivo');
+    } finally {
+      setIsUploading(false);
+      event.target.value = ''; // Limpiar el input para permitir subir el mismo archivo si se borra
     }
   };
 
@@ -218,20 +246,33 @@ const Settings: React.FC = () => {
           {activeTab === 'documents' && (
             <div className="flex flex-col h-full animate-in fade-in duration-300">
               {/* Barra de Herramientas superior */}
-              <div className="p-4 border-b bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="p-4 border-b bg-slate-50/50 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div>
                   <h2 className="text-sm font-bold text-slate-700 uppercase tracking-tight">Repositorio de Archivos</h2>
                   <p className="text-[11px] text-slate-500">Gestiona los documentos maestros del sistema.</p>
                 </div>
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                  <input
-                    type="text"
-                    placeholder="Filtrar por nombre..."
-                    className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <input
+                      type="text"
+                      placeholder="Filtrar por nombre..."
+                      className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  
+                  <label className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-700 transition-all cursor-pointer whitespace-nowrap w-full sm:w-auto">
+                    {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                    <span>Subir Documento</span>
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                    />
+                  </label>
                 </div>
               </div>
 
