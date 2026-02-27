@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { X, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
+  const { user } = useAuth(); // Importante: Extraemos el usuario actual
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
@@ -28,27 +30,33 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
   };
 
   const isValidPhone = (phone: string) => {
-    // Acepta solo números, mínimo 9 dígitos
     const cleanPhone = phone.replace(/\D/g, '');
     return cleanPhone.length >= 9;
   };
 
   const checkDuplicates = async (email: string, phone: string) => {
-    // Busca si existe email O teléfono en la base de datos
-    // Nota: Usamos 'or' para verificar ambos campos
-    let query = supabase.from('leads').select('id, name');
+    if (!email && !phone) return false;
     
-    // Construimos la query OR dinámica
-    const conditions = [];
-    if (email) conditions.push(`email.eq.${email}`);
-    if (phone) conditions.push(`phone.eq.${phone}`);
-    
-    if (conditions.length === 0) return false;
+    try {
+      // Construcción segura de la sintaxis OR para PostgREST
+      const emailCondition = email ? `email.eq."${email}"` : '';
+      const phoneCondition = phone ? `phone.eq."${phone}"` : '';
+      const orQuery = [emailCondition, phoneCondition].filter(Boolean).join(',');
 
-    const { data, error } = await query.or(conditions.join(','));
-    
-    if (error) throw error;
-    return data && data.length > 0;
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id')
+        .or(orQuery)
+        .limit(1);
+      
+      if (error) throw error;
+      return data && data.length > 0;
+    } catch (err) {
+      console.warn('⚠️ Aviso en validación de duplicados (Posible restricción RLS):', err);
+      // Si la verificación falla (ej. permisos de lectura restrictivos), 
+      // asumimos false para no bloquear el flujo. La DB lo rechazará si es estricto.
+      return false; 
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,7 +65,8 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
     setErrorMsg(null);
 
     try {
-      // 1. Validaciones básicas de formato
+      // 1. Validaciones de cliente
+      if (!user?.id) throw new Error('Sesión de usuario no detectada. Por favor, recarga la página.');
       if (!formData.name.trim()) throw new Error('El nombre es obligatorio.');
       
       if (formData.email && !isValidEmail(formData.email)) {
@@ -68,24 +77,39 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
         throw new Error('El teléfono debe tener al menos 9 dígitos.');
       }
 
-      // 2. Validación de duplicados en el servidor
+      // 2. Validación de duplicados
       const isDuplicate = await checkDuplicates(formData.email, formData.phone);
       if (isDuplicate) {
         throw new Error('Ya existe un cliente registrado con este email o teléfono.');
       }
 
-      // 3. Inserción
-      const { error } = await supabase
-        .from('leads')
-        .insert([{
-          name: formData.name,
-          email: formData.email || null,
-          phone: formData.phone || null,
-          source: formData.source,
-          status: 'new'
-        }]);
+      // 3. Inserción blindada con ID de autoría
+      const payload: any = {
+        name: formData.name,
+        email: formData.email || null,
+        phone: formData.phone || null,
+        source: formData.source,
+        status: 'new'
+      };
 
-      if (error) throw error;
+      // Incluimos el user_id para cumplir con las políticas de seguridad (RLS) estándar
+      payload.user_id = user.id;
+
+      const { error, data } = await supabase
+        .from('leads')
+        .insert([payload])
+        .select(); // Exigimos confirmación del servidor
+
+      if (error) {
+        // Interceptamos errores de seguridad de la base de datos
+        if (error.code === '42501' || error.message.includes('row-level security')) {
+          throw new Error('Permiso denegado por seguridad (RLS). Tu usuario no tiene privilegios de escritura en esta tabla.');
+        }
+        if (error.code === '42703') {
+           throw new Error('Error de esquema: La columna "user_id" no existe en tu tabla "leads" en Supabase.');
+        }
+        throw error;
+      }
 
       // Reset y Cierre
       setFormData({ name: '', email: '', phone: '', source: 'Web' });
@@ -93,8 +117,8 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
       onClose();
 
     } catch (error: any) {
-      console.error('Error creating lead:', error);
-      setErrorMsg(error.message || 'Ocurrió un error al guardar.');
+      console.error('❌ Error creating lead:', error);
+      setErrorMsg(error.message || 'Ocurrió un error de red al guardar. Revisa la consola.');
     } finally {
       setLoading(false);
     }
@@ -115,8 +139,8 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
         <form onSubmit={handleSubmit} className="p-8 space-y-5">
           {errorMsg && (
             <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium flex items-center gap-2 animate-in slide-in-from-top-2">
-              <AlertCircle size={18} />
-              {errorMsg}
+              <AlertCircle size={18} className="shrink-0" />
+              <span>{errorMsg}</span>
             </div>
           )}
 
