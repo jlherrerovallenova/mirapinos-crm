@@ -11,7 +11,7 @@ interface Props {
 }
 
 export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
-  const { user } = useAuth(); // Importante: Extraemos el usuario actual
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
@@ -24,7 +24,6 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
 
   if (!isOpen) return null;
 
-  // Funciones de validación
   const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
@@ -34,27 +33,26 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
     return cleanPhone.length >= 9;
   };
 
+  // VERSIÓN SIMPLIFICADA: Evitamos el uso de .or() para prevenir bloqueos de sintaxis
   const checkDuplicates = async (email: string, phone: string) => {
     if (!email && !phone) return false;
     
     try {
-      // Construcción segura de la sintaxis OR para PostgREST
-      const emailCondition = email ? `email.eq."${email}"` : '';
-      const phoneCondition = phone ? `phone.eq."${phone}"` : '';
-      const orQuery = [emailCondition, phoneCondition].filter(Boolean).join(',');
+      if (email) {
+        const { data, error } = await supabase.from('leads').select('id').eq('email', email).limit(1);
+        if (error) throw error;
+        if (data && data.length > 0) return true;
+      }
 
-      const { data, error } = await supabase
-        .from('leads')
-        .select('id')
-        .or(orQuery)
-        .limit(1);
-      
-      if (error) throw error;
-      return data && data.length > 0;
+      if (phone) {
+        const { data, error } = await supabase.from('leads').select('id').eq('phone', phone).limit(1);
+        if (error) throw error;
+        if (data && data.length > 0) return true;
+      }
+
+      return false;
     } catch (err) {
-      console.warn('⚠️ Aviso en validación de duplicados (Posible restricción RLS):', err);
-      // Si la verificación falla (ej. permisos de lectura restrictivos), 
-      // asumimos false para no bloquear el flujo. La DB lo rechazará si es estricto.
+      console.warn('⚠️ Aviso en validación de duplicados (continuando guardado):', err);
       return false; 
     }
   };
@@ -65,7 +63,6 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
     setErrorMsg(null);
 
     try {
-      // 1. Validaciones de cliente
       if (!user?.id) throw new Error('Sesión de usuario no detectada. Por favor, recarga la página.');
       if (!formData.name.trim()) throw new Error('El nombre es obligatorio.');
       
@@ -77,33 +74,28 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
         throw new Error('El teléfono debe tener al menos 9 dígitos.');
       }
 
-      // 2. Validación de duplicados
       const isDuplicate = await checkDuplicates(formData.email, formData.phone);
       if (isDuplicate) {
         throw new Error('Ya existe un cliente registrado con este email o teléfono.');
       }
 
-      // 3. Inserción blindada con ID de autoría
       const payload: any = {
         name: formData.name,
         email: formData.email || null,
         phone: formData.phone || null,
         source: formData.source,
-        status: 'new'
+        status: 'new',
+        user_id: user.id
       };
 
-      // Incluimos el user_id para cumplir con las políticas de seguridad (RLS) estándar
-      payload.user_id = user.id;
-
-      const { error, data } = await supabase
+      const { error } = await supabase
         .from('leads')
         .insert([payload])
-        .select(); // Exigimos confirmación del servidor
+        .select();
 
       if (error) {
-        // Interceptamos errores de seguridad de la base de datos
         if (error.code === '42501' || error.message.includes('row-level security')) {
-          throw new Error('Permiso denegado por seguridad (RLS). Tu usuario no tiene privilegios de escritura en esta tabla.');
+          throw new Error('Permiso denegado por seguridad (RLS). Tu usuario no tiene privilegios de escritura.');
         }
         if (error.code === '42703') {
            throw new Error('Error de esquema: La columna "user_id" no existe en tu tabla "leads" en Supabase.');
@@ -111,7 +103,6 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
         throw error;
       }
 
-      // Reset y Cierre
       setFormData({ name: '', email: '', phone: '', source: 'Web' });
       onSuccess();
       onClose();
@@ -120,6 +111,8 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
       console.error('❌ Error creating lead:', error);
       setErrorMsg(error.message || 'Ocurrió un error de red al guardar. Revisa la consola.');
     } finally {
+      // Al quitar el fetch mutado, garantizamos que el bloque finally siempre se ejecute
+      // quitando el estado de carga y evitando que el botón se quede "pillado"
       setLoading(false);
     }
   };
