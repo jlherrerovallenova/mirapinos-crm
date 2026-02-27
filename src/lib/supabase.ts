@@ -73,4 +73,4 @@ export const supabase = createClient<Database>(
       timeout: 30000,             // Cierra y reconecta si no hay respuesta en 30s
     }
   }
-);
+); 
