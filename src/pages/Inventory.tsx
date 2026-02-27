@@ -7,10 +7,8 @@ import {
   Trash2, 
   Loader2, 
   Home, 
-  Maximize2, 
   BedDouble, 
   Bath,
-  MoreVertical,
   AlertCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -35,7 +33,6 @@ export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProperties();
@@ -59,14 +56,22 @@ export default function Inventory() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar esta propiedad? Esta acción no se puede deshacer.')) return;
+    const confirmed = window.confirm('¿Estás seguro de que deseas eliminar esta propiedad? Esta acción no se puede deshacer.');
+    if (!confirmed) return;
     
     try {
-      const { error } = await supabase.from('inventory').delete().eq('id', id);
+      const { error } = await supabase
+        .from('inventory')
+        .delete()
+        .eq('id', id);
+
       if (error) throw error;
-      setProperties(properties.filter(p => p.id !== id));
+
+      // Actualización del estado local para que el cambio sea instantáneo en la UI
+      setProperties(prev => prev.filter(p => p.id !== id));
     } catch (error) {
-      alert('Error al eliminar la propiedad');
+      console.error('Error deleting property:', error);
+      alert('Error al intentar eliminar el registro. Por favor, inténtelo de nuevo.');
     }
   };
 
@@ -77,48 +82,44 @@ export default function Inventory() {
 
   return (
     <div className="p-6 md:p-8 space-y-8 animate-in fade-in duration-500">
-      {/* Header Sección */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventario de Viviendas</h1>
-          <p className="text-slate-500 mt-1 font-medium">Gestiona el catálogo de activos y disponibilidad.</p>
+          <p className="text-slate-500 mt-1 font-medium">Gestión profesional del catálogo de activos.</p>
         </div>
         <button
           onClick={() => {
             setEditingProperty(null);
             setIsModalOpen(true);
           }}
-          className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-emerald-200 transition-all active:scale-95"
+          className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all active:scale-95"
         >
           <Plus size={20} />
           Añadir Propiedad
         </button>
       </div>
 
-      {/* Barra de Herramientas */}
+      {/* Buscador */}
       <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
             type="text"
             placeholder="Buscar por modelo o número de vivienda..."
-            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium"
+            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-2 text-sm font-bold text-slate-400 px-4">
-          <span className="bg-slate-100 px-3 py-1 rounded-full text-slate-600">{filteredProperties.length}</span>
-          Propiedades
-        </div>
       </div>
 
-      {/* Tabla de Inventario */}
+      {/* Tabla */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 className="animate-spin text-emerald-600" size={40} />
-            <p className="text-slate-400 font-medium">Cargando catálogo...</p>
+            <p className="text-slate-400 font-medium">Cargando inventario...</p>
           </div>
         ) : filteredProperties.length > 0 ? (
           <div className="overflow-x-auto">
@@ -128,7 +129,6 @@ export default function Inventory() {
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">Vivienda</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">Modelo</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Hab / Baños</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Superficies</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">Precio</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Acciones</th>
                 </tr>
@@ -147,20 +147,14 @@ export default function Inventory() {
                     <td className="px-6 py-5 font-semibold text-slate-600">{property.modelo}</td>
                     <td className="px-6 py-5">
                       <div className="flex items-center justify-center gap-4 text-slate-500">
-                        <div className="flex items-center gap-1.5" title="Habitaciones">
+                        <div className="flex items-center gap-1.5">
                           <BedDouble size={16} />
                           <span className="font-bold">{property.habitaciones}</span>
                         </div>
-                        <div className="flex items-center gap-1.5" title="Baños">
+                        <div className="flex items-center gap-1.5">
                           <Bath size={16} />
                           <span className="font-bold">{property.banos}</span>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5">
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-xs font-bold text-slate-400">Parcela: {property.superficie_parcela}m²</span>
-                        <span className="text-xs font-bold text-emerald-600">Const: {property.superficie_construida}m²</span>
                       </div>
                     </td>
                     <td className="px-6 py-5">
@@ -169,7 +163,7 @@ export default function Inventory() {
                       </span>
                     </td>
                     <td className="px-6 py-5">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end gap-2">
                         <button 
                           onClick={() => {
                             setEditingProperty(property);
@@ -194,16 +188,12 @@ export default function Inventory() {
           </div>
         ) : (
           <div className="py-20 text-center flex flex-col items-center">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
-              <Home size={32} />
-            </div>
-            <p className="text-slate-500 font-bold text-lg">No se encontraron propiedades</p>
-            <p className="text-slate-400 text-sm">Prueba con otros términos de búsqueda.</p>
+            <Home size={40} className="text-slate-200 mb-4" />
+            <p className="text-slate-500 font-bold">No se encontraron propiedades</p>
           </div>
         )}
       </div>
 
-      {/* Modales */}
       {isModalOpen && (
         <CreatePropertyModal
           isOpen={isModalOpen}
