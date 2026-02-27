@@ -1,201 +1,223 @@
 // src/pages/Inventory.tsx
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import { 
-  Search, 
   Plus, 
+  Search, 
+  Edit2, 
+  Trash2, 
+  Loader2, 
+  Home, 
+  Maximize2, 
   BedDouble, 
-  Bath, 
-  Square, 
-  Loader2,
-  Home,
-  Tag,
-  Hash
+  Bath,
+  MoreVertical,
+  AlertCircle
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import CreatePropertyModal from '../components/inventory/CreatePropertyModal';
-import type { Database } from '../types/supabase';
 
-type Property = Database['public']['Tables']['inventory']['Row'];
+interface Property {
+  id: string;
+  modelo: string;
+  numero_vivienda: string;
+  superficie_parcela: number;
+  superficie_util: number;
+  superficie_construida: number;
+  habitaciones: number;
+  banos: number;
+  precio: number;
+  created_at: string;
+}
 
 export default function Inventory() {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Inicializamos el valor utilizando la URL
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const [filterModelo, setFilterModelo] = useState<string>('all');
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
-  // Sincronizar el estado interno si la URL cambia
-  useEffect(() => {
-    const query = searchParams.get('search');
-    if (query !== null && query !== searchTerm) {
-      setSearchTerm(query);
-    } else if (query === null && searchTerm !== '') {
-      setSearchTerm('');
-    }
-  }, [searchParams]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProperties();
   }, []);
 
-  async function fetchProperties() {
-    setLoading(true);
+  const fetchProperties = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('inventory')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('numero_vivienda', { ascending: true });
 
       if (error) throw error;
-      if (data) setProperties(data);
+      setProperties(data || []);
     } catch (error) {
       console.error('Error fetching inventory:', error);
     } finally {
       setLoading(false);
     }
-  }
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    
-    // Actualizar la URL dinámicamente
-    if (value) {
-      searchParams.set('search', value);
-    } else {
-      searchParams.delete('search');
-    }
-    setSearchParams(searchParams, { replace: true });
   };
 
-  const filteredProperties = properties.filter(prop => {
-    // Buscamos por modelo o número de vivienda
-    const matchesSearch = (prop.modelo?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
-                          (prop.numero_vivienda?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar esta propiedad? Esta acción no se puede deshacer.')) return;
     
-    // Filtramos por el selector de modelo
-    const matchesModelo = filterModelo === 'all' || prop.modelo === filterModelo;
-    
-    return matchesSearch && matchesModelo;
-  });
+    try {
+      const { error } = await supabase.from('inventory').delete().eq('id', id);
+      if (error) throw error;
+      setProperties(properties.filter(p => p.id !== id));
+    } catch (error) {
+      alert('Error al eliminar la propiedad');
+    }
+  };
+
+  const filteredProperties = properties.filter(p => 
+    p.modelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.numero_vivienda.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="p-6 md:p-8 space-y-8 animate-in fade-in duration-500">
+      {/* Header Sección */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <p className="text-emerald-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">Catálogo de Activos</p>
-          <h1 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Inventario</h1>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventario de Viviendas</h1>
+          <p className="text-slate-500 mt-1 font-medium">Gestiona el catálogo de activos y disponibilidad.</p>
         </div>
-        <button 
-          onClick={() => setIsCreateModalOpen(true)}
-          className="px-8 py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3 active:scale-95"
+        <button
+          onClick={() => {
+            setEditingProperty(null);
+            setIsModalOpen(true);
+          }}
+          className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-emerald-200 transition-all active:scale-95"
         >
-          <Plus size={20} /> AÑADIR PROPIEDAD
+          <Plus size={20} />
+          Añadir Propiedad
         </button>
-      </header>
+      </div>
 
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
+      {/* Barra de Herramientas */}
+      <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <input
             type="text"
-            placeholder="Buscar por modelo o nº de vivienda..."
-            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-100 rounded-2xl text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none shadow-sm"
+            placeholder="Buscar por modelo o número de vivienda..."
+            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium"
             value={searchTerm}
-            onChange={handleSearch}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
-          <select 
-            className="px-4 py-4 bg-white border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 outline-none shadow-sm cursor-pointer focus:ring-2 focus:ring-emerald-500/20"
-            value={filterModelo}
-            onChange={(e) => setFilterModelo(e.target.value)}
-          >
-            <option value="all">Todos los modelos</option>
-            <option value="1. OLIVO">1. OLIVO</option>
-            <option value="2. ARCE">2. ARCE</option>
-          </select>
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-400 px-4">
+          <span className="bg-slate-100 px-3 py-1 rounded-full text-slate-600">{filteredProperties.length}</span>
+          Propiedades
         </div>
       </div>
 
-      {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-4">
-          <Loader2 className="animate-spin" size={40} />
-          <p className="font-medium animate-pulse">Sincronizando inventario...</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredProperties.map((prop) => (
-            <div 
-              key={prop.id} 
-              className="bg-white rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-col"
-            >
-              {/* Cabecera visual de la tarjeta */}
-              <div className="relative h-48 bg-slate-100 overflow-hidden flex flex-col items-center justify-center">
-                <Home size={48} strokeWidth={1} className="text-slate-300 group-hover:scale-110 transition-transform duration-500" />
-                <div className="absolute top-4 right-4 px-3 py-1.5 rounded-full text-[10px] font-black uppercase border backdrop-blur-md bg-emerald-100 text-emerald-700 border-emerald-200">
-                  DISPONIBLE
-                </div>
-              </div>
-
-              {/* Contenido */}
-              <div className="p-6 flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-slate-900 text-xl line-clamp-1">Modelo {prop.modelo}</h3>
-                </div>
-                
-                <p className="flex items-center gap-1.5 text-slate-500 font-medium text-sm mb-4">
-                  <Hash size={14} className="text-emerald-500" /> Vivienda Nº {prop.numero_vivienda || 'Sin asignar'}
-                </p>
-
-                <div className="grid grid-cols-3 gap-2 py-4 border-y border-slate-50 mb-6">
-                  <div className="flex flex-col items-center text-slate-600">
-                    <BedDouble size={18} className="mb-1 text-slate-400" />
-                    <span className="text-xs font-bold">{prop.habitaciones || 0} Hab.</span>
-                  </div>
-                  <div className="flex flex-col items-center text-slate-600 border-x border-slate-50">
-                    <Bath size={18} className="mb-1 text-slate-400" />
-                    <span className="text-xs font-bold">{prop.banos || 0} Baños</span>
-                  </div>
-                  <div className="flex flex-col items-center text-slate-600 text-center">
-                    <Square size={16} className="mb-1 text-slate-400" />
-                    <span className="text-[10px] font-bold leading-tight">{prop.superficie_construida || 0} m²<br/>Construidos</span>
-                  </div>
-                </div>
-
-                <div className="mt-auto flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Precio de venta</p>
-                    <p className="text-2xl font-display font-bold text-slate-900">
-                      {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(prop.precio || 0)}
-                    </p>
-                  </div>
-                  <button className="p-3 bg-slate-50 text-slate-400 hover:bg-emerald-600 hover:text-white rounded-2xl transition-all">
-                    <Tag size={20} />
-                  </button>
-                </div>
-              </div>
+      {/* Tabla de Inventario */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <Loader2 className="animate-spin text-emerald-600" size={40} />
+            <p className="text-slate-400 font-medium">Cargando catálogo...</p>
+          </div>
+        ) : filteredProperties.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">Vivienda</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">Modelo</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Hab / Baños</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Superficies</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">Precio</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredProperties.map((property) => (
+                  <tr key={property.id} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                          {property.numero_vivienda}
+                        </div>
+                        <span className="font-bold text-slate-900">Urb. Mirapinos</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 font-semibold text-slate-600">{property.modelo}</td>
+                    <td className="px-6 py-5">
+                      <div className="flex items-center justify-center gap-4 text-slate-500">
+                        <div className="flex items-center gap-1.5" title="Habitaciones">
+                          <BedDouble size={16} />
+                          <span className="font-bold">{property.habitaciones}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5" title="Baños">
+                          <Bath size={16} />
+                          <span className="font-bold">{property.banos}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-xs font-bold text-slate-400">Parcela: {property.superficie_parcela}m²</span>
+                        <span className="text-xs font-bold text-emerald-600">Const: {property.superficie_construida}m²</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className="inline-flex px-3 py-1 rounded-lg bg-slate-900 text-white font-bold text-sm">
+                        {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(property.precio)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => {
+                            setEditingProperty(property);
+                            setIsModalOpen(true);
+                          }}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(property.id)}
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="py-20 text-center flex flex-col items-center">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
+              <Home size={32} />
             </div>
-          ))}
-          
-          {filteredProperties.length === 0 && (
-            <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 bg-white rounded-[2rem] border border-dashed border-slate-200">
-              <Home size={48} className="mb-4 text-slate-300" />
-              <p className="font-medium text-slate-500">No se encontraron propiedades</p>
-            </div>
-          )}
-        </div>
+            <p className="text-slate-500 font-bold text-lg">No se encontraron propiedades</p>
+            <p className="text-slate-400 text-sm">Prueba con otros términos de búsqueda.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Modales */}
+      {isModalOpen && (
+        <CreatePropertyModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingProperty(null);
+          }}
+          onSuccess={() => {
+            fetchProperties();
+            setIsModalOpen(false);
+          }}
+          initialData={editingProperty}
+        />
       )}
-
-      <CreatePropertyModal 
-        isOpen={isCreateModalOpen} 
-        onClose={() => setIsCreateModalOpen(false)} 
-        onSuccess={fetchProperties} 
-      />
     </div>
   );
-}  
+}
