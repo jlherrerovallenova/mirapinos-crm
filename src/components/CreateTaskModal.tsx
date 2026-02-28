@@ -1,8 +1,9 @@
 // src/components/CreateTaskModal.tsx
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, User, Save, Loader2, Search } from 'lucide-react';
+import { X, Clock, User, Save, Loader2, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useDialog } from '../context/DialogContext';
 import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
@@ -15,6 +16,7 @@ interface Props {
 
 export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
   const { session } = useAuth();
+  const { showAlert } = useDialog();
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -67,7 +69,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
     try {
       const dateTime = new Date(`${formData.date}T${formData.time}:00`).toISOString();
 
-      const { error } = await supabase.from('agenda').insert([
+      const { error } = await (supabase as any).from('agenda').insert([
         {
           title: formData.title,
           type: formData.type,
@@ -75,7 +77,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
           user_id: session.user.id,
           lead_id: selectedLead?.id || null, // Puede ser nula si es una tarea general
           completed: false,
-        },
+        } as any,
       ]);
 
       if (error) throw error;
@@ -93,7 +95,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
       setSearchTerm('');
     } catch (error) {
       console.error('Error creating task:', error);
-      alert('No se pudo crear la tarea');
+      await showAlert({ title: 'Error', message: 'No se pudo crear la tarea' });
     } finally {
       setLoading(false);
     }
@@ -119,12 +121,12 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
               <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                    {selectedLead.name.substring(0,2).toUpperCase()}
+                    {selectedLead.name.substring(0, 2).toUpperCase()}
                   </div>
                   <span className="text-sm font-bold text-emerald-800">{selectedLead.name}</span>
                 </div>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setSelectedLead(null)}
                   className="text-emerald-600 hover:text-red-500 transition-colors"
                 >
@@ -142,7 +144,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:bg-white focus:border-emerald-500 transition-all outline-none"
                 />
                 {isSearching && <Loader2 className="absolute right-3 top-3 animate-spin text-slate-400" size={16} />}
-                
+
                 {leads.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
                     {leads.map(lead => (
@@ -174,7 +176,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
                 placeholder="Ej: Llamar para confirmar visita..."
                 className="w-full mt-1 px-4 py-3 bg-slate-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-emerald-500 transition-all text-sm font-medium"
                 value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
             </div>
 
@@ -184,7 +186,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
                 <select
                   className="w-full mt-1 px-4 py-3 bg-slate-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-emerald-500 transition-all text-sm font-bold text-slate-700"
                   value={formData.type}
-                  onChange={(e) => setFormData({...formData, type: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                 >
                   <option value="Llamada">📞 Llamada</option>
                   <option value="Email">📧 Email</option>
@@ -199,7 +201,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
                   required
                   className="w-full mt-1 px-4 py-3 bg-slate-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-emerald-500 transition-all text-sm font-medium"
                   value={formData.date}
-                  onChange={(e) => setFormData({...formData, date: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 />
               </div>
             </div>
@@ -213,7 +215,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
                   required
                   className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-emerald-500 transition-all text-sm font-medium"
                   value={formData.time}
-                  onChange={(e) => setFormData({...formData, time: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                 />
               </div>
             </div>

@@ -2,12 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { 
-  Loader2, 
-  Building2, 
-  Globe, 
-  Smartphone, 
-  Users, 
+import {
+  Loader2,
+  Building2,
+  Globe,
+  Smartphone,
+  Users,
   HelpCircle,
   MoreHorizontal
 } from 'lucide-react';
@@ -29,7 +29,7 @@ export default function Pipeline() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Estado para gestionar qué elemento se está arrastrando
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
 
@@ -62,8 +62,8 @@ export default function Pipeline() {
     // Efecto visual al arrastrar
     e.dataTransfer.effectAllowed = 'move';
     // Requerido por Firefox para que el drag funcione
-    e.dataTransfer.setData('text/plain', leadId); 
-    
+    e.dataTransfer.setData('text/plain', leadId);
+
     // Hacemos que la tarjeta original sea un poco transparente mientras se arrastra
     setTimeout(() => {
       const element = document.getElementById(`lead-card-${leadId}`);
@@ -71,7 +71,7 @@ export default function Pipeline() {
     }, 0);
   };
 
-  const handleDragEnd = (e: React.DragEvent, leadId: string) => {
+  const handleDragEnd = (_e: React.DragEvent, leadId: string) => {
     setDraggedLeadId(null);
     const element = document.getElementById(`lead-card-${leadId}`);
     if (element) element.classList.remove('opacity-50');
@@ -85,20 +85,20 @@ export default function Pipeline() {
   const handleDrop = async (e: React.DragEvent, newStatus: string) => {
     e.preventDefault();
     const leadId = e.dataTransfer.getData('text/plain') || draggedLeadId;
-    
+
     if (!leadId) return;
 
     const leadToMove = leads.find(l => l.id === leadId);
     if (!leadToMove || leadToMove.status === newStatus) return;
 
     // 1. Actualización Optimista (Actualiza la UI al instante sin esperar a la base de datos)
-    setLeads(prev => prev.map(lead => 
-      lead.id === leadId ? { ...lead, status: newStatus } : lead
+    setLeads(prev => prev.map(lead =>
+      lead.id === leadId ? { ...lead, status: newStatus as any } : lead
     ));
 
     // 2. Actualización en Base de Datos (Supabase)
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('leads')
         .update({ status: newStatus })
         .eq('id', leadId);
@@ -133,7 +133,7 @@ export default function Pipeline() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500 overflow-hidden">
-      
+
       {/* HEADER DEL TABLERO */}
       <div className="flex justify-between items-end mb-6 shrink-0">
         <div>
@@ -153,7 +153,7 @@ export default function Pipeline() {
           const totalValue = columnLeads.length;
 
           return (
-            <div 
+            <div
               key={column.id}
               className={`flex flex-col min-w-[220px] flex-1 rounded-2xl border ${column.bg} border-slate-200 shadow-sm snap-center`}
               onDragOver={handleDragOver}
@@ -194,7 +194,7 @@ export default function Pipeline() {
                           <MoreHorizontal size={14} />
                         </button>
                       </div>
-                      
+
                       {lead.company && (
                         <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-500 mb-3">
                           <Building2 size={12} className="text-slate-400 shrink-0" />

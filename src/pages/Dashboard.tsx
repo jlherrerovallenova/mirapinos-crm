@@ -1,9 +1,9 @@
 // src/pages/Dashboard.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Users, 
-  ArrowUpRight, 
+import {
+  Users,
+  ArrowUpRight,
   ArrowDownRight,
   Globe,
   Smartphone,
@@ -18,6 +18,7 @@ import {
   Plus
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useDialog } from '../context/DialogContext';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../types/supabase';
 
@@ -41,9 +42,10 @@ interface RecentLead {
 
 export default function Dashboard() {
   const { session } = useAuth();
+  const { showConfirm, showAlert } = useDialog();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  
+
   // Estados para datos
   const [stats, setStats] = useState<{ totalLeads: number; topSources: SourceStat[] }>({
     totalLeads: 0,
@@ -51,9 +53,10 @@ export default function Dashboard() {
   });
   const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
-  
-  // Estado para la búsqueda del cliente
+
+  // Estado para la búsqueda del cliente y el tab activo
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'futuras' | 'caducadas'>('futuras');
 
   useEffect(() => {
     if (session?.user.id) {
@@ -71,11 +74,11 @@ export default function Dashboard() {
         .select('id, name, source, created_at')
         .order('created_at', { ascending: false })
         .limit(5);
-      
+
       if (leadsResponse.data) {
         const total = leadsResponse.data.length;
         const sourceCounts: Record<string, number> = {};
-        leadsResponse.data.forEach(lead => {
+        leadsResponse.data.forEach((lead: any) => {
           const source = lead.source ? lead.source.trim() : 'Desconocido';
           sourceCounts[source] = (sourceCounts[source] || 0) + 1;
         });
@@ -95,21 +98,21 @@ export default function Dashboard() {
       }
 
       // 2. CARGA DE AGENDA (Aprovechando la relación Foreign Key)
+      // Traemos más de 20 por si hay muchas caducadas mezcladas con futuras
       const { data: agendaData, error: agendaError } = await supabase
         .from('agenda')
         .select('*, leads(name)')
         .eq('completed', false)
-        .order('due_date', { ascending: true })
-        .limit(20);
+        .order('due_date', { ascending: true });
 
       if (agendaError) {
         console.error("Error fetching agenda:", agendaError);
       } else if (agendaData) {
-        const formattedData = (agendaData || []).map(item => ({
+        const formattedData = (agendaData || []).map((item: any) => ({
           ...item,
           leads: Array.isArray(item.leads) ? item.leads[0] : item.leads
         })) as AgendaItem[];
-        
+
         setAgenda(formattedData);
       }
 
@@ -120,21 +123,41 @@ export default function Dashboard() {
     }
   };
 
-  // --- LÓGICA DE FILTRADO ---
-  const filteredAgenda = agenda.filter(task => 
-    task.leads?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    task.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // --- LÓGICA DE FILTRADO Y PESTAÑAS ---
+  const filteredAgenda = agenda.filter(task => {
+    // 1. Filtro por búsqueda de cliente o título
+    const matchesSearch =
+      task.leads?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.title.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    // 2. Filtro por Tab (Caducadas vs Futuras)
+    const taskDate = new Date(task.due_date).getTime();
+    const isOverdue = taskDate < new Date().getTime();
+
+    if (activeTab === 'caducadas' && !isOverdue) return false;
+    if (activeTab === 'futuras' && isOverdue) return false;
+
+    return true;
+  });
+
+  // Contador para el badge de tareas caducadas
+  const overdueCount = agenda.filter(task => {
+    const taskDate = new Date(task.due_date).getTime();
+    return taskDate < new Date().getTime();
+  }).length;
 
   // --- ACCIONES DE LA AGENDA ---
   const toggleTask = async (task: AgendaItem) => {
     const newStatus = !task.completed;
     if (newStatus) {
-       setAgenda(prev => prev.filter(t => t.id !== task.id));
+      setAgenda(prev => prev.filter(t => t.id !== task.id));
     }
     try {
       const { error } = await supabase
         .from('agenda')
+        // @ts-ignore: Tipado complejo entre joins causa fallos de inferencia
         .update({ completed: newStatus })
         .eq('id', task.id);
       if (error) throw error;
@@ -145,13 +168,20 @@ export default function Dashboard() {
   };
 
   const deleteTask = async (id: number) => {
-    if (!window.confirm("¿Eliminar esta tarea de la agenda?")) return;
+    const confirmed = await showConfirm({
+      title: 'Eliminar Tarea',
+      message: '¿Estás seguro de que deseas eliminar esta tarea de la agenda?',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar'
+    });
+    if (!confirmed) return;
     setAgenda(prev => prev.filter(t => t.id !== id));
     try {
       const { error } = await supabase.from('agenda').delete().eq('id', id);
       if (error) throw error;
     } catch (error) {
       console.error("Error eliminando tarea:", error);
+      await showAlert({ title: 'Error', message: 'No se pudo eliminar la tarea' });
       loadDashboardData();
     }
   };
@@ -175,7 +205,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
-      
+
       {/* CABECERA CON CTAs RÁPIDOS */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -183,14 +213,14 @@ export default function Dashboard() {
           <p className="text-slate-500">Hola {session?.user.email?.split('@')[0]}, resumen de actividad.</p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
-          <button 
-            onClick={() => navigate('/agenda')} 
+          <button
+            onClick={() => navigate('/agenda')}
             className="flex-1 sm:flex-none bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
           >
             <Calendar size={16} /> Nueva Tarea
           </button>
-          <button 
-            onClick={() => navigate('/leads')} 
+          <button
+            onClick={() => navigate('/leads')}
             className="flex-1 sm:flex-none bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
           >
             <Plus size={16} /> Nuevo Lead
@@ -201,28 +231,28 @@ export default function Dashboard() {
       {/* TARJETAS DE MÉTRICAS COMPACTAS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {loading ? (
-           Array(4).fill(0).map((_, i) => (
-             <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-24 animate-pulse" />
-           ))
+          Array(4).fill(0).map((_, i) => (
+            <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-24 animate-pulse" />
+          ))
         ) : (
           <>
-            <StatCard 
-              title="Total Contactos" 
-              value={stats.totalLeads.toString()} 
-              change="Base de Datos" 
-              isPositive={true} 
-              icon={<Users className="text-slate-900" size={16} />} 
+            <StatCard
+              title="Total Contactos"
+              value={stats.totalLeads.toString()}
+              change="Base de Datos"
+              isPositive={true}
+              icon={<Users className="text-slate-900" size={16} />}
               trendIcon={false}
               onClick={() => navigate('/leads')}
             />
             {stats.topSources.map((source, index) => (
-              <StatCard 
+              <StatCard
                 key={index}
-                title={`Origen: ${source.name}`} 
-                value={source.count.toString()} 
-                change={`${source.percentage}%`} 
-                isPositive={true} 
-                icon={getSourceIcon(source.name)} 
+                title={`Origen: ${source.name}`}
+                value={source.count.toString()}
+                change={`${source.percentage}%`}
+                isPositive={true}
+                icon={getSourceIcon(source.name)}
                 trendIcon={true}
                 onClick={() => navigate(`/leads?source=${encodeURIComponent(source.name)}`)}
               />
@@ -232,23 +262,50 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
         {/* WIDGET: AGENDA DE ACCIONES */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[400px]">
           <div className="p-6 border-b border-slate-100 flex flex-col gap-4 bg-slate-50/50">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-slate-800 flex items-center gap-2">
                 <Clock size={18} className="text-emerald-500" />
-                Agenda de Acciones (Pendientes)
+                Agenda de Acciones
               </h3>
-              <button 
+              <button
                 onClick={() => navigate('/agenda')}
                 className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors bg-emerald-50 px-3 py-1.5 rounded-full"
               >
                 VER CALENDARIO
               </button>
             </div>
-            
+
+            {/* PESTAÑAS (TABS) */}
+            <div className="flex gap-2 p-1 bg-slate-100 rounded-lg w-full sm:w-fit">
+              <button
+                onClick={() => setActiveTab('futuras')}
+                className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeTab === 'futuras'
+                  ? 'bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                  }`}
+              >
+                Próximas
+              </button>
+              <button
+                onClick={() => setActiveTab('caducadas')}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeTab === 'caducadas'
+                  ? 'bg-white text-red-600 shadow-sm ring-1 ring-slate-200'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                  }`}
+              >
+                Caducadas
+                {overdueCount > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full select-none">
+                    {overdueCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
             {/* BUSCADOR DE CLIENTE */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -257,21 +314,31 @@ export default function Dashboard() {
                 placeholder="Buscar por cliente o tarea..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700"
               />
             </div>
           </div>
 
           <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[500px]">
             {filteredAgenda.length === 0 && !loading ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                <Calendar size={48} className="mb-4 opacity-20 text-slate-500" />
-                <p className="text-sm font-medium text-slate-600">
-                  {searchQuery ? 'No hay coincidencias' : 'Todo al día'}
-                </p>
-                <p className="text-xs opacity-60">
-                  {searchQuery ? 'Prueba con otro nombre' : 'No tienes acciones pendientes'}
-                </p>
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-in fade-in">
+                {activeTab === 'caducadas' ? (
+                  <>
+                    <CheckCircle2 size={48} className="mb-4 opacity-30 text-emerald-500" />
+                    <p className="text-sm font-medium text-slate-600">¡Impecable!</p>
+                    <p className="text-xs opacity-60">No tienes ninguna tarea vencida.</p>
+                  </>
+                ) : (
+                  <>
+                    <Calendar size={48} className="mb-4 opacity-20 text-slate-500" />
+                    <p className="text-sm font-medium text-slate-600">
+                      {searchQuery ? 'No hay coincidencias' : 'Todo al día'}
+                    </p>
+                    <p className="text-xs opacity-60">
+                      {searchQuery ? 'Prueba con otro nombre' : 'No tienes acciones futuras pendientes'}
+                    </p>
+                  </>
+                )}
               </div>
             ) : (
               filteredAgenda.map((task) => {
@@ -279,20 +346,19 @@ export default function Dashboard() {
                 return (
                   <div key={task.id} className="p-4 hover:bg-slate-50 transition-all flex items-center justify-between group bg-white">
                     <div className="flex items-center gap-4">
-                      <button 
+                      <button
                         onClick={() => toggleTask(task)}
                         className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all shadow-sm bg-white border border-slate-200 text-slate-300 hover:border-emerald-400 hover:text-emerald-500"
                       >
                         <Circle size={20} />
                       </button>
-                      
+
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${
-                            task.type === 'Llamada' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${task.type === 'Llamada' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                             task.type === 'Visita' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                            'bg-slate-50 text-slate-600 border-slate-100'
-                          }`}>
+                              'bg-slate-50 text-slate-600 border-slate-100'
+                            }`}>
                             {task.type}
                           </span>
                           <span className="text-sm font-bold text-slate-800">
@@ -309,9 +375,9 @@ export default function Dashboard() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
+                      <button
                         onClick={() => deleteTask(task.id)}
                         className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                       >
@@ -336,8 +402,8 @@ export default function Dashboard() {
             </div>
             <div className="p-4 space-y-3">
               {recentLeads.map((lead) => (
-                <div 
-                  key={lead.id} 
+                <div
+                  key={lead.id}
                   onClick={() => navigate(`/leads?search=${encodeURIComponent(lead.name)}`)}
                   className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group"
                 >
@@ -358,20 +424,20 @@ export default function Dashboard() {
               <h3 className="font-bold text-slate-800 text-sm">Accesos Rápidos</h3>
             </div>
             <div className="p-5 space-y-3">
-              <button 
+              <button
                 onClick={() => navigate('/leads')}
                 className="w-full py-3 bg-slate-900 text-white rounded-lg text-xs font-bold shadow hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
               >
                 <Users size={14} /> Gestionar Clientes
               </button>
               <div className="grid grid-cols-2 gap-3">
-                 <button 
+                <button
                   onClick={() => navigate('/inventory')}
                   className="w-full py-3 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
                 >
                   <Clock size={14} /> Inventario
                 </button>
-                 <button 
+                <button
                   onClick={() => navigate('/agenda')}
                   className="w-full py-3 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
                 >
@@ -388,11 +454,10 @@ export default function Dashboard() {
 
 function StatCard({ title, value, change, isPositive, icon, trendIcon = true, onClick }: any) {
   return (
-    <div 
+    <div
       onClick={onClick}
-      className={`bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all duration-200 flex flex-col justify-between ${
-        onClick ? 'cursor-pointer hover:shadow-md hover:border-emerald-200 hover:-translate-y-0.5' : ''
-      }`}
+      className={`bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all duration-200 flex flex-col justify-between ${onClick ? 'cursor-pointer hover:shadow-md hover:border-emerald-200 hover:-translate-y-0.5' : ''
+        }`}
     >
       <div className="flex justify-between items-start mb-2">
         <div className="p-1.5 bg-slate-50 rounded-lg">{icon}</div>

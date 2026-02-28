@@ -1,19 +1,19 @@
 // src/pages/Inventory.tsx
 import { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  Loader2, 
-  Home, 
-  BedDouble, 
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  Loader2,
+  Home,
+  BedDouble,
   Bath,
-  AlertTriangle,
-  X
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import CreatePropertyModal from '../components/inventory/CreatePropertyModal';
+import { useDialog } from '../context/DialogContext';
 
 interface Property {
   id: string;
@@ -34,7 +34,8 @@ export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
-  
+  const { showAlert } = useDialog();
+
   // Estados para el nuevo modal de confirmación de borrado
   const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -62,7 +63,7 @@ export default function Inventory() {
 
   const confirmDelete = async () => {
     if (!propertyToDelete) return;
-    
+
     try {
       setIsDeleting(true);
       const { error } = await supabase
@@ -76,13 +77,13 @@ export default function Inventory() {
       setPropertyToDelete(null);
     } catch (error) {
       console.error('Error deleting property:', error);
-      alert('Error al intentar eliminar el registro.');
+      await showAlert({ title: 'Error', message: 'Error al intentar eliminar el registro.' });
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const filteredProperties = properties.filter(p => 
+  const filteredProperties = properties.filter(p =>
     p.modelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.numero_vivienda.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -171,7 +172,7 @@ export default function Inventory() {
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex justify-end gap-2">
-                        <button 
+                        <button
                           onClick={() => {
                             setEditingProperty(property);
                             setIsModalOpen(true);
@@ -180,7 +181,7 @@ export default function Inventory() {
                         >
                           <Edit2 size={18} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => setPropertyToDelete(property)}
                           className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                         >

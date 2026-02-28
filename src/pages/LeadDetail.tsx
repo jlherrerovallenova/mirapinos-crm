@@ -1,21 +1,22 @@
 // src/pages/LeadDetail.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { 
-  ArrowLeft, 
-  Mail, 
-  Phone, 
-  Calendar as CalendarIcon, 
-  Clock, 
-  User, 
-  Loader2, 
-  CheckCircle2, 
+import {
+  ArrowLeft,
+  Mail,
+  Phone,
+  Calendar as CalendarIcon,
+  Clock,
+  User,
+  Loader2,
+  CheckCircle2,
   Circle,
   Save,
   Pencil,
   X
 } from 'lucide-react';
+import { useDialog } from '../context/DialogContext';
 import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
@@ -34,11 +35,12 @@ const STATUS_OPTIONS = [
 export default function LeadDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
+
   const [lead, setLead] = useState<Lead | null>(null);
   const [tasks, setTasks] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const { showAlert } = useDialog();
+
   // Estados para la edición de la ficha
   const [isEditing, setIsEditing] = useState(false);
   const [savingDetails, setSavingDetails] = useState(false);
@@ -64,8 +66,8 @@ export default function LeadDetail() {
     try {
       // Promesas en paralelo para mayor velocidad
       const [leadResponse, agendaResponse] = await Promise.all([
-        supabase.from('leads').select('*').eq('id', id).single(),
-        supabase.from('agenda').select('*').eq('lead_id', id).order('due_date', { ascending: true })
+        (supabase as any).from('leads').select('*').eq('id', id as string).single(),
+        (supabase as any).from('agenda').select('*').eq('lead_id', id as string).order('due_date', { ascending: true })
       ]);
 
       if (leadResponse.error) throw leadResponse.error;
@@ -80,7 +82,7 @@ export default function LeadDetail() {
         source: leadResponse.data.source || 'Web'
       });
       setTasks(agendaResponse.data || []);
-      
+
     } catch (error) {
       console.error("Error cargando perfil del lead:", error);
     } finally {
@@ -93,7 +95,7 @@ export default function LeadDetail() {
     if (!lead) return;
     setSavingDetails(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('leads')
         .update({
           name: formData.name,
@@ -102,13 +104,13 @@ export default function LeadDetail() {
           source: formData.source
         })
         .eq('id', lead.id);
-      
+
       if (error) throw error;
       setLead({ ...lead, ...formData });
       setIsEditing(false);
     } catch (error) {
       console.error("Error actualizando datos:", error);
-      alert("Error al guardar los cambios.");
+      await showAlert({ title: 'Error', message: 'Error al guardar los cambios.' });
     } finally {
       setSavingDetails(false);
     }
@@ -120,13 +122,13 @@ export default function LeadDetail() {
     setCurrentStatus(newStatus);
     setSavingStatus(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('leads')
         .update({ status: newStatus })
         .eq('id', lead.id);
-      
+
       if (error) throw error;
-      setLead({ ...lead, status: newStatus });
+      setLead({ ...lead, status: newStatus as any });
     } catch (error) {
       console.error("Error actualizando estado:", error);
       setCurrentStatus(lead.status || 'new'); // Revertir si hay error
@@ -141,7 +143,7 @@ export default function LeadDetail() {
     // Actualización optimista en UI
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: newStatus } : t));
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('agenda')
         .update({ completed: newStatus })
         .eq('id', task.id);
@@ -182,9 +184,9 @@ export default function LeadDetail() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-5xl mx-auto pb-10">
-      
+
       {/* BOTÓN DE RETROCESO */}
-      <button 
+      <button
         onClick={() => navigate('/leads')}
         className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
       >
@@ -200,10 +202,10 @@ export default function LeadDetail() {
             </div>
             <div className="flex-1 w-full">
               {isEditing ? (
-                <input 
+                <input
                   type="text"
                   value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
                   className="w-full text-2xl sm:text-3xl font-display font-bold text-slate-900 tracking-tight bg-slate-50 border-b-2 border-emerald-500 outline-none px-2 py-1 rounded transition-colors"
                   placeholder="Nombre Completo"
                 />
@@ -219,7 +221,7 @@ export default function LeadDetail() {
           <div className="flex flex-wrap gap-3 w-full md:w-auto">
             {isEditing ? (
               <>
-                <button 
+                <button
                   onClick={() => {
                     setIsEditing(false);
                     setFormData({
@@ -228,23 +230,23 @@ export default function LeadDetail() {
                       phone: lead.phone || '',
                       source: lead.source || 'Web'
                     });
-                  }} 
+                  }}
                   className="flex-1 md:flex-none p-2.5 px-4 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all font-bold text-sm flex items-center justify-center gap-2"
                 >
                   <X size={16} /> Cancelar
                 </button>
-                <button 
+                <button
                   onClick={handleSaveDetails}
                   disabled={savingDetails}
                   className="flex-1 md:flex-none p-2.5 px-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-bold text-sm shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  {savingDetails ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} 
+                  {savingDetails ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                   Guardar
                 </button>
               </>
             ) : (
               <>
-                <button 
+                <button
                   onClick={() => setIsEditing(true)}
                   className="flex-1 md:flex-none p-3 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-sm"
                 >
@@ -270,14 +272,14 @@ export default function LeadDetail() {
           <div className="space-y-4 col-span-2">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Información de Contacto</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              
+
               <div className="flex items-center gap-3 text-sm text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
                 <Mail className="text-slate-400 shrink-0" size={16} />
                 {isEditing ? (
-                  <input 
+                  <input
                     type="email"
                     value={formData.email}
-                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
                     className="w-full bg-slate-50 border-b-2 border-emerald-500 outline-none px-2 py-1 rounded font-medium"
                     placeholder="correo@ejemplo.com"
                   />
@@ -289,10 +291,10 @@ export default function LeadDetail() {
               <div className="flex items-center gap-3 text-sm text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
                 <Phone className="text-slate-400 shrink-0" size={16} />
                 {isEditing ? (
-                  <input 
+                  <input
                     type="tel"
                     value={formData.phone}
-                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full bg-slate-50 border-b-2 border-emerald-500 outline-none px-2 py-1 rounded font-medium"
                     placeholder="600 000 000"
                   />
@@ -306,9 +308,9 @@ export default function LeadDetail() {
                 {isEditing ? (
                   <div className="flex items-center gap-2 w-full">
                     <span className="whitespace-nowrap">Origen:</span>
-                    <select 
+                    <select
                       value={formData.source}
-                      onChange={e => setFormData({...formData, source: e.target.value})}
+                      onChange={e => setFormData({ ...formData, source: e.target.value })}
                       className="w-full bg-slate-50 border-b-2 border-emerald-500 outline-none px-2 py-1 rounded font-bold cursor-pointer"
                     >
                       <option value="Idealista">Idealista</option>
@@ -329,7 +331,7 @@ export default function LeadDetail() {
                 <CalendarIcon className="text-slate-400 shrink-0" size={16} />
                 <span className="w-full">Creado: <strong className="font-bold">{new Date(lead.created_at).toLocaleDateString()}</strong></span>
               </div>
-              
+
             </div>
           </div>
 
@@ -376,7 +378,7 @@ export default function LeadDetail() {
               {pendingTasks.map(task => (
                 <div key={task.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors group">
                   <div className="flex items-center gap-4">
-                    <button 
+                    <button
                       onClick={() => toggleTaskStatus(task)}
                       className="text-slate-300 hover:text-emerald-500 transition-colors"
                     >
@@ -403,7 +405,7 @@ export default function LeadDetail() {
                   {completedTasks.map(task => (
                     <div key={task.id} className="p-4 flex items-center justify-between opacity-60 hover:opacity-100 transition-opacity">
                       <div className="flex items-center gap-4">
-                        <button 
+                        <button
                           onClick={() => toggleTaskStatus(task)}
                           className="text-emerald-500 hover:text-slate-400 transition-colors"
                         >

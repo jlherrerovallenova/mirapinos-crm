@@ -1,15 +1,15 @@
 // src/layouts/MainLayout.tsx
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Outlet, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AppNotification } from '../components/AppNotification';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Calendar, 
-  Map, 
-  Settings, 
-  Search, 
+import {
+  LayoutDashboard,
+  Users,
+  Calendar,
+  Map,
+  Settings,
+  Search,
   Bell,
   LogOut,
   Menu,
@@ -22,14 +22,14 @@ export default function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
+
   // Estados para el buscador y notificaciones
   const [searchTerm, setSearchTerm] = useState('');
   const [showNotification, setShowNotification] = useState(false);
-  const [notificationData, setNotificationData] = useState({ 
-    title: '', 
-    message: '', 
-    type: 'info' as 'success' | 'error' | 'info' 
+  const [notificationData, setNotificationData] = useState({
+    title: '',
+    message: '',
+    type: 'info' as 'success' | 'error' | 'info'
   });
 
   // 1. PANTALLA DE CARGA
@@ -56,7 +56,7 @@ export default function MainLayout() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const query = searchTerm.trim();
-    
+
     if (!query) return;
 
     // Lógica de redirección inteligente según lo que el usuario busque
@@ -86,9 +86,9 @@ export default function MainLayout() {
 
   return (
     <div className="flex h-screen bg-slate-100 font-sans text-slate-900 overflow-hidden">
-      
+
       {showNotification && (
-        <AppNotification 
+        <AppNotification
           title={notificationData.title}
           message={notificationData.message}
           type={notificationData.type}
@@ -97,7 +97,7 @@ export default function MainLayout() {
       )}
 
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-slate-900/50 z-30 lg:hidden backdrop-blur-sm"
           onClick={closeSidebar}
         />
@@ -108,7 +108,7 @@ export default function MainLayout() {
         transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        
+
         <div className="h-16 flex items-center justify-between px-6 bg-slate-950 border-b border-slate-800">
           <div className="flex items-center">
             <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center text-white font-bold mr-3 shadow-lg shadow-emerald-900/20">
@@ -126,7 +126,7 @@ export default function MainLayout() {
           <SidebarItem to="/" icon={<LayoutDashboard size={18} />} label="Panel de Control" active={location.pathname === '/'} onClick={closeSidebar} />
           <SidebarItem to="/leads" icon={<Users size={18} />} label="Clientes" active={location.pathname.startsWith('/leads')} onClick={closeSidebar} />
           <SidebarItem to="/pipeline" icon={<Calendar size={18} />} label="Ventas" active={location.pathname === '/pipeline'} onClick={closeSidebar} />
-          
+
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6">Gestión</p>
           <SidebarItem to="/inventory" icon={<Map size={18} />} label="Inventario" active={location.pathname === '/inventory'} onClick={closeSidebar} />
           <SidebarItem to="/settings" icon={<Settings size={18} />} label="Configuración" active={location.pathname === '/settings'} onClick={closeSidebar} />
@@ -141,9 +141,9 @@ export default function MainLayout() {
               <p className="text-sm font-bold text-white truncate">Usuario</p>
               <p className="text-xs text-slate-500 truncate">{session.user.email}</p>
             </div>
-            <button 
-              onClick={() => signOut()} 
-              className="text-slate-500 hover:text-red-400 transition-colors" 
+            <button
+              onClick={() => signOut()}
+              className="text-slate-500 hover:text-red-400 transition-colors"
               title="Cerrar Sesión"
             >
               <LogOut size={18} />
@@ -153,39 +153,39 @@ export default function MainLayout() {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        
+
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm z-10 flex-shrink-0">
           <div className="flex items-center gap-4">
-             <button 
-               onClick={toggleSidebar} 
-               className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-             >
-               <Menu size={24}/>
-             </button>
-             <h2 className="text-lg md:text-xl font-bold text-slate-800 tracking-tight truncate">
-               {location.pathname === '/' ? 'Resumen General' : 
-                location.pathname.includes('leads') ? 'Gestión de Clientes' : 
-                location.pathname.includes('pipeline') ? 'Túnel de Ventas' :
-                location.pathname.includes('inventory') ? 'Inventario de Propiedades' :
-                'Panel de Administración'}
-             </h2>
+            <button
+              onClick={toggleSidebar}
+              className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <Menu size={24} />
+            </button>
+            <h2 className="text-lg md:text-xl font-bold text-slate-800 tracking-tight truncate">
+              {location.pathname === '/' ? 'Resumen General' :
+                location.pathname.includes('leads') ? 'Gestión de Clientes' :
+                  location.pathname.includes('pipeline') ? 'Túnel de Ventas' :
+                    location.pathname.includes('inventory') ? 'Inventario de Propiedades' :
+                      'Panel de Administración'}
+            </h2>
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
             {/* Buscador con manejo de envío (Submit) */}
             <form onSubmit={handleSearch} className="relative hidden md:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar clientes o propiedades..." 
+                placeholder="Buscar clientes o propiedades..."
                 className="pl-9 pr-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all w-48 lg:w-64 placeholder:text-slate-400 font-medium"
               />
             </form>
             <div className="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div>
-            
-            <button 
+
+            <button
               onClick={handleBellClick}
               className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg relative transition-colors"
             >
@@ -216,13 +216,13 @@ interface SidebarItemProps {
 
 function SidebarItem({ to, icon, label, active, onClick }: SidebarItemProps) {
   return (
-    <Link 
+    <Link
       to={to}
       onClick={onClick}
       className={`
         flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group
-        ${active 
-          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/20' 
+        ${active
+          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/20'
           : 'text-slate-400 hover:bg-slate-800 hover:text-white'
         }
       `}

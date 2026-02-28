@@ -4,6 +4,7 @@ import { X, FileText, Loader2, Calendar } from 'lucide-react'; // Cambiado icono
 import { supabase } from '../../lib/supabase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useDialog } from '../../context/DialogContext';
 
 interface Props {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface Props {
 
 export default function ExportLeadsModal({ isOpen, onClose }: Props) {
   const [loading, setLoading] = useState(false);
+  const { showAlert } = useDialog();
   const [filterType, setFilterType] = useState<'all' | 'month'>('all');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
 
@@ -40,7 +42,7 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
 
       if (error) throw error;
       if (!data || data.length === 0) {
-        alert('No hay datos para exportar en el periodo seleccionado.');
+        await showAlert({ title: 'Aviso', message: 'No hay datos para exportar en el periodo seleccionado.' });
         setLoading(false);
         return;
       }
@@ -51,7 +53,7 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
 
     } catch (error) {
       console.error('Error exportando:', error);
-      alert('Hubo un error al exportar los datos.');
+      await showAlert({ title: 'Error', message: 'Hubo un error al exportar los datos.' });
     } finally {
       setLoading(false);
     }
@@ -63,13 +65,13 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
 
     // 2. Título y Metadatos del documento
     const title = 'Listado de Clientes - MIRAPINOS';
-    const subtitle = filterType === 'month' 
-      ? `Filtrado por mes: ${selectedMonth}` 
+    const subtitle = filterType === 'month'
+      ? `Filtrado por mes: ${selectedMonth}`
       : 'Histórico completo';
-    
+
     doc.setFontSize(18);
     doc.text(title, 14, 22);
-    
+
     doc.setFontSize(11);
     doc.setTextColor(100);
     doc.text(subtitle, 14, 30);
@@ -77,7 +79,7 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
 
     // 3. Definir columnas
     const tableColumn = ["Nombre", "Email", "Teléfono", "Empresa", "Origen", "Estado", "Fecha Alta"];
-    
+
     // 4. Mapear datos a filas
     const tableRows: any[] = [];
 
@@ -123,7 +125,7 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-        
+
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <FileText className="text-red-600" size={20} /> {/* Icono rojo para PDF */}
@@ -141,10 +143,10 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
 
           <div className="space-y-3">
             <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
-              <input 
-                type="radio" 
-                name="filter" 
-                checked={filterType === 'all'} 
+              <input
+                type="radio"
+                name="filter"
+                checked={filterType === 'all'}
                 onChange={() => setFilterType('all')}
                 className="text-emerald-600 focus:ring-emerald-500"
               />
@@ -152,10 +154,10 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
             </label>
 
             <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
-              <input 
-                type="radio" 
-                name="filter" 
-                checked={filterType === 'month'} 
+              <input
+                type="radio"
+                name="filter"
+                checked={filterType === 'month'}
                 onChange={() => setFilterType('month')}
                 className="text-emerald-600 focus:ring-emerald-500"
               />
@@ -163,8 +165,8 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
                 <span className="text-sm font-bold text-slate-700 block mb-1">Filtrar por mes</span>
                 <div className="flex items-center gap-2">
                   <Calendar size={14} className="text-slate-400" />
-                  <input 
-                    type="month" 
+                  <input
+                    type="month"
                     value={selectedMonth}
                     disabled={filterType !== 'month'}
                     onChange={(e) => setSelectedMonth(e.target.value)}

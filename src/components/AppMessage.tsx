@@ -1,6 +1,4 @@
-// src/components/AppMessage.tsx
-import React from 'react';
-import { Bell, X, Info, CheckCircle, AlertTriangle } from 'lucide-react';
+import { X, Info, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface AppMessageProps {
   title: string;
@@ -37,7 +35,7 @@ export function AppMessage({ title, message, type = 'info', onClose }: AppMessag
     <div className={`${currentStyle.bg} border ${currentStyle.border} p-5 rounded-4xl shadow-xl shadow-pine-900/5 flex items-start gap-4 relative overflow-hidden animate-in slide-in-from-right-8 duration-500`}>
       {/* Barra de acento lateral */}
       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${currentStyle.accent}`}></div>
-      
+
       <div className="p-3 bg-white rounded-2xl shadow-sm border border-pine-50">
         {currentStyle.icon}
       </div>
@@ -52,7 +50,7 @@ export function AppMessage({ title, message, type = 'info', onClose }: AppMessag
       </div>
 
       {onClose && (
-        <button 
+        <button
           onClick={onClose}
           className="p-2 hover:bg-pine-50 rounded-xl transition-colors text-slate-300 hover:text-slate-600"
         >

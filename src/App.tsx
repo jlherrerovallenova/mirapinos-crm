@@ -1,15 +1,30 @@
 // src/App.tsx
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { Loader2 } from 'lucide-react';
 import MainLayout from './layouts/MainLayout';
-import Dashboard from './pages/Dashboard';
-import Leads from './pages/Leads';
-import Pipeline from './pages/Pipeline';
-import Inventory from './pages/Inventory';
-import Settings from './pages/Settings';
-import LeadDetail from './pages/LeadDetail';
-import Agenda from './pages/Agenda';
 import Login from './pages/Login';
+
+// Importaciones perezosas (Lazy Loading) - Divide el código de cada "Sala"
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Leads = lazy(() => import('./pages/Leads'));
+const LeadDetail = lazy(() => import('./pages/LeadDetail'));
+const Pipeline = lazy(() => import('./pages/Pipeline'));
+const Inventory = lazy(() => import('./pages/Inventory'));
+const Agenda = lazy(() => import('./pages/Agenda'));
+const Settings = lazy(() => import('./pages/Settings'));
+
+/**
+ * Componente de Transición (Sala de espera)
+ * Se muestra brevemente mientras el navegador descarga el código de la vista solicitada.
+ */
+const PageLoader = () => (
+  <div className="w-full h-[60vh] flex flex-col items-center justify-center">
+    <Loader2 className="h-10 w-10 text-emerald-600 animate-spin mb-4" />
+    <p className="text-slate-400 text-sm font-medium animate-pulse">Cargando módulo...</p>
+  </div>
+);
 
 /**
  * Componente de Ruta Protegida
@@ -19,9 +34,8 @@ const ProtectedRoute = () => {
   const { session, loading } = useAuth();
 
   // Mientras se verifica la conexión con la base de datos, no renderizamos nada
-  // para evitar parpadeos de contenido protegido.
   if (loading) {
-    return null; 
+    return null;
   }
 
   // Si tras la carga no hay sesión, redirigimos al login
@@ -36,20 +50,20 @@ const ProtectedRoute = () => {
 function App() {
   return (
     <Routes>
-      {/* 1. Rutas Públicas */}
+      {/* 1. Rutas Públicas (Carga Eager = Inmediata, no perezosa) */}
       <Route path="/login" element={<Login />} />
 
       {/* 2. Filtro de Seguridad (Rutas Protegidas) */}
       <Route element={<ProtectedRoute />}>
-        {/* Todas estas rutas requieren sesión y usan el layout con Sidebar/Header */}
         <Route element={<MainLayout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/leads" element={<Leads />} />
-          <Route path="/leads/:id" element={<LeadDetail />} />
-          <Route path="/pipeline" element={<Pipeline />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/agenda" element={<Agenda />} />
-          <Route path="/settings" element={<Settings />} />
+          {/* Todas las rutas hijas son cargadas perezosamente, usamos Suspense para gestionarlo */}
+          <Route path="/" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
+          <Route path="/leads" element={<Suspense fallback={<PageLoader />}><Leads /></Suspense>} />
+          <Route path="/leads/:id" element={<Suspense fallback={<PageLoader />}><LeadDetail /></Suspense>} />
+          <Route path="/pipeline" element={<Suspense fallback={<PageLoader />}><Pipeline /></Suspense>} />
+          <Route path="/inventory" element={<Suspense fallback={<PageLoader />}><Inventory /></Suspense>} />
+          <Route path="/agenda" element={<Suspense fallback={<PageLoader />}><Agenda /></Suspense>} />
+          <Route path="/settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
         </Route>
       </Route>
 

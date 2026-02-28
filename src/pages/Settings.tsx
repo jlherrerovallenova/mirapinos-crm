@@ -1,12 +1,12 @@
 // src/pages/Settings.tsx
 import React, { useState, useEffect } from 'react';
-import { 
-  Save, 
-  FileText, 
-  Trash2, 
-  Eye, 
-  Edit3, 
-  Loader2, 
+import {
+  Save,
+  FileText,
+  Trash2,
+  Eye,
+  Edit3,
+  Loader2,
   Search,
   Download,
   X,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useDialog } from '../context/DialogContext';
 
 // Definición de interfaces para Tipado
 interface SystemDocument {
@@ -31,13 +32,14 @@ interface SystemDocument {
 
 const Settings: React.FC = () => {
   const { profile, refreshProfile } = useAuth();
-  
+  const { showConfirm, showAlert } = useDialog();
+
   // Estados de Navegación y UI
   const [activeTab, setActiveTab] = useState<'profile' | 'documents'>('profile');
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  
+
   // Estados de Documentos
   const [documents, setDocuments] = useState<SystemDocument[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -69,15 +71,16 @@ const Settings: React.FC = () => {
     try {
       const { error } = await supabase
         .from('profiles')
+        // @ts-ignore
         .update({ full_name: fullName })
         .eq('id', profile.id);
 
       if (error) throw error;
       await refreshProfile();
-      alert('Perfil actualizado correctamente');
+      await showAlert({ title: 'Éxito', message: 'Perfil actualizado correctamente' });
     } catch (error) {
       console.error('Error al actualizar perfil:', error);
-      alert('No se pudo actualizar el perfil');
+      await showAlert({ title: 'Error', message: 'No se pudo actualizar el perfil' });
     } finally {
       setIsSavingProfile(false);
     }
@@ -104,10 +107,10 @@ const Settings: React.FC = () => {
     setIsUploading(true);
     try {
       const { error } = await supabase.storage.from('documents').upload(file.name, file);
-      
+
       if (error) {
         if (error.message.includes('already exists')) {
-          alert('Ya existe un archivo con ese nombre en el repositorio.');
+          await showAlert({ title: 'Archivo Duplicado', message: 'Ya existe un archivo con ese nombre en el repositorio.' });
         } else {
           throw error;
         }
@@ -116,7 +119,7 @@ const Settings: React.FC = () => {
       }
     } catch (error) {
       console.error('Error al subir documento:', error);
-      alert('Error al subir el archivo');
+      await showAlert({ title: 'Error', message: 'Error al subir el archivo' });
     } finally {
       setIsUploading(false);
       event.target.value = ''; // Limpiar el input para permitir subir el mismo archivo si se borra
@@ -124,13 +127,19 @@ const Settings: React.FC = () => {
   };
 
   const handleDelete = async (fileName: string) => {
-    if (!window.confirm(`¿Estás seguro de que deseas eliminar "${fileName}"?`)) return;
+    const confirmed = await showConfirm({
+      title: 'Eliminar Archivo',
+      message: `¿Estás seguro de que deseas eliminar "${fileName}"?`,
+      confirmText: 'Sí, eliminar',
+      cancelText: 'Cancelar'
+    });
+    if (!confirmed) return;
     try {
       const { error } = await supabase.storage.from('documents').remove([fileName]);
       if (error) throw error;
       setDocuments(documents.filter(doc => doc.name !== fileName));
     } catch (error) {
-      alert('Error al eliminar el archivo');
+      await showAlert({ title: 'Error', message: 'Error al eliminar el archivo' });
     }
   };
 
@@ -140,7 +149,7 @@ const Settings: React.FC = () => {
       if (error) throw error;
       setPreviewUrl(data.signedUrl);
     } catch (error) {
-      alert('No se pudo generar la vista previa');
+      await showAlert({ title: 'Error', message: 'No se pudo generar la vista previa' });
     }
   };
 
@@ -156,11 +165,11 @@ const Settings: React.FC = () => {
       setNewName('');
       fetchDocuments();
     } catch (error) {
-      alert('Error al renombrar el archivo');
+      await showAlert({ title: 'Error', message: 'Error al renombrar el archivo' });
     }
   };
 
-  const filteredDocs = documents.filter(doc => 
+  const filteredDocs = documents.filter(doc =>
     doc.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -177,22 +186,20 @@ const Settings: React.FC = () => {
         <div className="w-full md:w-56 flex flex-col gap-1">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all ${
-              activeTab === 'profile' 
-                ? 'bg-emerald-600 text-white shadow-sm' 
-                : 'hover:bg-slate-100 text-slate-600'
-            }`}
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all ${activeTab === 'profile'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'hover:bg-slate-100 text-slate-600'
+              }`}
           >
             <UserIcon size={16} />
             <span className="font-medium">Mi Perfil</span>
           </button>
           <button
             onClick={() => setActiveTab('documents')}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all ${
-              activeTab === 'documents' 
-                ? 'bg-emerald-600 text-white shadow-sm' 
-                : 'hover:bg-slate-100 text-slate-600'
-            }`}
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all ${activeTab === 'documents'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'hover:bg-slate-100 text-slate-600'
+              }`}
           >
             <FolderOpen size={16} />
             <span className="font-medium">Documentos</span>
@@ -201,7 +208,7 @@ const Settings: React.FC = () => {
 
         {/* Panel de Contenido */}
         <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
-          
+
           {/* VISTA: PERFIL */}
           {activeTab === 'profile' && (
             <div className="p-6 space-y-6 animate-in fade-in duration-300">
@@ -209,12 +216,12 @@ const Settings: React.FC = () => {
                 <h2 className="text-lg font-semibold text-slate-800">Información Personal</h2>
                 <p className="text-xs text-slate-500">Actualiza tus datos de contacto y visualización.</p>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 uppercase">Nombre Completo</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full p-2.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
@@ -230,7 +237,7 @@ const Settings: React.FC = () => {
               </div>
 
               <div className="pt-2">
-                <button 
+                <button
                   onClick={handleUpdateProfile}
                   disabled={isSavingProfile}
                   className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
@@ -262,13 +269,13 @@ const Settings: React.FC = () => {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
-                  
+
                   <label className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-emerald-700 transition-all cursor-pointer whitespace-nowrap w-full sm:w-auto">
                     {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                     <span>Subir Documento</span>
-                    <input 
-                      type="file" 
-                      className="hidden" 
+                    <input
+                      type="file"
+                      className="hidden"
                       onChange={handleFileUpload}
                       disabled={isUploading}
                     />
@@ -337,23 +344,23 @@ const Settings: React.FC = () => {
                           </td>
                           <td className="px-6 py-3 text-right">
                             <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button 
-                                onClick={() => handlePreview(doc.name)} 
-                                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-100 rounded-md" 
+                              <button
+                                onClick={() => handlePreview(doc.name)}
+                                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-100 rounded-md"
                                 title="Previsualizar"
                               >
                                 <Eye size={16} />
                               </button>
-                              <button 
-                                onClick={() => { setIsEditingName(doc.name); setNewName(doc.name); }} 
-                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-md" 
+                              <button
+                                onClick={() => { setIsEditingName(doc.name); setNewName(doc.name); }}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-md"
                                 title="Renombrar"
                               >
                                 <Edit3 size={16} />
                               </button>
-                              <button 
-                                onClick={() => handleDelete(doc.name)} 
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-100 rounded-md" 
+                              <button
+                                onClick={() => handleDelete(doc.name)}
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-100 rounded-md"
                                 title="Eliminar"
                               >
                                 <Trash2 size={16} />
@@ -381,16 +388,16 @@ const Settings: React.FC = () => {
                 <span className="text-sm font-bold text-slate-700">Visor de Documentos</span>
               </div>
               <div className="flex items-center gap-2">
-                <a 
-                  href={previewUrl} 
-                  target="_blank" 
-                  rel="noreferrer" 
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noreferrer"
                   className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-colors"
                 >
                   <Download size={14} /> Abrir en pestaña
                 </a>
-                <button 
-                  onClick={() => setPreviewUrl(null)} 
+                <button
+                  onClick={() => setPreviewUrl(null)}
                   className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"
                 >
                   <X size={20} />
@@ -398,9 +405,9 @@ const Settings: React.FC = () => {
               </div>
             </div>
             <div className="flex-1 bg-slate-100 relative">
-              <iframe 
-                src={previewUrl} 
-                className="w-full h-full border-none shadow-inner" 
+              <iframe
+                src={previewUrl}
+                className="w-full h-full border-none shadow-inner"
                 title="Document Preview"
               />
             </div>

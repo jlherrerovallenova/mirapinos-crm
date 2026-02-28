@@ -14,7 +14,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -35,7 +35,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
 
   const checkDuplicates = async (email: string, phone: string) => {
     if (!email && !phone) return false;
-    
+
     try {
       if (email) {
         const { data, error } = await supabase.from('leads').select('id').eq('email', email).limit(1);
@@ -52,7 +52,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
       return false;
     } catch (err) {
       console.warn('⚠️ Aviso en validación de duplicados (continuando guardado):', err);
-      return false; 
+      return false;
     }
   };
 
@@ -64,11 +64,11 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
     try {
       if (!user?.id) throw new Error('Sesión de usuario no detectada. Por favor, recarga la página.');
       if (!formData.name.trim()) throw new Error('El nombre es obligatorio.');
-      
+
       if (formData.email && !isValidEmail(formData.email)) {
         throw new Error('El formato del correo electrónico no es válido.');
       }
-      
+
       if (formData.phone && !isValidPhone(formData.phone)) {
         throw new Error('El teléfono debe tener al menos 9 dígitos.');
       }
@@ -88,7 +88,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
         assigned_to: user.id
       };
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('leads')
         .insert([payload])
         .select();
@@ -98,7 +98,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
           throw new Error('Permiso denegado por seguridad (RLS). Tu usuario no tiene privilegios de escritura.');
         }
         if (error.code === '42703') {
-           throw new Error('Error de esquema: La columna especificada no existe en tu tabla "leads" en Supabase.');
+          throw new Error('Error de esquema: La columna especificada no existe en tu tabla "leads" en Supabase.');
         }
         throw error;
       }
@@ -118,7 +118,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-        
+
         {/* Header */}
         <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <h2 className="text-xl font-bold text-slate-900">Nuevo Lead</h2>
@@ -143,7 +143,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium"
               placeholder="Ej. Juan Pérez"
               value={formData.name}
-              onChange={e => setFormData({...formData, name: e.target.value})}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
             />
           </div>
 
@@ -155,7 +155,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                 placeholder="juan@ejemplo.com"
                 value={formData.email}
-                onChange={e => setFormData({...formData, email: e.target.value})}
+                onChange={e => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
             <div>
@@ -165,7 +165,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                 placeholder="600 000 000"
                 value={formData.phone}
-                onChange={e => setFormData({...formData, phone: e.target.value})}
+                onChange={e => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
           </div>
@@ -175,7 +175,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
             <select
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-slate-700 cursor-pointer"
               value={formData.source}
-              onChange={e => setFormData({...formData, source: e.target.value})}
+              onChange={e => setFormData({ ...formData, source: e.target.value })}
             >
               <option value="Idealista">Idealista</option>
               <option value="Web">Web</option>

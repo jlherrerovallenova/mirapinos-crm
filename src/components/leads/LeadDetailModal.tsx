@@ -1,12 +1,13 @@
 // src/components/leads/LeadDetailModal.tsx
 import React, { useState, useEffect } from 'react';
-import { 
-  X, Mail, Phone, Save, Trash2, Loader2, Send, 
+import {
+  X, Mail, Phone, Save, Trash2, Loader2, Send,
   Clock, Compass, MessageCircle, Calendar as CalendarIcon,
   CheckCircle2, Circle, Plus, Pencil, RotateCcw
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useDialog } from '../../context/DialogContext';
 import EmailComposerModal from './EmailComposerModal';
 import type { Database } from '../../types/supabase';
 
@@ -21,19 +22,20 @@ interface Props {
 
 export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const { session } = useAuth();
+  const { showConfirm, showAlert } = useDialog();
   const [loading, setLoading] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-  const [availableDocs, setAvailableDocs] = useState<{name: string, url: string}[]>([]);
+  const [availableDocs, setAvailableDocs] = useState<{ name: string, url: string }[]>([]);
   const [sentHistory, setSentHistory] = useState<any[]>([]);
-  
+
   // Tareas de la agenda
   const [tasks, setTasks] = useState<AgendaItem[]>([]);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
-  
+
   // Estado local para el formulario de nueva tarea
-  const [newTask, setNewTask] = useState({ 
+  const [newTask, setNewTask] = useState({
     type: 'Llamada',
-    title: '', 
+    title: '',
     date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
     time: '10:00'
   });
@@ -57,17 +59,17 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     try {
       // Consultamos directamente al bucket 'documents' en el Storage
       const { data, error } = await supabase.storage.from('documents').list();
-      
+
       if (error) throw error;
 
       if (data) {
         const validFiles = data.filter(file => file.name !== '.emptyFolderPlaceholder');
-        
+
         const docsWithUrls = validFiles.map(file => {
           const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(file.name);
           return { name: file.name, url: publicUrl };
         });
-        
+
         setAvailableDocs(docsWithUrls);
       }
     } catch (error) {
@@ -87,7 +89,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
       .select('*')
       .eq('lead_id', lead.id)
       .order('due_date', { ascending: true });
-    
+
     if (data) setTasks(data);
   }
 
@@ -114,34 +116,40 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     try {
       if (editingTaskId) {
         // Editar
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('agenda')
           .update({
             title: taskData.title,
             type: taskData.type,
             due_date: finalDate
-          })
+          } as any)
           .eq('id', editingTaskId);
         if (error) throw error;
         setEditingTaskId(null);
       } else {
         // Insertar
-        const { error } = await supabase.from('agenda').insert([taskData]);
+        const { error } = await (supabase as any).from('agenda').insert([taskData]);
         if (error) throw error;
       }
 
       // Reset y recargar
       setNewTask({ type: 'Llamada', title: '', date: new Date().toISOString().slice(0, 10), time: '10:00' });
       fetchTasks();
-      
+
     } catch (error) {
       console.error("Error guardando tarea:", error);
-      alert("Error al guardar la tarea.");
+      await showAlert({ title: 'Error', message: 'Error al guardar la tarea.' });
     }
   };
 
   const deleteTask = async (id: number) => {
-    if (!window.confirm('¿Eliminar esta tarea?')) return;
+    const confirmed = await showConfirm({
+      title: 'Eliminar Tarea',
+      message: '¿Estás seguro de que deseas eliminar esta tarea?',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar'
+    });
+    if (!confirmed) return;
     const { error } = await supabase.from('agenda').delete().eq('id', id);
     if (!error) fetchTasks();
   };
@@ -160,13 +168,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const toggleTaskStatus = async (task: AgendaItem) => {
     const newStatus = !task.completed;
     setTasks(tasks.map(t => t.id === task.id ? { ...t, completed: newStatus } : t));
-    await supabase.from('agenda').update({ completed: newStatus }).eq('id', task.id);
+    await (supabase as any).from('agenda').update({ completed: newStatus }).eq('id', task.id);
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.from('leads').update(formData).eq('id', lead.id);
+    const { error } = await (supabase as any).from('leads').update(formData).eq('id', lead.id);
     if (!error) {
       onUpdate();
       onClose();
@@ -175,7 +183,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('¿Eliminar este cliente y su agenda?')) return;
+    const confirmed = await showConfirm({
+      title: 'Eliminar Cliente',
+      message: '¿Estás seguro de que deseas eliminar este cliente y TODA su agenda asociada? Esta acción es irreversible.',
+      confirmText: 'Sí, eliminar',
+      cancelText: 'Cancelar'
+    });
+    if (!confirmed) return;
     setLoading(true);
     // Borrar tareas asociadas primero (por seguridad, si no hay cascade)
     await supabase.from('agenda').delete().eq('lead_id', lead.id);
@@ -193,7 +207,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     <>
       <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
         <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
-          
+
           {/* HEADER */}
           <div className="px-8 py-5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -227,10 +241,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           {/* CONTENIDO PRINCIPAL */}
           <div className="flex-1 overflow-y-auto p-8 bg-white">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
-              
+
               {/* COLUMNA IZQUIERDA: FORMULARIO */}
               <div className="space-y-6 flex flex-col h-full">
-                <button 
+                <button
                   onClick={() => setIsEmailModalOpen(true)}
                   className="w-full p-4 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 transition-all active:scale-95"
                 >
@@ -253,10 +267,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Origen</label>
                         <div className="relative">
                           <Compass className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <select 
-                            name="source" 
-                            value={formData.source} 
-                            onChange={handleChange} 
+                          <select
+                            name="source"
+                            value={formData.source}
+                            onChange={handleChange}
                             className="w-full mt-1 pl-10 pr-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium border border-transparent focus:bg-white focus:border-emerald-500 transition-all appearance-none cursor-pointer text-slate-700"
                           >
                             <option value="Idealista">Idealista</option>
@@ -344,13 +358,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-400">
                   <CalendarIcon size={14} /> Agenda de Acciones
                 </h3>
-                
+
                 {/* Formulario Inline */}
                 <div className="grid grid-cols-1 gap-3 mb-6 bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                   <div className="flex gap-2">
-                    <select 
+                    <select
                       value={newTask.type}
-                      onChange={(e) => setNewTask({...newTask, type: e.target.value})}
+                      onChange={(e) => setNewTask({ ...newTask, type: e.target.value })}
                       className="bg-slate-900 border border-slate-700 rounded-lg text-[11px] font-bold p-2.5 outline-none focus:border-emerald-500 text-slate-200"
                     >
                       <option value="Llamada">Llamada</option>
@@ -358,41 +372,41 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       <option value="Visita">Visita</option>
                       <option value="Reunión">Reunión</option>
                     </select>
-                    <input 
+                    <input
                       type="date"
                       value={newTask.date}
-                      onChange={(e) => setNewTask({...newTask, date: e.target.value})}
+                      onChange={(e) => setNewTask({ ...newTask, date: e.target.value })}
                       className="flex-1 bg-slate-900 border border-slate-700 rounded-lg text-[11px] p-2.5 outline-none focus:border-emerald-500 text-slate-200"
                     />
-                     <input 
+                    <input
                       type="time"
                       value={newTask.time}
-                      onChange={(e) => setNewTask({...newTask, time: e.target.value})}
+                      onChange={(e) => setNewTask({ ...newTask, time: e.target.value })}
                       className="w-20 bg-slate-900 border border-slate-700 rounded-lg text-[11px] p-2.5 outline-none focus:border-emerald-500 text-slate-200"
                     />
                   </div>
                   <div className="flex gap-2">
-                    <input 
+                    <input
                       type="text"
                       placeholder={editingTaskId ? "Editando tarea..." : "Nueva tarea pendiente..."}
                       value={newTask.title}
-                      onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                       className="flex-1 bg-slate-900 border border-slate-700 rounded-lg text-xs p-2.5 outline-none focus:border-emerald-500 text-white placeholder-slate-500"
                     />
                     {editingTaskId && (
-                      <button 
+                      <button
                         onClick={() => {
                           setEditingTaskId(null);
                           setNewTask({ type: 'Llamada', title: '', date: new Date().toISOString().slice(0, 10), time: '10:00' });
-                        }} 
+                        }}
                         className="bg-slate-700 px-3 rounded-lg hover:bg-slate-600 transition-colors text-slate-300"
                         title="Cancelar edición"
                       >
                         <RotateCcw size={16} />
                       </button>
                     )}
-                    <button 
-                      onClick={saveTask} 
+                    <button
+                      onClick={saveTask}
                       className={`${editingTaskId ? 'bg-blue-600 hover:bg-blue-500' : 'bg-emerald-600 hover:bg-emerald-500'} px-4 rounded-lg transition-colors shadow-lg active:scale-95`}
                     >
                       {editingTaskId ? <Save size={18} /> : <Plus size={18} />}
@@ -404,44 +418,45 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                 <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
                   {tasks.length === 0 && (
                     <div className="text-center py-10 opacity-50">
-                        <CalendarIcon size={32} className="mx-auto mb-2 text-slate-600" />
-                        <p className="text-xs text-slate-400 italic">No hay tareas para este cliente.</p>
+                      <CalendarIcon size={32} className="mx-auto mb-2 text-slate-600" />
+                      <p className="text-xs text-slate-400 italic">No hay tareas para este cliente.</p>
                     </div>
                   )}
                   {tasks.map((task) => {
                     const dateObj = new Date(task.due_date);
                     return (
-                    <div key={task.id} className={`group flex items-center justify-between p-3 rounded-lg border transition-all ${task.completed ? 'bg-slate-800/30 border-transparent opacity-40' : 'bg-slate-800 border-slate-700 hover:border-slate-600'}`}>
-                      <div className="flex items-center gap-3">
-                        <button onClick={() => toggleTaskStatus(task)} className="text-emerald-400 hover:scale-110 transition-transform">
-                          {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
-                        </button>
-                        <div>
-                          <p className={`text-xs font-bold ${task.completed ? 'line-through text-slate-500' : 'text-white'}`}>{task.title}</p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
-                             {task.type} • {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([],{hour:'2-digit', minute:'2-digit'})}
-                          </p>
+                      <div key={task.id} className={`group flex items-center justify-between p-3 rounded-lg border transition-all ${task.completed ? 'bg-slate-800/30 border-transparent opacity-40' : 'bg-slate-800 border-slate-700 hover:border-slate-600'}`}>
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => toggleTaskStatus(task)} className="text-emerald-400 hover:scale-110 transition-transform">
+                            {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                          </button>
+                          <div>
+                            <p className={`text-xs font-bold ${task.completed ? 'line-through text-slate-500' : 'text-white'}`}>{task.title}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
+                              {task.type} • {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => startEditingTask(task)}
+                            className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-blue-400 transition-colors"
+                            title="Editar"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => deleteTask(task.id)}
+                            className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-red-400 transition-colors"
+                            title="Borrar"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </div>
-                      
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => startEditingTask(task)}
-                          className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-blue-400 transition-colors"
-                          title="Editar"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button 
-                          onClick={() => deleteTask(task.id)}
-                          className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-red-400 transition-colors"
-                          title="Borrar"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  )})}
+                    )
+                  })}
                 </div>
               </div>
 

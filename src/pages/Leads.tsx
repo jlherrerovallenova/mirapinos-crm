@@ -2,10 +2,10 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { 
-  Search, 
-  Mail, 
-  Phone, 
+import {
+  Search,
+  Mail,
+  Phone,
   ChevronRight,
   UserPlus,
   Loader2,
@@ -51,14 +51,14 @@ const getStatusBadge = (status: Lead['status']) => {
 export default function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [availableDocs, setAvailableDocs] = useState<{name: string, url: string}[]>([]);
+  const [availableDocs, setAvailableDocs] = useState<{ name: string, url: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Estados de Búsqueda y Filtros sincronizados con la URL
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
   const [sourceFilter, setSourceFilter] = useState<string>(searchParams.get('source') || '');
-  
+
   // Estados de Paginación
   const [page, setPage] = useState(1);
   const [totalLeads, setTotalLeads] = useState(0);
@@ -69,7 +69,7 @@ export default function Leads() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [emailLead, setEmailLead] = useState<Lead | null>(null);
   const [initialMethod, setInitialMethod] = useState<'email' | 'whatsapp'>('email');
-  
+
   const [notification, setNotification] = useState<{
     show: boolean;
     title: string;
@@ -87,7 +87,7 @@ export default function Leads() {
   // Recargar datos cuando cambia la página, la búsqueda o los filtros
   useEffect(() => {
     fetchLeads();
-  }, [page, searchTerm, statusFilter, sourceFilter]); 
+  }, [page, searchTerm, statusFilter, sourceFilter]);
 
   // Cargar documentos solo una vez al inicio
   useEffect(() => {
@@ -101,7 +101,7 @@ export default function Leads() {
   async function fetchLeads() {
     try {
       setLoading(true);
-      
+
       const from = (page - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
 
@@ -113,7 +113,7 @@ export default function Leads() {
       if (searchTerm) {
         query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
       }
-      
+
       if (statusFilter) {
         query = query.eq('status', statusFilter);
       }
@@ -125,7 +125,7 @@ export default function Leads() {
       const { data, error, count } = await query.range(from, to);
 
       if (error) throw error;
-      
+
       if (data) setLeads(data);
       if (count !== null) setTotalLeads(count);
 
@@ -139,8 +139,8 @@ export default function Leads() {
 
   async function fetchDocuments() {
     try {
-      const { data, error } = await supabase.from('documents').select('name, url');
-      if (data) setAvailableDocs(data.map(doc => ({ name: doc.name, url: doc.url })));
+      const { data } = await (supabase as any).from('documents').select('name, url');
+      if (data) setAvailableDocs(data.map((doc: any) => ({ name: doc.name, url: doc.url })));
     } catch (error) {
       console.error('Error fetching docs:', error);
     }
@@ -186,7 +186,7 @@ export default function Leads() {
     setStatusFilter('');
     setSourceFilter('');
     setPage(1);
-    
+
     // Limpiar todos los parámetros de la URL
     setSearchParams({}, { replace: true });
   };
@@ -196,7 +196,7 @@ export default function Leads() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
-      
+
       <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -207,82 +207,82 @@ export default function Leads() {
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <button 
-                onClick={() => setIsExportModalOpen(true)}
-                className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-emerald-600 transition-colors shadow-sm hidden sm:flex items-center gap-2"
-                title="Exportar Listado"
+            <button
+              onClick={() => setIsExportModalOpen(true)}
+              className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-emerald-600 transition-colors shadow-sm hidden sm:flex items-center gap-2"
+              title="Exportar Listado"
             >
-                <Download size={18} />
-                <span className="hidden lg:inline text-xs font-bold">Exportar</span>
+              <Download size={18} />
+              <span className="hidden lg:inline text-xs font-bold">Exportar</span>
             </button>
 
-            <button 
-                onClick={() => setIsCreateModalOpen(true)}
-                className="px-5 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 shrink-0 flex-1 md:flex-none justify-center"
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="px-5 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 shrink-0 flex-1 md:flex-none justify-center"
             >
-                <UserPlus size={18} /> <span className="inline">Nuevo Lead</span>
+              <UserPlus size={18} /> <span className="inline">Nuevo Lead</span>
             </button>
           </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-            <div className="relative flex-1 w-full group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={18} />
-                <input 
-                    type="text"
-                    placeholder="Buscar por nombre, email o teléfono..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none shadow-sm"
-                    value={searchTerm}
-                    onChange={handleSearch}
-                />
-            </div>
-            
-            <div className="flex w-full lg:w-auto gap-3">
-              <div className="relative flex-1 lg:w-48">
-                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <select
-                    value={statusFilter}
-                    onChange={handleStatusChange}
-                    className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none appearance-none shadow-sm cursor-pointer text-slate-700"
-                  >
-                    <option value="">Todos los Estados</option>
-                    <option value="new">Nuevos</option>
-                    <option value="contacted">Contactados</option>
-                    <option value="qualified">Cualificados</option>
-                    <option value="proposal">Propuesta</option>
-                    <option value="negotiation">Negociación</option>
-                    <option value="closed">Cerrados</option>
-                    <option value="lost">Perdidos</option>
-                  </select>
-              </div>
+          <div className="relative flex-1 w-full group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={18} />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, email o teléfono..."
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none shadow-sm"
+              value={searchTerm}
+              onChange={handleSearch}
+            />
+          </div>
 
-              <div className="relative flex-1 lg:w-48">
-                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <select
-                    value={sourceFilter}
-                    onChange={handleSourceChange}
-                    className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none appearance-none shadow-sm cursor-pointer text-slate-700"
-                  >
-                    <option value="">Cualquier Origen</option>
-                    <option value="Web">Web</option>
-                    <option value="Google">Google</option>
-                    <option value="Instagram">Instagram</option>
-                    <option value="Facebook">Facebook</option>
-                    <option value="Referido">Referido</option>
-                    {/* Añade aquí más opciones si tus widgets tienen otros nombres, como "Idealista" o "WhatsApp" */}
-                  </select>
-              </div>
-
-              {hasActiveFilters && (
-                <button 
-                  onClick={clearFilters}
-                  className="p-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors shadow-sm flex items-center justify-center shrink-0"
-                  title="Limpiar filtros"
-                >
-                  <FilterX size={18} />
-                </button>
-              )}
+          <div className="flex w-full lg:w-auto gap-3">
+            <div className="relative flex-1 lg:w-48">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <select
+                value={statusFilter}
+                onChange={handleStatusChange}
+                className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none appearance-none shadow-sm cursor-pointer text-slate-700"
+              >
+                <option value="">Todos los Estados</option>
+                <option value="new">Nuevos</option>
+                <option value="contacted">Contactados</option>
+                <option value="qualified">Cualificados</option>
+                <option value="proposal">Propuesta</option>
+                <option value="negotiation">Negociación</option>
+                <option value="closed">Cerrados</option>
+                <option value="lost">Perdidos</option>
+              </select>
             </div>
+
+            <div className="relative flex-1 lg:w-48">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <select
+                value={sourceFilter}
+                onChange={handleSourceChange}
+                className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none appearance-none shadow-sm cursor-pointer text-slate-700"
+              >
+                <option value="">Cualquier Origen</option>
+                <option value="Web">Web</option>
+                <option value="Google">Google</option>
+                <option value="Instagram">Instagram</option>
+                <option value="Facebook">Facebook</option>
+                <option value="Referido">Referido</option>
+                {/* Añade aquí más opciones si tus widgets tienen otros nombres, como "Idealista" o "WhatsApp" */}
+              </select>
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="p-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors shadow-sm flex items-center justify-center shrink-0"
+                title="Limpiar filtros"
+              >
+                <FilterX size={18} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -295,89 +295,89 @@ export default function Leads() {
         ) : leads.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-20">
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-slate-300">
-                <Search size={24} />
+              <Search size={24} />
             </div>
             <p className="text-slate-500 font-medium text-center px-4">
-              {hasActiveFilters 
-                ? "No hay leads que coincidan con los filtros actuales." 
+              {hasActiveFilters
+                ? "No hay leads que coincidan con los filtros actuales."
                 : "No hay leads registrados en la base de datos."}
             </p>
             {hasActiveFilters && (
-                <button onClick={clearFilters} className="text-emerald-600 font-bold text-sm mt-4 hover:underline px-4 py-2 bg-emerald-50 rounded-lg">
-                    Limpiar todos los filtros
-                </button>
+              <button onClick={clearFilters} className="text-emerald-600 font-bold text-sm mt-4 hover:underline px-4 py-2 bg-emerald-50 rounded-lg">
+                Limpiar todos los filtros
+              </button>
             )}
           </div>
         ) : (
           <div className="divide-y divide-slate-100 flex-1">
             <div className="grid grid-cols-12 gap-4 p-4 bg-slate-50/50 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 hidden md:grid">
-                <div className="col-span-4 pl-2">Prospecto</div>
-                <div className="col-span-2">Estado</div>
-                <div className="col-span-3">Contacto</div>
-                <div className="col-span-2">Origen / Fecha</div>
-                <div className="col-span-1 text-right pr-4">Acciones</div>
+              <div className="col-span-4 pl-2">Prospecto</div>
+              <div className="col-span-2">Estado</div>
+              <div className="col-span-3">Contacto</div>
+              <div className="col-span-2">Origen / Fecha</div>
+              <div className="col-span-1 text-right pr-4">Acciones</div>
             </div>
 
             {leads.map((lead) => (
-              <div 
+              <div
                 key={lead.id}
                 onClick={() => setSelectedLead(lead)}
                 className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center hover:bg-slate-50 transition-colors cursor-pointer group"
               >
                 <div className="md:col-span-4 flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm shrink-0 shadow-sm">
-                        {lead.name?.substring(0, 2).toUpperCase() || "L"}
-                    </div>
-                    <div className="min-w-0">
-                        <h3 className="font-bold text-slate-900 text-sm truncate group-hover:text-emerald-700 transition-colors">{lead.name}</h3>
-                        {lead.company && (
-                            <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
-                                <Building2 size={10} /> {lead.company}
-                            </p>
-                        )}
-                    </div>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm shrink-0 shadow-sm">
+                    {lead.name?.substring(0, 2).toUpperCase() || "L"}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-slate-900 text-sm truncate group-hover:text-emerald-700 transition-colors">{lead.name}</h3>
+                    {lead.company && (
+                      <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
+                        <Building2 size={10} /> {lead.company}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="md:col-span-2">
-                    {getStatusBadge(lead.status)}
+                  {getStatusBadge(lead.status)}
                 </div>
 
                 <div className="md:col-span-3 flex flex-col gap-1">
-                    <div className="flex items-center gap-2 text-xs text-slate-600 truncate">
-                        <Mail size={12} className="text-slate-400" />
-                        {lead.email || <span className="text-slate-300 italic">Sin email</span>}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-600 truncate">
-                        <Phone size={12} className="text-slate-400" />
-                        {lead.phone || <span className="text-slate-300 italic">Sin teléfono</span>}
-                    </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-600 truncate">
+                    <Mail size={12} className="text-slate-400" />
+                    {lead.email || <span className="text-slate-300 italic">Sin email</span>}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-600 truncate">
+                    <Phone size={12} className="text-slate-400" />
+                    {lead.phone || <span className="text-slate-300 italic">Sin teléfono</span>}
+                  </div>
                 </div>
 
                 <div className="md:col-span-2">
-                    <p className="text-xs font-medium text-slate-700">{lead.source || 'Directo'}</p>
-                    <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                        <Calendar size={10} /> {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
-                    </p>
+                  <p className="text-xs font-medium text-slate-700">{lead.source || 'Directo'}</p>
+                  <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                    <Calendar size={10} /> {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                  </p>
                 </div>
 
                 <div className="md:col-span-1 flex items-center justify-end gap-2">
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); openComposer(lead, 'whatsapp'); }}
-                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                        title="WhatsApp"
-                    >
-                        <MessageCircle size={16} />
-                    </button>
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); openComposer(lead, 'email'); }}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                        title="Email"
-                    >
-                        <Mail size={16} />
-                    </button>
-                    <button className="p-2 text-slate-300 group-hover:text-emerald-600 transition-colors">
-                        <ChevronRight size={16} />
-                    </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openComposer(lead, 'whatsapp'); }}
+                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                    title="WhatsApp"
+                  >
+                    <MessageCircle size={16} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openComposer(lead, 'email'); }}
+                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                    title="Email"
+                  >
+                    <Mail size={16} />
+                  </button>
+                  <button className="p-2 text-slate-300 group-hover:text-emerald-600 transition-colors">
+                    <ChevronRight size={16} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -389,39 +389,39 @@ export default function Leads() {
             <span className="text-xs text-slate-500 font-medium">
               Mostrando {leads.length} de {totalLeads} leads
             </span>
-            
+
             <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setPage(1)} 
+              <button
+                onClick={() => setPage(1)}
                 disabled={page === 1}
                 className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 title="Primera página"
               >
                 <ChevronsLeft size={16} />
               </button>
-              <button 
-                onClick={() => setPage(p => Math.max(1, p - 1))} 
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
                 className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 title="Anterior"
               >
                 <ChevronLeft size={16} />
               </button>
-              
+
               <span className="text-xs font-bold text-slate-700 px-2">
                 Página {page} de {totalPages || 1}
               </span>
 
-              <button 
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
                 className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 title="Siguiente"
               >
                 <ChevronRight size={16} />
               </button>
-              <button 
-                onClick={() => setPage(totalPages)} 
+              <button
+                onClick={() => setPage(totalPages)}
                 disabled={page >= totalPages}
                 className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 title="Última página"
@@ -434,25 +434,25 @@ export default function Leads() {
       </div>
 
       <ExportLeadsModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} />
-      
-      <CreateLeadModal 
-        isOpen={isCreateModalOpen} 
-        onClose={() => setIsCreateModalOpen(false)} 
-        onSuccess={() => { fetchLeads(); showMsg('success', '¡Completado!', 'El nuevo lead ha sido creado con éxito.'); }} 
+
+      <CreateLeadModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={() => { fetchLeads(); showMsg('success', '¡Completado!', 'El nuevo lead ha sido creado con éxito.'); }}
       />
-      
+
       {selectedLead && (
-        <LeadDetailModal 
-          lead={selectedLead} 
-          onClose={() => setSelectedLead(null)} 
+        <LeadDetailModal
+          lead={selectedLead}
+          onClose={() => setSelectedLead(null)}
           onUpdate={(deleted?: boolean) => {
             fetchLeads();
             if (deleted) showMsg('success', 'Lead eliminado', 'Cliente borrado.');
             else showMsg('info', 'Lead actualizado', 'Cambios guardados.');
-          }} 
+          }}
         />
       )}
-      
+
       {emailLead && (
         <EmailComposerModal
           isOpen={!!emailLead}
@@ -466,13 +466,13 @@ export default function Leads() {
           initialMethod={initialMethod}
         />
       )}
-      
+
       {notification.show && (
-        <AppNotification 
-          title={notification.title} 
-          message={notification.message} 
-          type={notification.type} 
-          onClose={() => setNotification({ ...notification, show: false })} 
+        <AppNotification
+          title={notification.title}
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification({ ...notification, show: false })}
         />
       )}
     </div>

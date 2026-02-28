@@ -1,36 +1,39 @@
 // src/components/inventory/CreatePropertyModal.tsx
 import React, { useState } from 'react';
-import { 
-  X, 
-  Home, 
-  Hash, 
-  Maximize, 
-  Ruler, 
-  BedDouble, 
-  Bath, 
-  Euro, 
-  Loader2, 
+import {
+  X,
+  Home,
+  Hash,
+  Maximize,
+  Ruler,
+  BedDouble,
+  Bath,
+  Euro,
+  Loader2,
   Save
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useDialog } from '../../context/DialogContext';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess?: () => void;
+  initialData?: any;
 }
 
-export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Props) {
+export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initialData }: Props) {
   const [loading, setLoading] = useState(false);
+  const { showAlert } = useDialog();
   const [formData, setFormData] = useState({
-    modelo: '1. OLIVO',
-    numero_vivienda: '',
-    superficie_parcela: '',
-    superficie_util: '',
-    superficie_construida: '',
-    habitaciones: '',
-    banos: '',
-    precio: ''
+    modelo: initialData?.modelo || '1. OLIVO',
+    numero_vivienda: initialData?.numero_vivienda || '',
+    superficie_parcela: initialData?.superficie_parcela || '',
+    superficie_util: initialData?.superficie_util || '',
+    superficie_construida: initialData?.superficie_construida || '',
+    habitaciones: initialData?.habitaciones?.toString() || '',
+    banos: initialData?.banos?.toString() || '',
+    precio: initialData?.precio?.toString() || ''
   });
 
   if (!isOpen) return null;
@@ -45,7 +48,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
 
     try {
       // Sincronización con las nuevas columnas de la tabla inventory
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('inventory')
         .insert([{
           modelo: formData.modelo,
@@ -59,10 +62,10 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
         }]);
 
       if (error) throw error;
-      
-      onSuccess();
+
+      onSuccess?.();
       onClose();
-      
+
       // Resetear formulario
       setFormData({
         modelo: '1. OLIVO',
@@ -76,7 +79,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
       });
     } catch (error: any) {
       console.error('Error creating property:', error);
-      alert('Error al crear la propiedad: ' + (error.message || 'Error desconocido'));
+      await showAlert({ title: 'Error', message: 'Error al crear la propiedad: ' + (error.message || 'Error desconocido') });
     } finally {
       setLoading(false);
     }
@@ -85,7 +88,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-200">
-        
+
         {/* Cabecera */}
         <div className="px-10 py-8 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -105,7 +108,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess }: Prop
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+
             {/* 1. MODELO */}
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Modelo</label>
