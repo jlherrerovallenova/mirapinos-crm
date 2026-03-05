@@ -3,19 +3,8 @@ import { useState } from 'react';
 import { Outlet, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AppNotification } from '../components/AppNotification';
-import {
-  LayoutDashboard,
-  Users,
-  Calendar,
-  Map,
-  Settings,
-  Search,
-  Bell,
-  LogOut,
-  Menu,
-  X,
-  Loader2
-} from 'lucide-react';
+import { ConnectionStatus } from '../components/ConnectionStatus';
+import { LayoutDashboard, Users, Calendar, Map, Settings, Search, Bell, LogOut, Menu, X, Loader as Loader2 } from 'lucide-react';
 
 export default function MainLayout() {
   const { session, loading, signOut } = useAuth();
@@ -86,6 +75,7 @@ export default function MainLayout() {
 
   return (
     <div className="flex h-screen bg-slate-100 font-sans text-slate-900 overflow-hidden">
+      <ConnectionStatus />
 
       {showNotification && (
         <AppNotification

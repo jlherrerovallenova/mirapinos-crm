@@ -1,8 +1,8 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, withRetry } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
-import { Loader2 } from 'lucide-react';
+import { Loader as Loader2 } from 'lucide-react';
 
 interface Profile {
   id: string;
@@ -32,16 +32,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const { data, error } = await withRetry(
+        () => supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle(),
+        3,
+        500
+      );
 
       if (error) {
         console.warn('Aviso: Perfil no encontrado o error de RLS:', error.message);
         setProfile(null);
-        return; 
+        return;
       }
       setProfile(data);
     } catch (error) {
@@ -55,15 +59,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initAuth = async () => {
       try {
-        // Intentamos obtener la sesión actual
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        
+        const { data: { session: currentSession }, error }: any = await withRetry(
+          () => supabase.auth.getSession(),
+          3,
+          500
+        );
+
         if (error) throw error;
 
         if (mounted) {
           setSession(currentSession);
           setUser(currentSession?.user ?? null);
-          
+
           if (currentSession?.user) {
             await fetchProfile(currentSession.user.id);
           }
@@ -78,21 +85,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // Suscribirse a cambios ANTES de inicializar para capturar eventos rápidos
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       console.log('🔄 Cambio de Auth:', event);
-      
+
       if (mounted) {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
-        
-        if (currentSession?.user) {
-          await fetchProfile(currentSession.user.id);
-        } else {
-          setProfile(null);
-        }
-        
-        // Solo quitamos el loading si ya pasó la inicialización o si es un evento definitivo
+
+        // Usar async block separado para evitar deadlock
+        (async () => {
+          try {
+            if (currentSession?.user) {
+              await fetchProfile(currentSession.user.id);
+            } else {
+              setProfile(null);
+            }
+          } catch (error) {
+            console.error('Error cargando perfil:', error);
+          }
+        })();
+
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
           setLoading(false);
         }
@@ -106,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('⚠️ Fallback: Forzando desactivación de carga por lentitud de red.');
         setLoading(false);
       }
-    }, 6000); // Aumentado a 6 segundos para dar margen
+    }, 6000);
 
     return () => {
       mounted = false;
