@@ -22,7 +22,8 @@ export const supabase = createClient<Database>(
   supabaseAnonKey || '',
   {
     auth: {
-      persistSession: true,
+      // Desactivamos la persistencia para forzar el login cada vez que arranca la app
+      persistSession: false,
       autoRefreshToken: true,
       detectSessionInUrl: true,
       flowType: 'pkce'
