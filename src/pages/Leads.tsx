@@ -264,12 +264,14 @@ export default function Leads() {
                 className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none appearance-none shadow-sm cursor-pointer text-slate-700"
               >
                 <option value="">Cualquier Origen</option>
+                <option value="Idealista">Idealista</option>
                 <option value="Web">Web</option>
                 <option value="Google">Google</option>
                 <option value="Instagram">Instagram</option>
                 <option value="Facebook">Facebook</option>
                 <option value="Referido">Referido</option>
-                {/* Añade aquí más opciones si tus widgets tienen otros nombres, como "Idealista" o "WhatsApp" */}
+                <option value="Llamada">Llamada</option>
+                <option value="Otro">Otro</option>
               </select>
             </div>
 

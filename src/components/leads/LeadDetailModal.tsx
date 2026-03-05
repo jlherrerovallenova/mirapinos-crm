@@ -130,6 +130,19 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
         // Insertar
         const { error } = await (supabase as any).from('agenda').insert([taskData]);
         if (error) throw error;
+
+        // Abrir Google Calendar solo al crear tareas nuevas
+        const parsedDate = new Date(finalDate);
+        const endParsedDate = new Date(parsedDate.getTime() + 60 * 60 * 1000); // Duración: 1 hora
+        const formatGoogleDate = (d: Date) => d.toISOString().replace(/-|:|\.\d\d\d/g, '');
+
+        const googleCalUrl = new URL('https://calendar.google.com/calendar/render');
+        googleCalUrl.searchParams.append('action', 'TEMPLATE');
+        googleCalUrl.searchParams.append('text', `[${taskData.type}] ${taskData.title}`);
+        googleCalUrl.searchParams.append('details', `Tarea añadida desde Mirapinos CRM.\nCliente vinculado: ${lead.name}`);
+        googleCalUrl.searchParams.append('dates', `${formatGoogleDate(parsedDate)}/${formatGoogleDate(endParsedDate)}`);
+
+        window.open(googleCalUrl.toString(), '_blank');
       }
 
       // Reset y recargar
@@ -346,7 +359,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     <button type="button" onClick={handleDelete} className="text-red-500 font-bold text-xs flex items-center gap-2 px-3 py-2 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={16} /> ELIMINAR LEAD
                     </button>
-                    <button type="submit" disabled={loading} className="px-6 py-2.5 bg-slate-900 text-white font-bold rounded-lg flex items-center gap-2 shadow-lg hover:bg-slate-800 transition-all active:scale-95">
+                    <button type="submit" disabled={loading} className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-lg flex items-center gap-2 shadow-lg hover:bg-emerald-700 transition-all active:scale-95">
                       {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} GUARDAR CAMBIOS
                     </button>
                   </div>
@@ -354,21 +367,22 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
               </div>
 
               {/* COLUMNA DERECHA: AGENDA (CONECTADA A LA TABLA AGENDA) */}
-              <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl flex flex-col h-full border border-slate-800">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-400">
+              <div className="bg-slate-50 rounded-2xl p-6 text-slate-900 shadow-sm flex flex-col h-full border border-slate-200">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-600">
                   <CalendarIcon size={14} /> Agenda de Acciones
                 </h3>
 
                 {/* Formulario Inline */}
-                <div className="grid grid-cols-1 gap-3 mb-6 bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                <div className="grid grid-cols-1 gap-3 mb-6 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                   <div className="flex gap-2">
                     <select
                       value={newTask.type}
                       onChange={(e) => setNewTask({ ...newTask, type: e.target.value })}
-                      className="bg-slate-900 border border-slate-700 rounded-lg text-[11px] font-bold p-2.5 outline-none focus:border-emerald-500 text-slate-200"
+                      className="bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-700"
                     >
                       <option value="Llamada">Llamada</option>
                       <option value="Email">Email</option>
+                      <option value="WhatsApp">WhatsApp</option>
                       <option value="Visita">Visita</option>
                       <option value="Reunión">Reunión</option>
                     </select>
@@ -376,13 +390,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       type="date"
                       value={newTask.date}
                       onChange={(e) => setNewTask({ ...newTask, date: e.target.value })}
-                      className="flex-1 bg-slate-900 border border-slate-700 rounded-lg text-[11px] p-2.5 outline-none focus:border-emerald-500 text-slate-200"
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-700"
                     />
                     <input
                       type="time"
                       value={newTask.time}
                       onChange={(e) => setNewTask({ ...newTask, time: e.target.value })}
-                      className="w-20 bg-slate-900 border border-slate-700 rounded-lg text-[11px] p-2.5 outline-none focus:border-emerald-500 text-slate-200"
+                      className="w-20 bg-slate-50 border border-slate-200 rounded-lg text-[11px] p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-700"
                     />
                   </div>
                   <div className="flex gap-2">
@@ -391,7 +405,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       placeholder={editingTaskId ? "Editando tarea..." : "Nueva tarea pendiente..."}
                       value={newTask.title}
                       onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                      className="flex-1 bg-slate-900 border border-slate-700 rounded-lg text-xs p-2.5 outline-none focus:border-emerald-500 text-white placeholder-slate-500"
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-lg text-xs p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-900 placeholder-slate-400"
                     />
                     {editingTaskId && (
                       <button
@@ -399,7 +413,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                           setEditingTaskId(null);
                           setNewTask({ type: 'Llamada', title: '', date: new Date().toISOString().slice(0, 10), time: '10:00' });
                         }}
-                        className="bg-slate-700 px-3 rounded-lg hover:bg-slate-600 transition-colors text-slate-300"
+                        className="bg-slate-100 px-3 rounded-lg hover:bg-slate-200 transition-colors text-slate-500"
                         title="Cancelar edición"
                       >
                         <RotateCcw size={16} />
@@ -407,7 +421,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     )}
                     <button
                       onClick={saveTask}
-                      className={`${editingTaskId ? 'bg-blue-600 hover:bg-blue-500' : 'bg-emerald-600 hover:bg-emerald-500'} px-4 rounded-lg transition-colors shadow-lg active:scale-95`}
+                      className={`${editingTaskId ? 'bg-blue-600 hover:bg-blue-500' : 'bg-emerald-600 hover:bg-emerald-500'} px-4 text-white rounded-lg transition-colors shadow-sm active:scale-95`}
                     >
                       {editingTaskId ? <Save size={18} /> : <Plus size={18} />}
                     </button>
@@ -418,21 +432,21 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                 <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
                   {tasks.length === 0 && (
                     <div className="text-center py-10 opacity-50">
-                      <CalendarIcon size={32} className="mx-auto mb-2 text-slate-600" />
-                      <p className="text-xs text-slate-400 italic">No hay tareas para este cliente.</p>
+                      <CalendarIcon size={32} className="mx-auto mb-2 text-slate-300" />
+                      <p className="text-xs text-slate-500 italic">No hay tareas para este cliente.</p>
                     </div>
                   )}
                   {tasks.map((task) => {
                     const dateObj = new Date(task.due_date);
                     return (
-                      <div key={task.id} className={`group flex items-center justify-between p-3 rounded-lg border transition-all ${task.completed ? 'bg-slate-800/30 border-transparent opacity-40' : 'bg-slate-800 border-slate-700 hover:border-slate-600'}`}>
+                      <div key={task.id} className={`group flex items-center justify-between p-3 rounded-lg border transition-all ${task.completed ? 'bg-slate-50 border-transparent opacity-50' : 'bg-white border-slate-200 hover:border-emerald-200 shadow-sm'}`}>
                         <div className="flex items-center gap-3">
-                          <button onClick={() => toggleTaskStatus(task)} className="text-emerald-400 hover:scale-110 transition-transform">
+                          <button onClick={() => toggleTaskStatus(task)} className={`transition-transform hover:scale-110 ${task.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-emerald-500'}`}>
                             {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
                           </button>
                           <div>
-                            <p className={`text-xs font-bold ${task.completed ? 'line-through text-slate-500' : 'text-white'}`}>{task.title}</p>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
+                            <p className={`text-xs font-bold ${task.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>{task.title}</p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">
                               {task.type} • {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </div>
@@ -441,14 +455,14 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => startEditingTask(task)}
-                            className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-blue-400 transition-colors"
+                            className="p-1.5 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600 transition-colors"
                             title="Editar"
                           >
                             <Pencil size={14} />
                           </button>
                           <button
                             onClick={() => deleteTask(task.id)}
-                            className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-red-400 transition-colors"
+                            className="p-1.5 hover:bg-slate-100 rounded text-slate-400 hover:text-red-600 transition-colors"
                             title="Borrar"
                           >
                             <Trash2 size={14} />

@@ -385,7 +385,11 @@ export default function LeadDetail() {
                       <Circle size={24} />
                     </button>
                     <div>
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-200 mb-1 inline-block">
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border mb-1 inline-block ${task.type === 'Llamada' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                        task.type === 'WhatsApp' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                          task.type === 'Visita' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                            'bg-slate-50 text-slate-600 border-slate-100'
+                        }`}>
                         {task.type}
                       </span>
                       <p className="font-bold text-slate-800 text-sm">{task.title}</p>

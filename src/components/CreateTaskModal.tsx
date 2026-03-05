@@ -67,7 +67,8 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
 
     setLoading(true);
     try {
-      const dateTime = new Date(`${formData.date}T${formData.time}:00`).toISOString();
+      const parsedDate = new Date(`${formData.date}T${formData.time}:00`);
+      const dateTime = parsedDate.toISOString();
 
       const { error } = await (supabase as any).from('agenda').insert([
         {
@@ -81,6 +82,24 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
       ]);
 
       if (error) throw error;
+
+      // 1. Generar URL para Google Calendar
+      const endParsedDate = new Date(parsedDate.getTime() + 60 * 60 * 1000); // +1h
+      const formatGoogleDate = (d: Date) => d.toISOString().replace(/-|:|\.\d\d\d/g, '');
+      
+      const googleCalUrl = new URL('https://calendar.google.com/calendar/render');
+      googleCalUrl.searchParams.append('action', 'TEMPLATE');
+      googleCalUrl.searchParams.append('text', `[${formData.type}] ${formData.title}`);
+      
+      let details = `Tarea añadida desde Mirapinos CRM.`;
+      if (selectedLead) {
+        details += `\nCliente vinculado: ${selectedLead.name}`;
+      }
+      googleCalUrl.searchParams.append('details', details);
+      googleCalUrl.searchParams.append('dates', `${formatGoogleDate(parsedDate)}/${formatGoogleDate(endParsedDate)}`);
+
+      // 2. Abrir en nueva pestaña
+      window.open(googleCalUrl.toString(), '_blank');
 
       onSuccess();
       onClose();
@@ -190,6 +209,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
                 >
                   <option value="Llamada">📞 Llamada</option>
                   <option value="Email">📧 Email</option>
+                  <option value="WhatsApp">🟢 WhatsApp</option>
                   <option value="Visita">🏠 Visita</option>
                   <option value="Reunión">🤝 Reunión</option>
                 </select>

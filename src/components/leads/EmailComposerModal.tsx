@@ -13,7 +13,7 @@ import { supabase } from '../../lib/supabase';
 import { useDialog } from '../../context/DialogContext';
 
 // Importamos la imagen de la firma (asegúrate de que la ruta sea correcta según tu estructura)
-import firmaImg from '../../assets/Firma.png';
+// import firmaImg from '../../assets/Firma.png';
 
 interface Props {
   isOpen: boolean;
@@ -52,20 +52,14 @@ export default function EmailComposerModal({
   if (!isOpen) return null;
 
   // Función para convertir la firma a Base64 para que sea visible en el email
-  const getBase64Signature = async (): Promise<string> => {
-    try {
-      const response = await fetch(firmaImg);
-      const blob = await response.blob();
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } catch (error) {
-      console.error("Error cargando la firma:", error);
-      return '';
-    }
+  // Eliminada para no saturar EmailJS (Error 422 por payload demasiado grande)
+  const getSignatureHtml = (): string => {
+    return `
+      <div style="font-family: sans-serif; font-size: 14px; color: #475569;">
+        <p style="margin: 0; font-weight: bold; color: #0f172a;">Equipo Mirapinos CRM</p>
+        <p style="margin: 0;">Mirapinos</p>
+      </div>
+    `;
   };
 
   const toggleDoc = (doc: { name: string; url: string }) => {
@@ -106,8 +100,14 @@ export default function EmailComposerModal({
 
     try {
       if (method === 'email') {
-        // Obtenemos la firma en base64
-        const base64Signature = await getBase64Signature();
+        if (!leadEmail) {
+          await showAlert({ title: 'Atención', message: 'El cliente no tiene email configurado.' });
+          setLoading(false);
+          return;
+        }
+
+        // Obtenemos la firma en HTML ligero en lugar de Base64
+        const signatureHtml = getSignatureHtml();
 
         const htmlDocs = selectedDocs.length > 0
           ? `<br><br><strong>Documentos adjuntos:</strong><br>` +
@@ -123,7 +123,7 @@ export default function EmailComposerModal({
             ${htmlDocs}
             <br><br>
             <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
-              <img src="${base64Signature}" alt="Firma Mirapinos" style="width: 200px; height: auto; display: block;" />
+              ${signatureHtml}
             </div>
           </div>
         `;
@@ -172,8 +172,14 @@ export default function EmailComposerModal({
         setStatus('success');
         setTimeout(onClose, 1000);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error en el proceso de envío:', error);
+      if (error && error.text) {
+        console.error('Detalles del error EmailJS:', error.text);
+        await showAlert({ title: 'Error EmailJS', message: error.text });
+      } else {
+        await showAlert({ title: 'Error', message: 'No se pudo enviar el correo. Revisa la consola.' });
+      }
       setStatus('error');
     } finally {
       setLoading(false);
