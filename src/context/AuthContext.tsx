@@ -32,7 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Diagnóstico visual en pantalla
   const [authError, setAuthError] = useState<{ title: string; message: string } | null>(null);
 
-  // Control de refrescos para evitar bucles infinitos (net::ERR_INSUFFICIENT_RESOURCES)
+  // Control de refrescos para evitar bucles infinitos
   const lastProfileFetchRef = useRef<number>(0);
   const isFetchingRef = useRef<boolean>(false);
 
@@ -59,7 +59,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
 
       if (error) {
-        // Ignorar el AbortError si quedan reintentos (es un bug del navegador/adblock)
         if (error.message?.includes('AbortError') && retries > 0) {
           console.warn(`⏳ AbortError detectado. Reintentando en 1s... (Quedan ${retries})`);
           isFetchingRef.current = false;
@@ -92,22 +91,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
 
-    // Respetar tiempo razonable de carga pero sin forzar modal de error
-    const maxLoadingTimer = setTimeout(() => {
-      if (mounted) {
-        console.warn('⚠️ La conexión inicial con Supabase está tardando más de lo esperado.');
-      }
-    }, 5000);
+    // Función robusta para inicializar la sesión asegurando que siempre termina la carga
+    const initSession = async () => {
+      try {
+        // 1. Obtenemos la sesión manualmente al arrancar la app
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) throw error;
 
+        const currentSession = data.session;
+        
+        if (mounted) {
+          sessionRef.current = currentSession;
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+
+          if (currentSession?.user) {
+            await fetchProfile(currentSession.user.id);
+          } else {
+            setProfile(null);
+          }
+        }
+      } catch (error: any) {
+        console.error("Error crítico obteniendo sesión inicial:", error);
+        if (mounted) {
+          setAuthError({ title: 'Error de Autenticación', message: 'No se pudo verificar tu sesión con el servidor.' });
+        }
+      } finally {
+        // 2. ¡CRÍTICO! Pase lo que pase (éxito o error), quitamos la pantalla de carga
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Ejecutamos la comprobación inicial
+    initSession();
+
+    // 3. Nos suscribimos a cambios futuros (como cuando el usuario inicia o cierra sesión manualmente)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('🔄 Cambio de Auth:', event, currentSession?.user?.email || 'Sin usuario');
 
       if (!mounted) return;
+      
+      // Ignoramos INITIAL_SESSION aquí porque ya lo hemos gestionado arriba en initSession()
+      if (event === 'INITIAL_SESSION') return;
 
       const previousSession = sessionRef.current;
       sessionRef.current = currentSession;
 
-      // Detección de caída de sesión
       if (event === 'SIGNED_OUT' && previousSession && !currentSession) {
         setAuthError({
           title: 'Sesión Perdida',
@@ -123,23 +155,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setProfile(null);
       }
-
-      // Finish loading once we receive literally any initial status.
-      if (
-        event === 'INITIAL_SESSION' ||
-        event === 'SIGNED_IN' ||
-        event === 'SIGNED_OUT' ||
-        event === 'TOKEN_REFRESHED'
-      ) {
-        clearTimeout(maxLoadingTimer);
-        setLoading(false);
-      }
     });
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
-      clearTimeout(maxLoadingTimer);
     };
   }, []);
 
