@@ -40,10 +40,6 @@ export const supabase = createClient<Database>(
   }
 );
 
-// Monitor de conexión y reconexión automática
-let connectionRetries = 0;
-const MAX_RETRIES = 5;
-
 export const withRetry = async <T>(
   fn: () => T | Promise<T>,
   maxRetries = 3,
@@ -74,31 +70,3 @@ export const withRetry = async <T>(
   console.error('❌ Falló después de múltiples reintentos:', lastError);
   throw lastError;
 };
-
-// Monitor de estado de conexión
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    console.log('✅ Conexión restaurada');
-    connectionRetries = 0;
-  });
-
-  window.addEventListener('offline', () => {
-    console.warn('❌ Conexión perdida - intentando reconectar...');
-  });
-
-  // Verificar estado cada 30 segundos
-  setInterval(async () => {
-    try {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        connectionRetries = 0;
-      }
-    } catch (error) {
-      connectionRetries++;
-      if (connectionRetries > MAX_RETRIES) {
-        console.error('❌ Conexión perdida permanentemente. Por favor recarga la página.');
-        connectionRetries = 0;
-      }
-    }
-  }, 30000);
-} 
