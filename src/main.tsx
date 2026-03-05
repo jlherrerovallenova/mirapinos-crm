@@ -7,8 +7,18 @@ import App from './App'
 import { AuthProvider } from './context/AuthContext'
 import { DialogProvider } from './context/DialogContext'
 
-// Importar el script de diagnóstico para exponerlo en la consola
-import './utils/connectionDiagnostic' 
+// Importamos el test
+import { runExhaustiveConnectionTest } from './utils/connectionDiagnostic'
+
+// Lanzamos el test al pulsar la tecla F9
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F9') {
+      console.log('🚀 Lanzando test de diagnóstico (F9 detectado)...');
+      runExhaustiveConnectionTest();
+    }
+  });
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
