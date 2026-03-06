@@ -22,7 +22,7 @@ interface Props {
   leadName: string;
   leadEmail: string | null;
   leadPhone: string | null;
-  availableDocs: { name: string; url: string }[];
+  availableDocs: { name: string; url: string; category?: string }[];
   onSentSuccess?: () => void;
   initialMethod?: 'email' | 'whatsapp';
 }
@@ -47,7 +47,7 @@ export default function EmailComposerModal({
     `Hola ${leadName},\n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
   );
 
-  const [selectedDocs, setSelectedDocs] = useState<{ name: string; url: string }[]>([]);
+  const [selectedDocs, setSelectedDocs] = useState<{ name: string; url: string; category?: string }[]>([]);
 
   if (!isOpen) return null;
 
@@ -62,7 +62,7 @@ export default function EmailComposerModal({
     `;
   };
 
-  const toggleDoc = (doc: { name: string; url: string }) => {
+  const toggleDoc = (doc: { name: string; url: string; category?: string }) => {
     setSelectedDocs(prev =>
       prev.find(d => d.url === doc.url)
         ? prev.filter(d => d.url !== doc.url)
@@ -207,7 +207,7 @@ export default function EmailComposerModal({
           </button>
         </div>
 
-        <form onSubmit={handleSend} className="p-8 space-y-6">
+        <form onSubmit={handleSend} className="p-8 space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
           <div className="space-y-4">
             {method === 'email' && (
               <div>
@@ -233,22 +233,34 @@ export default function EmailComposerModal({
 
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-3 block">Documentación a enviar</label>
-              <div className="grid grid-cols-2 gap-2">
-                {availableDocs.map((doc, idx) => {
-                  const isSelected = selectedDocs.find(d => d.url === doc.url);
+              <div className="space-y-4">
+                {['Documentos Olivo', 'Documentos Arce', 'Parcelas', 'Renders-Fotos', 'Sin Categoría'].map(cat => {
+                  const catDocs = availableDocs.filter(d => (d.category || 'Sin Categoría') === cat);
+                  if (catDocs.length === 0) return null;
+
                   return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => toggleDoc(doc)}
-                      className={`flex items-center gap-3 p-3 rounded-2xl border transition-all text-left ${isSelected
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                        : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300'
-                        }`}
-                    >
-                      <Paperclip size={14} className={isSelected ? 'text-emerald-500' : 'text-slate-300'} />
-                      <span className="text-xs font-bold truncate">{doc.name}</span>
-                    </button>
+                    <div key={cat} className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                      <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">{cat}</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {catDocs.map((doc, idx) => {
+                          const isSelected = selectedDocs.find(d => d.url === doc.url);
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => toggleDoc(doc)}
+                              className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left overflow-hidden ${isSelected
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                                }`}
+                            >
+                              <Paperclip size={14} className={isSelected ? 'text-emerald-500 shrink-0' : 'text-slate-300 shrink-0'} />
+                              <span className="text-xs font-bold truncate block" title={doc.name}>{doc.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })}
               </div>

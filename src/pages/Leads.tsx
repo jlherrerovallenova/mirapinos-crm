@@ -51,7 +51,7 @@ const getStatusBadge = (status: Lead['status']) => {
 export default function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [availableDocs, setAvailableDocs] = useState<{ name: string, url: string }[]>([]);
+  const [availableDocs, setAvailableDocs] = useState<{ name: string, url: string, category?: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Estados de Búsqueda y Filtros sincronizados con la URL
@@ -139,8 +139,23 @@ export default function Leads() {
 
   async function fetchDocuments() {
     try {
-      const { data } = await (supabase as any).from('documents').select('name, url');
-      if (data) setAvailableDocs(data.map((doc: any) => ({ name: doc.name, url: doc.url })));
+      const CATEGORIES = ['Documentos Olivo', 'Documentos Arce', 'Parcelas', 'Renders-Fotos'];
+      let allDocs: { name: string, url: string, category: string }[] = [];
+
+      for (const category of CATEGORIES) {
+        const { data, error } = await supabase.storage.from('documents').list(category);
+        if (error) continue;
+
+        if (data) {
+          const validFiles = data.filter(file => file.name !== '.emptyFolderPlaceholder' && file.name !== '.emptyFolder' && file.id);
+          const docsWithUrls = validFiles.map(file => {
+            const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(`${category}/${file.name}`);
+            return { name: file.name, url: publicUrl, category };
+          });
+          allDocs = [...allDocs, ...docsWithUrls];
+        }
+      }
+      setAvailableDocs(allDocs);
     } catch (error) {
       console.error('Error fetching docs:', error);
     }

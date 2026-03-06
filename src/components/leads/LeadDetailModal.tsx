@@ -25,7 +25,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const { showConfirm, showAlert } = useDialog();
   const [loading, setLoading] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-  const [availableDocs, setAvailableDocs] = useState<{ name: string, url: string }[]>([]);
+  const [availableDocs, setAvailableDocs] = useState<{ name: string, url: string, category: string }[]>([]);
   const [sentHistory, setSentHistory] = useState<any[]>([]);
 
   // Tareas de la agenda
@@ -57,21 +57,23 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
   async function fetchDocuments() {
     try {
-      // Consultamos directamente al bucket 'documents' en el Storage
-      const { data, error } = await supabase.storage.from('documents').list();
+      const CATEGORIES = ['Documentos Olivo', 'Documentos Arce', 'Parcelas', 'Renders-Fotos'];
+      let allDocs: { name: string, url: string, category: string }[] = [];
 
-      if (error) throw error;
+      for (const category of CATEGORIES) {
+        const { data, error } = await supabase.storage.from('documents').list(category);
+        if (error) continue;
 
-      if (data) {
-        const validFiles = data.filter(file => file.name !== '.emptyFolderPlaceholder');
-
-        const docsWithUrls = validFiles.map(file => {
-          const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(file.name);
-          return { name: file.name, url: publicUrl };
-        });
-
-        setAvailableDocs(docsWithUrls);
+        if (data) {
+          const validFiles = data.filter(file => file.name !== '.emptyFolderPlaceholder' && file.name !== '.emptyFolder' && file.id);
+          const docsWithUrls = validFiles.map(file => {
+            const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(`${category}/${file.name}`);
+            return { name: file.name, url: publicUrl, category };
+          });
+          allDocs = [...allDocs, ...docsWithUrls];
+        }
       }
+      setAvailableDocs(allDocs);
     } catch (error) {
       console.error('Error cargando documentos desde el storage:', error);
     }
