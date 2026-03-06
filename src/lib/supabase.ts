@@ -22,8 +22,11 @@ export const supabase = createClient<Database>(
   supabaseAnonKey || '',
   {
     auth: {
-      // Desactivamos la persistencia para forzar el login cada vez que arranca la app
-      persistSession: false,
+      // Usamos sessionStorage para mantener la seguridad de "cerrar al salir", 
+      // pero evitamos el bug críptico de autoRefreshToken + persistSession: false
+      // que agota las conexiones y causa ERR_INSUFFICIENT_RESOURCES
+      persistSession: true,
+      storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
       autoRefreshToken: true,
       detectSessionInUrl: true,
       flowType: 'pkce'
