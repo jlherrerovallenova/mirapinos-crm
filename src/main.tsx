@@ -1,7 +1,7 @@
-// src/main.tsx
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App'
 import { AuthProvider } from './context/AuthContext'
@@ -9,6 +9,9 @@ import { DialogProvider } from './context/DialogContext'
 
 // Importamos el test
 import { runExhaustiveConnectionTest } from './utils/connectionDiagnostic'
+
+// Configuramos React Query
+const queryClient = new QueryClient()
 
 // Lanzamos el test al pulsar la tecla F9
 if (typeof window !== 'undefined') {
@@ -22,12 +25,14 @@ if (typeof window !== 'undefined') {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <DialogProvider>
-          <App />
-        </DialogProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <DialogProvider>
+            <App />
+          </DialogProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   </StrictMode>,
 )
