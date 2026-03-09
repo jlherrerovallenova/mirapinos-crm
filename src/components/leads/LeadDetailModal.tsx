@@ -46,7 +46,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     phone: lead.phone || '',
     status: lead.status || 'new',
     source: lead.source || 'Web',
-    notes: lead.notes || ''
+    notes: lead.notes || '',
+    is_subscribed: lead.is_subscribed ?? true
   });
 
   useEffect(() => {
@@ -84,7 +85,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     if (data) setSentHistory(data);
   }
 
-  // Cargar tareas de la tabla agenda filtrando por ID del lead
+  // Cargar tareas de la tabla agenda filtrando por ID del cliente
   async function fetchTasks() {
     const { data } = await supabase
       .from('agenda')
@@ -313,6 +314,21 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                           <option value="closed">Cerrado</option>
                           <option value="lost">Perdido</option>
                         </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Newsletters</label>
+                        <div className="mt-1 px-4 py-2 bg-slate-50 rounded-lg flex items-center justify-between border border-transparent">
+                          <span className="text-xs font-bold text-slate-700">Suscrito a Correos</span>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="sr-only peer"
+                              checked={formData.is_subscribed}
+                              onChange={(e) => setFormData({ ...formData, is_subscribed: e.target.checked })}
+                            />
+                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                          </label>
+                        </div>
                       </div>
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>

@@ -30,7 +30,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
     time: '10:00',
   });
 
-  // Buscar leads cuando el usuario escribe
+  // Buscar clientes cuando el usuario escribe
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       if (searchTerm.length > 2) {
@@ -55,7 +55,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
       if (error) throw error;
       setLeads(data || []);
     } catch (error) {
-      console.error('Error buscando leads:', error);
+      console.error('Error buscando clientes:', error);
     } finally {
       setIsSearching(false);
     }

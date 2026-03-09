@@ -84,7 +84,7 @@ export default function LeadDetail() {
       setTasks(agendaResponse.data || []);
 
     } catch (error) {
-      console.error("Error cargando perfil del lead:", error);
+      console.error("Error cargando perfil del cliente:", error);
     } finally {
       setLoading(false);
     }
@@ -336,7 +336,7 @@ export default function LeadDetail() {
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Estado en el Pipeline</h3>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fase Actual</h3>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative">
               <select
                 value={currentStatus}

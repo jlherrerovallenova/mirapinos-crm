@@ -14,6 +14,8 @@ const Pipeline = lazy(() => import('./pages/Pipeline'));
 const Inventory = lazy(() => import('./pages/Inventory'));
 const Agenda = lazy(() => import('./pages/Agenda'));
 const Settings = lazy(() => import('./pages/Settings'));
+const Newsletters = lazy(() => import('./pages/Newsletters'));
+const NewsletterEditor = lazy(() => import('./pages/NewsletterEditor'));
 
 /**
  * Componente de Transición (Sala de espera)
@@ -64,6 +66,10 @@ function App() {
           <Route path="/inventory" element={<Suspense fallback={<PageLoader />}><Inventory /></Suspense>} />
           <Route path="/agenda" element={<Suspense fallback={<PageLoader />}><Agenda /></Suspense>} />
           <Route path="/settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
+
+          {/* Módulo de Newsletters */}
+          <Route path="/newsletters" element={<Suspense fallback={<PageLoader />}><Newsletters /></Suspense>} />
+          <Route path="/newsletters/:id" element={<Suspense fallback={<PageLoader />}><NewsletterEditor /></Suspense>} />
         </Route>
       </Route>
 

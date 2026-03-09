@@ -218,7 +218,7 @@ export default function Leads() {
       <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Leads</h1>
+            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Clientes</h1>
             <p className="text-slate-500 text-xs font-medium">
               {totalLeads} prospectos {hasActiveFilters && `(filtrados)`}
             </p>
@@ -247,7 +247,7 @@ export default function Leads() {
               onClick={() => setIsCreateModalOpen(true)}
               className="px-5 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 shrink-0 flex-1 md:flex-none justify-center"
             >
-              <UserPlus size={18} /> <span className="inline">Nuevo Lead</span>
+              <UserPlus size={18} /> <span className="inline">Nuevo Cliente</span>
             </button>
           </div>
         </div>
@@ -328,8 +328,8 @@ export default function Leads() {
             </div>
             <p className="text-slate-500 font-medium text-center px-4">
               {hasActiveFilters
-                ? "No hay leads que coincidan con los filtros actuales."
-                : "No hay leads registrados en la base de datos."}
+                ? "No hay clientes que coincidan con los filtros actuales."
+                : "No hay clientes registrados en la base de datos."}
             </p>
             {hasActiveFilters && (
               <button onClick={clearFilters} className="text-emerald-600 font-bold text-sm mt-4 hover:underline px-4 py-2 bg-emerald-50 rounded-lg">
@@ -467,13 +467,13 @@ export default function Leads() {
       <ImportLeadsModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        onSuccess={() => { fetchLeads(); showMsg('success', '¡Importación completada!', 'Los leads han sido importados correctamente.'); }}
+        onSuccess={() => { fetchLeads(); showMsg('success', '¡Importación completada!', 'Los clientes han sido importados correctamente.'); }}
       />
 
       <CreateLeadModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={() => { fetchLeads(); showMsg('success', '¡Completado!', 'El nuevo lead ha sido creado con éxito.'); }}
+        onSuccess={() => { fetchLeads(); showMsg('success', '¡Completado!', 'El nuevo cliente ha sido creado con éxito.'); }}
       />
 
       {selectedLead && (
@@ -482,8 +482,8 @@ export default function Leads() {
           onClose={() => setSelectedLead(null)}
           onUpdate={(deleted?: boolean) => {
             fetchLeads();
-            if (deleted) showMsg('success', 'Lead eliminado', 'Cliente borrado.');
-            else showMsg('info', 'Lead actualizado', 'Cambios guardados.');
+            if (deleted) showMsg('success', 'Cliente eliminado', 'Cliente borrado.');
+            else showMsg('info', 'Cliente actualizado', 'Cambios guardados.');
           }}
         />
       )}

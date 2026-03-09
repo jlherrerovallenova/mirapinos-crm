@@ -4,7 +4,7 @@ import { Outlet, Link, useLocation, Navigate, useNavigate } from 'react-router-d
 import { useAuth } from '../context/AuthContext';
 import { AppNotification } from '../components/AppNotification';
 import { ConnectionStatus } from '../components/ConnectionStatus';
-import { LayoutDashboard, Users, Calendar, Map, Settings, Search, Bell, LogOut, Menu, X, Loader as Loader2 } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Map, Settings, Search, Bell, LogOut, Menu, X, Loader as Loader2, Mail } from 'lucide-react';
 
 export default function MainLayout() {
   const { session, loading, signOut } = useAuth();
@@ -118,6 +118,7 @@ export default function MainLayout() {
           <SidebarItem to="/pipeline" icon={<Calendar size={18} />} label="Ventas" active={location.pathname === '/pipeline'} onClick={closeSidebar} />
 
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6">Gestión</p>
+          <SidebarItem to="/newsletters" icon={<Mail size={18} />} label="Newsletters" active={location.pathname.startsWith('/newsletters')} onClick={closeSidebar} />
           <SidebarItem to="/inventory" icon={<Map size={18} />} label="Inventario" active={location.pathname === '/inventory'} onClick={closeSidebar} />
           <SidebarItem to="/settings" icon={<Settings size={18} />} label="Configuración" active={location.pathname === '/settings'} onClick={closeSidebar} />
         </nav>

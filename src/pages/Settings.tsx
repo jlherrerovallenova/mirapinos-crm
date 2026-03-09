@@ -45,7 +45,7 @@ const Settings: React.FC = () => {
   const { showConfirm, showAlert } = useDialog();
 
   // Estados de Navegación y UI
-  const [activeTab, setActiveTab] = useState<'profile' | 'documents'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'documents' | 'integrations'>('profile');
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -295,6 +295,16 @@ const Settings: React.FC = () => {
             <FolderOpen size={16} />
             <span className="font-medium">Documentos Venta</span>
           </button>
+          <button
+            onClick={() => setActiveTab('integrations')}
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all ${activeTab === 'integrations'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'hover:bg-slate-100 text-slate-600'
+              }`}
+          >
+            <SettingsIcon size={16} />
+            <span className="font-medium">Integraciones</span>
+          </button>
         </div>
 
         {/* Panel de Contenido */}
@@ -336,6 +346,45 @@ const Settings: React.FC = () => {
                   {isSavingProfile ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   Guardar Cambios
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* VISTA: INTEGRACIONES */}
+          {activeTab === 'integrations' && (
+            <div className="p-6 space-y-6 animate-in fade-in duration-300">
+              <div className="border-b pb-2">
+                <h2 className="text-lg font-semibold text-slate-800">Integraciones de Terceros</h2>
+                <p className="text-xs text-slate-500">Configura las claves API para los servicios externos que utiliza el CRM.</p>
+              </div>
+
+              <div className="space-y-6 max-w-2xl">
+                {/* Unlayer Project ID */}
+                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        Unlayer Project ID
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1">Necesario para el editor visual de Newsletters.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      className="flex-1 p-2.5 text-sm border bg-white rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                      placeholder="Ej. 285017"
+                    />
+                    <button className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-800 transition-colors shrink-0">
+                      Guardar
+                    </button>
+                  </div>
+                </div>
+
+                {/* Resend API Key */}
+                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm space-y-3 hidden">
+                  {/* Omitido dado que las Edge functions prefieren que los secrets se guarden via CLI */}
+                </div>
               </div>
             </div>
           )}

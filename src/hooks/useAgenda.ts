@@ -31,7 +31,7 @@ export function useAgenda() {
 }
 
 /**
- * Hook para conseguir tareas de un lead específico
+ * Hook para conseguir tareas de un cliente específico
  */
 export function useLeadAgenda(leadId: string | undefined) {
     return useQuery({

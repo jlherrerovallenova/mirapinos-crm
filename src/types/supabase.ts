@@ -50,6 +50,7 @@ export interface Database {
           notes: string | null
           assigned_to: string | null
           value: number | null
+          is_subscribed?: boolean
         }
         Insert: {
           id?: string
@@ -63,6 +64,7 @@ export interface Database {
           notes?: string | null
           assigned_to?: string | null
           value?: number | null
+          is_subscribed?: boolean
         }
         Update: {
           id?: string
@@ -76,6 +78,7 @@ export interface Database {
           notes?: string | null
           assigned_to?: string | null
           value?: number | null
+          is_subscribed?: boolean
         }
       }
       inventory: {
@@ -146,6 +149,38 @@ export interface Database {
           due_date?: string
           completed?: boolean
           user_id?: string | null
+        }
+      }
+      newsletters: {
+        Row: {
+          id: string
+          created_at: string
+          updated_at: string
+          subject: string
+          design: Json | null
+          html_content: string | null
+          status: 'draft' | 'sent'
+          sent_at: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          subject: string
+          design?: Json | null
+          html_content?: string | null
+          status?: 'draft' | 'sent'
+          sent_at?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          subject?: string
+          design?: Json | null
+          html_content?: string | null
+          status?: 'draft' | 'sent'
+          sent_at?: string | null
         }
       }
     }

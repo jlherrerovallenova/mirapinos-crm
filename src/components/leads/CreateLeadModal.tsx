@@ -121,7 +121,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
 
         {/* Header */}
         <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <h2 className="text-xl font-bold text-slate-900">Nuevo Lead</h2>
+          <h2 className="text-xl font-bold text-slate-900">Nuevo Cliente</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={24} />
           </button>

@@ -18,7 +18,7 @@ import CreateTaskModal from '../components/CreateTaskModal';
 import { useDialog } from '../context/DialogContext';
 import type { Database } from '../types/supabase';
 
-// Tipo AgendaItem enriquecido con datos del lead
+// Tipo AgendaItem enriquecido con datos del cliente
 type AgendaItem = Database['public']['Tables']['agenda']['Row'] & {
   leads?: { name: string } | null
 };

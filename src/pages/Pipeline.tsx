@@ -137,7 +137,7 @@ export default function Pipeline() {
       {/* HEADER DEL TABLERO */}
       <div className="flex justify-between items-end mb-6 shrink-0">
         <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Pipeline de Ventas</h1>
+          <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Fases de Venta</h1>
           <p className="text-slate-500 text-sm mt-1">Arrastra las tarjetas para avanzar de fase.</p>
         </div>
         <div className="text-sm font-bold text-slate-500 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
