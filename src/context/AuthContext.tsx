@@ -179,13 +179,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    // 4. Implementación manual de Auto-Refresh (Reemplaza el autoRefreshToken nativo)
-    // Refrescamos la sesión cada 4 minutos para sobrevivir a problemas de zona horaria / desfase de reloj.
+    // 4. Validación de Sesión y Refrescador Manual (cada 45 segundos)
     const refreshInterval = setInterval(async () => {
       if (sessionRef.current) {
-        console.log('🔄 Refresco manual de sesión programado...', new Date().toISOString());
+        console.log('🔄 Verificando validez de sesión local y refrescando token...', new Date().toISOString());
 
         try {
+          // 4.1 Validamos si la sesión sigue viva activamente
+          const { data, error } = await supabase.auth.getSession();
+          if (error || !data.session) {
+            console.log('🛑 Sesión expirada o inválida detectada en verificación de 45s. Forzando logout limpiamente.');
+            await supabase.auth.signOut();
+            return; // Detenemos ejecución ya que cerramos sesión
+          }
+
+          // 4.2 Respaldamos el Auto-Refresh de Supabase forzando el refresco
           const result = await Promise.race([
             supabase.auth.refreshSession(),
             new Promise<{ data: any, error: Error | null }>((_, reject) =>
@@ -194,20 +202,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ]);
 
           if (result.error) {
-            console.error('❌ Error en refresco manual de sesión:', result.error);
-            if (result.error.message.includes('Refresh Token Not Found') || result.error.message.includes('Invalid Refresh Token')) {
-              console.log('🛑 Forzando cierre de sesión por token inválido.');
-              supabase.auth.signOut();
+            console.error('❌ Error en refresco proactivo de sesión:', result.error.message);
+            // Detectamos explícitamente expiración del refresh token o fallos de la DB (e.g. 400 Bad Request)
+            if (
+              result.error.message.includes('Refresh Token Not Found') ||
+              result.error.message.includes('Invalid Refresh Token') ||
+              (result.error as any).status === 400 ||
+              (result.error as any).status === 403
+            ) {
+              console.log('🛑 Forzando cierre de sesión por token inválido en el refresco manual.');
+              await supabase.auth.signOut();
             }
+          } else if (result.data?.session) {
+            console.log('✅ Token refrescado exitosamente de forma proactiva.');
           }
         } catch (error: any) {
           if (error.message === 'TIMEOUT_REFRESH_LOCK') {
-            console.error('🛑 Timeout extremo detectado al refrescar. El lock de Supabase colgó el navegador. Ignorando silenciosamente...');
-            // Simplemente ignoramos el fallo temporal del lock para reintentar más tarde en el próximo ciclo (4 mins).
+            console.error('🛑 Timeout extremo detectado al intentar refrescar (45s). Ignorando silenciosamente...');
+          } else {
+            console.error('❌ Fallo inesperado en intervalo de sesión de 45s:', error);
           }
         }
       }
-    }, 4 * 60 * 1000); // 4 Minutos
+    }, 45 * 1000); // 45 Segundos, como requerido por el usuario
 
     return () => {
       console.log('🧹 Limpiando AuthContext useEffect...');

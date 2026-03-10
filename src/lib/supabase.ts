@@ -26,7 +26,7 @@ export const supabase = createClient<Database>(
       // Desactivamos el auto-refresco nativo que causa el bug ERR_INSUFFICIENT_RESOURCES
       persistSession: true,
       storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-      autoRefreshToken: false,
+      autoRefreshToken: true,
       detectSessionInUrl: true,
       flowType: 'pkce'
     },

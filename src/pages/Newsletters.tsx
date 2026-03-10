@@ -47,8 +47,7 @@ export default function Newsletters() {
 
     const handleCreate = async () => {
         try {
-            // We create a draft first, then redirect to the editor
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from('newsletters')
                 .insert([{ subject: 'Nueva Campaña Sin Título' }])
                 .select()

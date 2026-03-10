@@ -78,8 +78,8 @@ export default function MainLayout() {
     <div className="flex h-screen bg-slate-100 font-sans text-slate-900 overflow-hidden">
       <ConnectionStatus />
 
-      {/* Panel de depuración ultra-intrusivo para ver qué crashea la conexión */}
-      <DebugPanel />
+      {/* Panel de depuración ultra-intrusivo para ver qué crashea la conexión, oculto en prod */}
+      {import.meta.env.DEV && <DebugPanel />}
 
       {showNotification && (
         <AppNotification
