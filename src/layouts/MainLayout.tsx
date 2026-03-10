@@ -4,6 +4,7 @@ import { Outlet, Link, useLocation, Navigate, useNavigate } from 'react-router-d
 import { useAuth } from '../context/AuthContext';
 import { AppNotification } from '../components/AppNotification';
 import { ConnectionStatus } from '../components/ConnectionStatus';
+import DebugPanel from '../components/DebugPanel';
 import { LayoutDashboard, Users, Calendar, Map, Settings, Search, Bell, LogOut, Menu, X, Loader as Loader2, Mail } from 'lucide-react';
 
 export default function MainLayout() {
@@ -77,6 +78,9 @@ export default function MainLayout() {
     <div className="flex h-screen bg-slate-100 font-sans text-slate-900 overflow-hidden">
       <ConnectionStatus />
 
+      {/* Panel de depuración ultra-intrusivo para ver qué crashea la conexión */}
+      <DebugPanel />
+
       {showNotification && (
         <AppNotification
           title={notificationData.title}
@@ -145,7 +149,7 @@ export default function MainLayout() {
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm z-10 flex-shrink-0">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm z-40 relative flex-shrink-0">
           <div className="flex items-center gap-4">
             <button
               onClick={toggleSidebar}
@@ -186,8 +190,8 @@ export default function MainLayout() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-4 md:p-8 bg-slate-100/50">
-          <div className="max-w-7xl mx-auto pb-10">
+        <div className="flex-1 overflow-auto bg-slate-100/50 relative">
+          <div className="max-w-7xl mx-auto p-4 md:p-8 pb-10">
             {/* Pasamos el término de búsqueda a las rutas hijas si fuera necesario */}
             <Outlet context={{ searchTerm }} />
           </div>

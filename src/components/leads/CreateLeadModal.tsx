@@ -147,8 +147,8 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email</label>
               <input
                 type="email"
@@ -158,7 +158,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
                 onChange={e => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
-            <div>
+            <div className="col-span-1">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Teléfono</label>
               <input
                 type="tel"

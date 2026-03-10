@@ -17,61 +17,23 @@ if (!supabaseAnonKey) {
   console.log('✅ VITE_SUPABASE_ANON_KEY detectada');
 }
 
-// Interceptor anti-bucle temporal para Supabase Auth 
-// (Protege contra el "Client Clock Drift" que causa el error net::ERR_INSUFFICIENT_RESOURCES)
-let recentRefreshRequests = 0;
-let lastRefreshReset = Date.now();
-
-const customFetch = async (url: RequestInfo | URL, options?: RequestInit): Promise<Response> => {
-  const urlStr = url.toString();
-  const now = Date.now();
-
-  // Reset del contador de pánico cada 2 segundos
-  if (now - lastRefreshReset > 2000) {
-    recentRefreshRequests = 0;
-    lastRefreshReset = now;
-  }
-
-  // Si Supabase intenta refrescar el token por pánico de reloj
-  if (urlStr.includes('/auth/v1/token?grant_type=refresh_token')) {
-    recentRefreshRequests++;
-
-    // Si ha intentado pedir más de 3 tokens en menos de 2 segundos, ESTÁ EN BUCLE.
-    if (recentRefreshRequests > 3) {
-      console.error('🛑 CORTAFUEGOS: Bloqueando tormenta de refresco de tokens de Supabase (Posible desajuste de reloj local).');
-      // Simulamos que el servidor nos dice "Esperad, demasiadas peticiones" sin tocar la red real
-      return new Response(JSON.stringify({ error: 'rate_limit', message: 'Rate limit local enforced' }), {
-        status: 429,
-        statusText: 'Too Many Requests',
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-  }
-
-  // Dejamos pasar la petición real al servidor
-  return fetch(url, options);
-};
-
 export const supabase = createClient<Database>(
   supabaseUrl || '',
   supabaseAnonKey || '',
   {
     auth: {
-      // Usamos sessionStorage para mantener la seguridad de "cerrar al salir", 
-      // pero evitamos el bug críptico de autoRefreshToken + persistSession: false
-      // que agota las conexiones y causa ERR_INSUFFICIENT_RESOURCES
+      // Usamos localStorage para mayor estabilidad, especialmente en iframes.
+      // Desactivamos el auto-refresco nativo que causa el bug ERR_INSUFFICIENT_RESOURCES
       persistSession: true,
-      storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
-      autoRefreshToken: true,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      autoRefreshToken: false,
       detectSessionInUrl: true,
       flowType: 'pkce'
     },
     global: {
       headers: {
         'x-client-info': 'mirapinos-crm'
-      },
-      // Inyectamos nuestro escudo cortafuegos anti-bucles
-      fetch: customFetch
+      }
     },
     realtime: {
       params: {

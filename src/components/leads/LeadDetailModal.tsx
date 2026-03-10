@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useDialog } from '../../context/DialogContext';
 import EmailComposerModal from './EmailComposerModal';
+import { useDocuments } from '../../hooks/useDocuments';
 import type { Database } from '../../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
@@ -22,10 +23,11 @@ interface Props {
 
 export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const { session } = useAuth();
-  const { showConfirm, showAlert } = useDialog();
+  const { showAlert, showConfirm } = useDialog();
   const [loading, setLoading] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-  const [availableDocs, setAvailableDocs] = useState<{ name: string, url: string, category: string }[]>([]);
+  const { data: rawDocs = [] } = useDocuments();
+  const availableDocs = rawDocs.filter(d => d.url).map(d => ({ name: d.name, url: d.url!, category: d.category }));
   const [sentHistory, setSentHistory] = useState<any[]>([]);
 
   // Tareas de la agenda
@@ -51,34 +53,11 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   });
 
   useEffect(() => {
-    fetchDocuments();
     fetchHistory();
     fetchTasks();
   }, [lead.id]);
 
-  async function fetchDocuments() {
-    try {
-      const CATEGORIES = ['Documentos Olivo', 'Documentos Arce', 'Parcelas', 'Renders-Fotos'];
-      let allDocs: { name: string, url: string, category: string }[] = [];
 
-      for (const category of CATEGORIES) {
-        const { data, error } = await supabase.storage.from('documents').list(category);
-        if (error) continue;
-
-        if (data) {
-          const validFiles = data.filter(file => file.name !== '.emptyFolderPlaceholder' && file.name !== '.emptyFolder' && file.id);
-          const docsWithUrls = validFiles.map(file => {
-            const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(`${category}/${file.name}`);
-            return { name: file.name, url: publicUrl, category };
-          });
-          allDocs = [...allDocs, ...docsWithUrls];
-        }
-      }
-      setAvailableDocs(allDocs);
-    } catch (error) {
-      console.error('Error cargando documentos desde el storage:', error);
-    }
-  }
 
   async function fetchHistory() {
     const { data } = await supabase.from('sent_documents').select('*').eq('lead_id', lead.id).order('sent_at', { ascending: false });

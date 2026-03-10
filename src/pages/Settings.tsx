@@ -19,39 +19,22 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
-
-export const DOCUMENT_CATEGORIES = [
-  'Documentos Olivo',
-  'Documentos Arce',
-  'Parcelas',
-  'Renders-Fotos'
-];
-
-// Definición de interfaces para Tipado
-export interface SystemDocument {
-  name: string;
-  id: string;
-  updated_at: string;
-  category: string;
-  fullPath: string;
-  metadata: {
-    size: number;
-    mimetype: string;
-  };
-}
+import { useDocuments, DOCUMENT_CATEGORIES } from '../hooks/useDocuments';
+import type { SystemDocument } from '../hooks/useDocuments';
+import { useQueryClient } from '@tanstack/react-query';
 
 const Settings: React.FC = () => {
   const { profile, refreshProfile } = useAuth();
   const { showConfirm, showAlert } = useDialog();
+  const queryClient = useQueryClient();
 
   // Estados de Navegación y UI
   const [activeTab, setActiveTab] = useState<'profile' | 'documents' | 'integrations'>('profile');
-  const [loadingDocs, setLoadingDocs] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
   // Estados de Documentos
-  const [documents, setDocuments] = useState<SystemDocument[]>([]);
+  const { data: documents = [], isLoading: loadingDocs } = useDocuments();
   const [searchTerm, setSearchTerm] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -65,12 +48,7 @@ const Settings: React.FC = () => {
   // Estados de Formulario de Perfil
   const [fullName, setFullName] = useState(profile?.full_name || '');
 
-  // Cargar documentos cuando se entra en la pestaña
-  useEffect(() => {
-    if (activeTab === 'documents') {
-      fetchDocuments();
-    }
-  }, [activeTab]);
+
 
   // Sincronizar nombre de perfil cuando cargue el contexto
   useEffect(() => {
@@ -101,57 +79,7 @@ const Settings: React.FC = () => {
     }
   };
 
-  // --- Lógica de Documentos ---
-  const fetchDocuments = async () => {
-    setLoadingDocs(true);
-    try {
-      let allDocs: SystemDocument[] = [];
 
-      // Iteramos sobre las carpetas conocidas en lugar de hacer un list genérico
-      for (const category of DOCUMENT_CATEGORIES) {
-        const { data, error } = await supabase.storage.from('documents').list(category);
-
-        if (error) {
-          console.error(`Error listando la carpeta ${category}:`, error);
-          continue; // Seguimos con las siguientes categorías si hay un error puntual
-        }
-
-        if (data) {
-          // Filtramos archivos ocultos o de sistema que Storage crea vacíos a veces
-          const validFiles = data.filter(f => f.name !== '.emptyFolderPlaceholder' && f.name !== '.emptyFolder' && f.id);
-
-          const docsWithMeta = validFiles.map(doc => ({
-            ...doc,
-            category,
-            fullPath: `${category}/${doc.name}`
-          })) as unknown as SystemDocument[];
-
-          allDocs = [...allDocs, ...docsWithMeta];
-        }
-      }
-
-      // Archivos huérfanos en la raíz ("Sin Categorizar")
-      const { data: rootData, error: rootError } = await supabase.storage.from('documents').list();
-      if (!rootError && rootData) {
-        // Ignoramos las carpetas que forman parte de DOCUMENT_CATEGORIES y los placeholders
-        const rootFiles = rootData.filter(f => f.id && f.name !== '.emptyFolderPlaceholder' && f.name !== '.emptyFolder' && !DOCUMENT_CATEGORIES.includes(f.name));
-
-        const rootDocsWithMeta = rootFiles.map(doc => ({
-          ...doc,
-          category: 'Sin Categorizar',
-          fullPath: doc.name // En la raíz el fullPath es solo el nombre
-        })) as unknown as SystemDocument[];
-
-        allDocs = [...allDocs, ...rootDocsWithMeta];
-      }
-
-      setDocuments(allDocs);
-    } catch (error) {
-      console.error('Error crítico cargando documentos:', error);
-    } finally {
-      setLoadingDocs(false);
-    }
-  };
 
   const handleMove = async (doc: SystemDocument, newCategory: string) => {
     if (doc.category === newCategory) return;
@@ -161,7 +89,7 @@ const Settings: React.FC = () => {
     try {
       const { error } = await supabase.storage.from('documents').move(doc.fullPath, newFullPath);
       if (error) throw error;
-      fetchDocuments();
+      queryClient.invalidateQueries({ queryKey: ['system_documents'] });
     } catch (error) {
       console.error('Error moviendo documento:', error);
       await showAlert({ title: 'Error', message: 'El archivo ya existe en el destino o hubo un error de red.' });
@@ -199,7 +127,7 @@ const Settings: React.FC = () => {
         });
       }
 
-      fetchDocuments(); // Recargar la lista
+      queryClient.invalidateQueries({ queryKey: ['system_documents'] });
     } catch (error) {
       console.error('Error general de subida:', error);
       await showAlert({ title: 'Error', message: 'Hubo un error de red al procesar los archivos.' });
@@ -222,7 +150,7 @@ const Settings: React.FC = () => {
     try {
       const { error } = await supabase.storage.from('documents').remove([doc.fullPath]);
       if (error) throw error;
-      setDocuments(documents.filter(d => d.fullPath !== doc.fullPath));
+      queryClient.invalidateQueries({ queryKey: ['system_documents'] });
     } catch (error) {
       console.error('Error al borrar documento:', error);
       await showAlert({ title: 'Error', message: 'El archivo está bloqueado o hubo un error de red.' });
@@ -252,7 +180,7 @@ const Settings: React.FC = () => {
 
       setIsEditingDoc(null);
       setNewName('');
-      fetchDocuments();
+      queryClient.invalidateQueries({ queryKey: ['system_documents'] });
     } catch (error) {
       console.error('Error renombrando documento:', error);
       await showAlert({ title: 'Error', message: 'Error renombrando el archivo o extensión inválida.' });
@@ -495,7 +423,7 @@ const Settings: React.FC = () => {
                                     </div>
                                   </td>
                                   <td className="px-4 py-3 text-xs font-medium text-slate-400 w-24 hidden sm:table-cell">
-                                    {(doc.metadata.size / 1024).toFixed(1)} KB
+                                    {doc.metadata?.size ? (doc.metadata.size / 1024).toFixed(1) : 'N/A'} KB
                                   </td>
                                   <td className="px-4 py-3 text-xs text-slate-400 w-32 hidden md:table-cell">
                                     {new Date(doc.updated_at).toLocaleDateString()}

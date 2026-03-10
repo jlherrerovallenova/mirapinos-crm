@@ -22,6 +22,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Variable global para evitar race conditions y deadlocks causados por Strict Mode (renders dobles)
+let globalSessionPromise: Promise<{ data: { session: Session | null }, error: any }> | null = null;
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const sessionRef = useRef<Session | null>(null);
@@ -39,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchProfile = async (userId: string, retries = 2) => {
     // Si ya estamos buscando, o buscamos hace menos de 2 segundos, ignoramos para no spammar.
     const now = Date.now();
+    console.log(`[AuthDebug] 👤 Intento de fetchProfile. (userId=${userId}, retries=${retries})`);
     if (isFetchingRef.current || (now - lastProfileFetchRef.current < 2000)) {
       console.log('⏳ fetchProfile omitido (debounce o fetch en progreso).');
       return;
@@ -48,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     lastProfileFetchRef.current = now;
 
     try {
+      console.log(`[AuthDebug] 📡 request a profiles: ${userId}`);
       const { data, error } = await withRetry(
         () => supabase
           .from('profiles')
@@ -71,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(null);
         return;
       }
+      console.log(`[AuthDebug] ✅ Perfil cargado:`, data);
       setProfile(data);
     } catch (error: any) {
       if (error.message?.includes('AbortError') && retries > 0) {
@@ -90,17 +96,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
+    console.log('[AuthDebug] 🚀 useEffect de inicialización montado.');
 
     // Función robusta para inicializar la sesión asegurando que siempre termina la carga
     const initSession = async () => {
+      console.log('[AuthDebug] 🛑 initSession() iniciado');
       try {
-        // 1. Obtenemos la sesión manualmente al arrancar la app
-        const { data, error } = await supabase.auth.getSession();
-        
+        if (!globalSessionPromise) {
+          // Singleton Promise: evitamos llamadas concurrentes a getSession() en React 18+ (Strict Mode),
+          // que es lo que causaba los deadlocks en localStorage con gotrue-js.
+          globalSessionPromise = supabase.auth.getSession();
+        }
+
+        let data, error;
+        try {
+          const result = await globalSessionPromise;
+          data = result.data;
+          error = result.error;
+        } catch (e: any) {
+          globalSessionPromise = null; // Reset on fatal errors so subsequent retries can happen
+          throw e;
+        }
+
         if (error) throw error;
 
         const currentSession = data.session;
-        
+        console.log(`[AuthDebug] 🔑 getSession retorno:`, currentSession ? currentSession.user.email : 'null');
+
         if (mounted) {
           sessionRef.current = currentSession;
           setSession(currentSession);
@@ -130,10 +152,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 3. Nos suscribimos a cambios futuros (como cuando el usuario inicia o cierra sesión manualmente)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      console.log('🔄 Cambio de Auth:', event, currentSession?.user?.email || 'Sin usuario');
+      console.log('🔄 Cambio de Auth detectado por onAuthStateChange:', event, currentSession?.user?.email || 'Sin usuario');
 
       if (!mounted) return;
-      
+
       // Ignoramos INITIAL_SESSION aquí porque ya lo hemos gestionado arriba en initSession()
       if (event === 'INITIAL_SESSION') return;
 
@@ -157,9 +179,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    // 4. Implementación manual de Auto-Refresh (Reemplaza el autoRefreshToken nativo)
+    // Refrescamos la sesión cada 4 minutos para sobrevivir a problemas de zona horaria / desfase de reloj.
+    const refreshInterval = setInterval(async () => {
+      if (sessionRef.current) {
+        console.log('🔄 Refresco manual de sesión programado...', new Date().toISOString());
+
+        try {
+          const result = await Promise.race([
+            supabase.auth.refreshSession(),
+            new Promise<{ data: any, error: Error | null }>((_, reject) =>
+              setTimeout(() => reject(new Error('TIMEOUT_REFRESH_LOCK')), 5000)
+            )
+          ]);
+
+          if (result.error) {
+            console.error('❌ Error en refresco manual de sesión:', result.error);
+            if (result.error.message.includes('Refresh Token Not Found') || result.error.message.includes('Invalid Refresh Token')) {
+              console.log('🛑 Forzando cierre de sesión por token inválido.');
+              supabase.auth.signOut();
+            }
+          }
+        } catch (error: any) {
+          if (error.message === 'TIMEOUT_REFRESH_LOCK') {
+            console.error('🛑 Timeout extremo detectado al refrescar. El lock de Supabase colgó el navegador. Ignorando silenciosamente...');
+            // Simplemente ignoramos el fallo temporal del lock para reintentar más tarde en el próximo ciclo (4 mins).
+          }
+        }
+      }
+    }, 4 * 60 * 1000); // 4 Minutos
+
     return () => {
+      console.log('🧹 Limpiando AuthContext useEffect...');
       mounted = false;
       subscription.unsubscribe();
+      clearInterval(refreshInterval);
     };
   }, []);
 

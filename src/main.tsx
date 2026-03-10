@@ -11,9 +11,16 @@ import { DialogProvider } from './context/DialogContext'
 import { runExhaustiveConnectionTest } from './utils/connectionDiagnostic'
 
 // Configuramos React Query
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false, // Evitar polling oculto o retries infinitos
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
-// Lanzamos el test al pulsar la tecla F9
+// El test de diagnóstico manual se invoca con F9 (sin interceptar fetch globalmente)
 if (typeof window !== 'undefined') {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'F9') {

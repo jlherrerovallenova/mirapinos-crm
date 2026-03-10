@@ -26,6 +26,7 @@ import EmailComposerModal from '../components/leads/EmailComposerModal';
 import ExportLeadsModal from '../components/leads/ExportLeadsModal';
 import ImportLeadsModal from '../components/leads/ImportLeadsModal';
 import { AppNotification } from '../components/AppNotification';
+import { useDocuments } from '../hooks/useDocuments';
 import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
@@ -53,7 +54,10 @@ const getStatusBadge = (status: Lead['status']) => {
 export default function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [availableDocs, setAvailableDocs] = useState<{ name: string, url: string, category?: string }[]>([]);
+  const { data: rawDocs = [] } = useDocuments();
+  const availableDocs = rawDocs
+    .filter(doc => doc.url)
+    .map(doc => ({ name: doc.name, url: doc.url!, category: doc.category }));
   const [loading, setLoading] = useState(true);
 
   // Estados de Búsqueda y Filtros sincronizados con la URL
@@ -91,11 +95,6 @@ export default function Leads() {
   useEffect(() => {
     fetchLeads();
   }, [page, searchTerm, statusFilter, sourceFilter]);
-
-  // Cargar documentos solo una vez al inicio
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
 
   const showMsg = (type: 'success' | 'error' | 'info', title: string, message: string) => {
     setNotification({ show: true, type, title, message });
@@ -137,30 +136,6 @@ export default function Leads() {
       showMsg('error', 'Error de conexión', 'No se pudieron cargar los prospectos.');
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function fetchDocuments() {
-    try {
-      const CATEGORIES = ['Documentos Olivo', 'Documentos Arce', 'Parcelas', 'Renders-Fotos'];
-      let allDocs: { name: string, url: string, category: string }[] = [];
-
-      for (const category of CATEGORIES) {
-        const { data, error } = await supabase.storage.from('documents').list(category);
-        if (error) continue;
-
-        if (data) {
-          const validFiles = data.filter(file => file.name !== '.emptyFolderPlaceholder' && file.name !== '.emptyFolder' && file.id);
-          const docsWithUrls = validFiles.map(file => {
-            const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(`${category}/${file.name}`);
-            return { name: file.name, url: publicUrl, category };
-          });
-          allDocs = [...allDocs, ...docsWithUrls];
-        }
-      }
-      setAvailableDocs(allDocs);
-    } catch (error) {
-      console.error('Error fetching docs:', error);
     }
   }
 
@@ -215,7 +190,7 @@ export default function Leads() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
 
-      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-10">
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Clientes</h1>
@@ -315,7 +290,7 @@ export default function Leads() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px] flex flex-col relative z-10">
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center py-20 text-slate-400 gap-4">
             <Loader2 className="animate-spin" size={40} />
