@@ -22,8 +22,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Variable global para evitar race conditions y deadlocks causados por Strict Mode (renders dobles)
-let globalSessionPromise: Promise<{ data: { session: Session | null }, error: any }> | null = null;
+
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -98,27 +97,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let mounted = true;
     console.log('[AuthDebug] 🚀 useEffect de inicialización montado.');
 
-    // Función robusta para inicializar la sesión asegurando que siempre termina la carga
     const initSession = async () => {
       console.log('[AuthDebug] 🛑 initSession() iniciado');
       try {
-        if (!globalSessionPromise) {
-          // Singleton Promise: evitamos llamadas concurrentes a getSession() en React 18+ (Strict Mode),
-          // que es lo que causaba los deadlocks en localStorage con gotrue-js.
-          globalSessionPromise = supabase.auth.getSession();
-        }
+        const { data, error } = await supabase.auth.getSession();
 
-        let data, error;
-        try {
-          const result = await globalSessionPromise;
-          data = result.data;
-          error = result.error;
-        } catch (e: any) {
-          globalSessionPromise = null; // Reset on fatal errors so subsequent retries can happen
-          throw e;
+        if (error) {
+          if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid')) {
+             console.warn('Silent logout due to invalid token:', error.message);
+             await supabase.auth.signOut();
+             if (mounted) {
+               setSession(null);
+               setUser(null);
+               setProfile(null);
+             }
+             return;
+          }
+          throw error;
         }
-
-        if (error) throw error;
 
         const currentSession = data.session;
         console.log(`[AuthDebug] 🔑 getSession retorno:`, currentSession ? currentSession.user.email : 'null');
@@ -129,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(currentSession?.user ?? null);
 
           if (currentSession?.user) {
-            await fetchProfile(currentSession.user.id);
+            fetchProfile(currentSession.user.id);
           } else {
             setProfile(null);
           }
@@ -140,97 +136,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setAuthError({ title: 'Error de Autenticación', message: 'No se pudo verificar tu sesión con el servidor.' });
         }
       } finally {
-        // 2. ¡CRÍTICO! Pase lo que pase (éxito o error), quitamos la pantalla de carga
         if (mounted) {
           setLoading(false);
         }
       }
     };
 
-    // Ejecutamos la comprobación inicial
     initSession();
 
-    // 3. Nos suscribimos a cambios futuros (como cuando el usuario inicia o cierra sesión manualmente)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('🔄 Cambio de Auth detectado por onAuthStateChange:', event, currentSession?.user?.email || 'Sin usuario');
 
       if (!mounted) return;
-
-      // Ignoramos INITIAL_SESSION aquí porque ya lo hemos gestionado arriba en initSession()
       if (event === 'INITIAL_SESSION') return;
 
-      const previousSession = sessionRef.current;
       sessionRef.current = currentSession;
 
-      if (event === 'SIGNED_OUT' && previousSession && !currentSession) {
-        setAuthError({
-          title: 'Sesión Perdida',
-          message: 'Supabase ha reseteado la conexión. Esto suele ocurrir si la hora de Windows es incorrecta o el navegador borra el almacenamiento local.'
-        });
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        return;
       }
 
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
 
       if (currentSession?.user) {
-        await fetchProfile(currentSession.user.id);
+        fetchProfile(currentSession.user.id);
       } else {
         setProfile(null);
       }
     });
 
-    // 4. Validación de Sesión y Refrescador Manual (cada 45 segundos)
-    const refreshInterval = setInterval(async () => {
-      if (sessionRef.current) {
-        console.log('🔄 Verificando validez de sesión local y refrescando token...', new Date().toISOString());
-
-        try {
-          // 4.1 Validamos si la sesión sigue viva activamente
-          const { data, error } = await supabase.auth.getSession();
-          if (error || !data.session) {
-            console.log('🛑 Sesión expirada o inválida detectada en verificación de 45s. Forzando logout limpiamente.');
-            await supabase.auth.signOut();
-            return; // Detenemos ejecución ya que cerramos sesión
-          }
-
-          // 4.2 Respaldamos el Auto-Refresh de Supabase forzando el refresco
-          const result = await Promise.race([
-            supabase.auth.refreshSession(),
-            new Promise<{ data: any, error: Error | null }>((_, reject) =>
-              setTimeout(() => reject(new Error('TIMEOUT_REFRESH_LOCK')), 5000)
-            )
-          ]);
-
-          if (result.error) {
-            console.error('❌ Error en refresco proactivo de sesión:', result.error.message);
-            // Detectamos explícitamente expiración del refresh token o fallos de la DB (e.g. 400 Bad Request)
-            if (
-              result.error.message.includes('Refresh Token Not Found') ||
-              result.error.message.includes('Invalid Refresh Token') ||
-              (result.error as any).status === 400 ||
-              (result.error as any).status === 403
-            ) {
-              console.log('🛑 Forzando cierre de sesión por token inválido en el refresco manual.');
-              await supabase.auth.signOut();
-            }
-          } else if (result.data?.session) {
-            console.log('✅ Token refrescado exitosamente de forma proactiva.');
-          }
-        } catch (error: any) {
-          if (error.message === 'TIMEOUT_REFRESH_LOCK') {
-            console.error('🛑 Timeout extremo detectado al intentar refrescar (45s). Ignorando silenciosamente...');
-          } else {
-            console.error('❌ Fallo inesperado en intervalo de sesión de 45s:', error);
-          }
-        }
-      }
-    }, 45 * 1000); // 45 Segundos, como requerido por el usuario
-
     return () => {
       console.log('🧹 Limpiando AuthContext useEffect...');
       mounted = false;
       subscription.unsubscribe();
-      clearInterval(refreshInterval);
     };
   }, []);
 

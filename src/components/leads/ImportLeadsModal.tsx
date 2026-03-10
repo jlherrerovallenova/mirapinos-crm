@@ -189,7 +189,7 @@ export default function ImportLeadsModal({ isOpen, onClose, onSuccess }: Props) 
                 email: row['EMAIL'] || null,
                 phone: row['TELEFONO'] || null,
                 notes: row['NOTAS INTERNAS'] || null,
-                source: row['ORIGEN'] || 'Excel',
+                source: row['ORIGEN'] === 'Excel' || row['ORIGEN'] === 'EXCEL' ? 'Idealista' : (row['ORIGEN'] || 'Idealista'),
                 status: 'new',
                 assigned_to: user.id,
                 created_at: parseDate(row['ALTA']) || undefined,

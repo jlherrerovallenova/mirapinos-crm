@@ -145,8 +145,8 @@ export default function Pipeline() {
         </div>
       </div>
 
-      {/* CONTENEDOR KANBAN HORIZONTAL SCROLLABLE */}
-      <div className="flex-1 flex gap-3 md:gap-4 overflow-x-auto pb-6 snap-x">
+      {/* CONTENEDOR KANBAN HORIZONTAL FIT */}
+      <div className="flex-1 flex gap-2 md:gap-3 overflow-hidden pb-6">
         {COLUMNS.map(column => {
           // Filtramos los leads que pertenecen a esta columna
           const columnLeads = leads.filter(lead => (lead.status || 'new') === column.id);
@@ -155,7 +155,7 @@ export default function Pipeline() {
           return (
             <div
               key={column.id}
-              className={`flex flex-col min-w-[220px] flex-1 rounded-2xl border ${column.bg} border-slate-200 shadow-sm snap-center`}
+              className={`flex flex-col min-w-0 w-full flex-1 rounded-2xl border ${column.bg} border-slate-200 shadow-sm`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, column.id)}
             >
@@ -186,11 +186,11 @@ export default function Pipeline() {
                       onClick={() => navigate(`/leads/${lead.id}`)}
                       className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-emerald-300 transition-all group"
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm truncate pr-2 group-hover:text-emerald-700 transition-colors">
+                      <div className="flex justify-between items-start mb-2 gap-2">
+                        <h4 className="font-bold text-slate-900 text-[10px] sm:text-xs leading-tight break-words group-hover:text-emerald-700 transition-colors">
                           {lead.name}
                         </h4>
-                        <button className="text-slate-300 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100 hidden sm:block">
+                        <button className="text-slate-300 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100 hidden sm:block shrink-0">
                           <MoreHorizontal size={14} />
                         </button>
                       </div>
