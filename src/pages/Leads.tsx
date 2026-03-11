@@ -20,7 +20,8 @@ import {
   FilterX,
   Upload,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
@@ -331,16 +332,24 @@ export default function Leads() {
         ) : (
           <div className="divide-y divide-slate-100 flex-1">
             <div className="grid grid-cols-12 gap-4 p-4 bg-slate-50/50 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 hidden md:grid">
-              <div className="col-span-3 pl-2 flex items-center gap-1 cursor-pointer hover:text-slate-700 transition-colors select-none" onClick={() => handleSort('name')}>
+              <div
+                className={`col-span-3 pl-2 flex items-center gap-1 cursor-pointer transition-colors select-none ${sortField === 'name' ? 'text-slate-800' : 'hover:text-slate-700'}`}
+                onClick={() => handleSort('name')}
+                title="Ordenar por Nombre"
+              >
                 Prospecto
-                {sortField === 'name' && (sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                {sortField === 'name' ? (sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} className="opacity-30" />}
               </div>
               <div className="col-span-2">Estado</div>
               <div className="col-span-3">Contacto</div>
               <div className="col-span-1">Origen</div>
-              <div className="col-span-2 flex items-center gap-1 cursor-pointer hover:text-slate-700 transition-colors select-none" onClick={() => handleSort('created_at')}>
+              <div
+                className={`col-span-2 flex items-center gap-1 cursor-pointer transition-colors select-none ${sortField === 'created_at' ? 'text-slate-800' : 'hover:text-slate-700'}`}
+                onClick={() => handleSort('created_at')}
+                title="Ordenar por Fecha"
+              >
                 Fecha de Alta
-                {sortField === 'created_at' && (sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                {sortField === 'created_at' ? (sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} className="opacity-30" />}
               </div>
               <div className="col-span-1 text-right pr-4">Acciones</div>
             </div>
