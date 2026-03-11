@@ -59,9 +59,6 @@ export default function Login() {
         <h2 className="text-center text-3xl font-display font-bold text-slate-900 tracking-tight">
           Mirapinos CRM
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-500 font-medium">
-          Accede a tu panel de gestión inmobiliaria
-        </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
