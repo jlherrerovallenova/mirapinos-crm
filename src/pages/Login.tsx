@@ -2,10 +2,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Mail, 
-  Lock, 
-  Loader2, 
+import {
+  Mail,
+  Lock,
+  Loader2,
   AlertCircle,
   ArrowRight
 } from 'lucide-react';
@@ -13,7 +13,7 @@ import {
 export default function Login() {
   const { session, signIn } = useAuth();
   const navigate = useNavigate();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,12 +49,14 @@ export default function Login() {
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* LOGO O ICONO */}
-        <div className="flex justify-center">
-          <div className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-200">
-            <Lock className="text-white" size={32} />
-          </div>
+        <div className="flex justify-center mb-6">
+          <img
+            src="/logo-mirapinos.png"
+            alt="Mirapinos Logo"
+            className="w-56 h-auto object-contain drop-shadow-sm"
+          />
         </div>
-        <h2 className="mt-6 text-center text-3xl font-display font-bold text-slate-900 tracking-tight">
+        <h2 className="text-center text-3xl font-display font-bold text-slate-900 tracking-tight">
           Mirapinos CRM
         </h2>
         <p className="mt-2 text-center text-sm text-slate-500 font-medium">
@@ -64,7 +66,7 @@ export default function Login() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-10 px-6 shadow-2xl shadow-slate-200/50 sm:rounded-[2.5rem] border border-slate-100 sm:px-12 animate-in fade-in zoom-in duration-500">
-          
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* EMAIL */}
             <div>
