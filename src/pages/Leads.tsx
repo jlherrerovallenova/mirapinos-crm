@@ -331,14 +331,15 @@ export default function Leads() {
         ) : (
           <div className="divide-y divide-slate-100 flex-1">
             <div className="grid grid-cols-12 gap-4 p-4 bg-slate-50/50 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 hidden md:grid">
-              <div className="col-span-4 pl-2 flex items-center gap-1 cursor-pointer hover:text-slate-700 transition-colors select-none" onClick={() => handleSort('name')}>
+              <div className="col-span-3 pl-2 flex items-center gap-1 cursor-pointer hover:text-slate-700 transition-colors select-none" onClick={() => handleSort('name')}>
                 Prospecto
                 {sortField === 'name' && (sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
               </div>
               <div className="col-span-2">Estado</div>
               <div className="col-span-3">Contacto</div>
+              <div className="col-span-1">Origen</div>
               <div className="col-span-2 flex items-center gap-1 cursor-pointer hover:text-slate-700 transition-colors select-none" onClick={() => handleSort('created_at')}>
-                Origen / Fecha
+                Fecha de Alta
                 {sortField === 'created_at' && (sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
               </div>
               <div className="col-span-1 text-right pr-4">Acciones</div>
@@ -350,7 +351,7 @@ export default function Leads() {
                 onClick={() => setSelectedLead(lead)}
                 className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center hover:bg-slate-50 transition-colors cursor-pointer group"
               >
-                <div className="md:col-span-4 flex items-center gap-4">
+                <div className="md:col-span-3 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm shrink-0 shadow-sm">
                     {lead.name?.substring(0, 2).toUpperCase() || "L"}
                   </div>
@@ -379,10 +380,13 @@ export default function Leads() {
                   </div>
                 </div>
 
-                <div className="md:col-span-2">
-                  <p className="text-xs font-medium text-slate-700">{lead.source || 'Directo'}</p>
-                  <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                    <Calendar size={10} /> {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                <div className="md:col-span-1 flex items-center">
+                  <p className="text-xs font-medium text-slate-700 truncate" title={lead.source || 'Directo'}>{lead.source || 'Directo'}</p>
+                </div>
+
+                <div className="md:col-span-2 flex items-center">
+                  <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
+                    <Calendar size={12} className="text-slate-400 shrink-0" /> {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </p>
                 </div>
 
