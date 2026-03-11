@@ -49,7 +49,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     status: lead.status || 'new',
     source: lead.source || 'Web',
     notes: lead.notes || '',
-    is_subscribed: lead.is_subscribed ?? true
+    is_subscribed: lead.is_subscribed ?? true,
+    created_at_date: lead.created_at ? new Date(lead.created_at).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)
   });
 
   useEffect(() => {
@@ -169,7 +170,14 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await (supabase as any).from('leads').update(formData).eq('id', lead.id);
+
+    const { created_at_date, ...restData } = formData;
+    const finalData = {
+      ...restData,
+      created_at: new Date(`${created_at_date}T12:00:00Z`).toISOString()
+    };
+
+    const { error } = await (supabase as any).from('leads').update(finalData).eq('id', lead.id);
     if (!error) {
       onUpdate();
       onClose();
@@ -319,8 +327,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Alta</label>
                         <div className="relative">
-                          <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input readOnly value={new Date(lead.created_at).toLocaleDateString()} className="w-full mt-1 pl-10 pr-4 py-2.5 bg-slate-100 rounded-lg outline-none text-sm font-medium text-slate-500 border border-transparent cursor-default" />
+                          <input
+                            type="date"
+                            name="created_at_date"
+                            value={formData.created_at_date}
+                            onChange={handleChange}
+                            className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-bold border border-transparent focus:bg-white focus:border-emerald-500 transition-all text-slate-700"
+                          />
                         </div>
                       </div>
                     </div>
