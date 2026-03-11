@@ -18,7 +18,9 @@ import {
   ChevronsLeft,
   ChevronsRight,
   FilterX,
-  Upload
+  Upload,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
@@ -69,6 +71,10 @@ export default function Leads() {
   const [page, setPage] = useState(1);
   const [totalLeads, setTotalLeads] = useState(0);
 
+  // Estados de Ordenación
+  const [sortField, setSortField] = useState<'name' | 'created_at'>('created_at');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
   // Modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -94,7 +100,17 @@ export default function Leads() {
   // Recargar datos cuando cambia la página, la búsqueda o los filtros
   useEffect(() => {
     fetchLeads();
-  }, [page, searchTerm, statusFilter, sourceFilter]);
+  }, [page, searchTerm, statusFilter, sourceFilter, sortField, sortDirection]);
+
+  const handleSort = (field: 'name' | 'created_at') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setPage(1);
+  };
 
   const showMsg = (type: 'success' | 'error' | 'info', title: string, message: string) => {
     setNotification({ show: true, type, title, message });
@@ -110,7 +126,7 @@ export default function Leads() {
       let query = supabase
         .from('leads')
         .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false });
+        .order(sortField, { ascending: sortDirection === 'asc' });
 
       if (searchTerm) {
         query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
@@ -315,10 +331,16 @@ export default function Leads() {
         ) : (
           <div className="divide-y divide-slate-100 flex-1">
             <div className="grid grid-cols-12 gap-4 p-4 bg-slate-50/50 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 hidden md:grid">
-              <div className="col-span-4 pl-2">Prospecto</div>
+              <div className="col-span-4 pl-2 flex items-center gap-1 cursor-pointer hover:text-slate-700 transition-colors select-none" onClick={() => handleSort('name')}>
+                Prospecto
+                {sortField === 'name' && (sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+              </div>
               <div className="col-span-2">Estado</div>
               <div className="col-span-3">Contacto</div>
-              <div className="col-span-2">Origen / Fecha</div>
+              <div className="col-span-2 flex items-center gap-1 cursor-pointer hover:text-slate-700 transition-colors select-none" onClick={() => handleSort('created_at')}>
+                Origen / Fecha
+                {sortField === 'created_at' && (sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+              </div>
               <div className="col-span-1 text-right pr-4">Acciones</div>
             </div>
 
