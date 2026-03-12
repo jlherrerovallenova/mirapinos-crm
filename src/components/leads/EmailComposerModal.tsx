@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import emailjs from '@emailjs/browser';
 
 import { supabase } from '../../lib/supabase';
 import { useDialog } from '../../context/DialogContext';
@@ -128,23 +129,25 @@ export default function EmailComposerModal({
           </div>
         `;
 
+        const templateParams = {
+          to_name: leadName,
+          to_email: leadEmail,
+          subject: subject,
+          message_html: htmlFullMessage,
+        };
 
-        const { data, error } = await supabase.functions.invoke('send-email', {
-          body: {
-            to: leadEmail,
-            subject,
-            html: htmlFullMessage,
-          },
-        });
+        const result = await emailjs.send(
+          'service_w8zzkn8',
+          'template_t3fn5js',
+          templateParams,
+          'UsY6LDpIJtiB91VMI'
+        );
 
-        if (error || data?.error) {
-          const msg = data?.error || error?.message || 'Error desconocido';
-          throw new Error(msg);
+        if (result.status === 200) {
+          await saveHistory('email');
+          setStatus('success');
+          setTimeout(onClose, 2000);
         }
-
-        await saveHistory('email');
-        setStatus('success');
-        setTimeout(onClose, 2000);
       } else {
         // Lógica WhatsApp (se mantiene igual ya que WhatsApp no soporta firmas HTML/Base64)
         if (!leadPhone) {
@@ -169,6 +172,10 @@ export default function EmailComposerModal({
         setStatus('success');
         setTimeout(onClose, 1000);
       }
+    } catch (error: any) {
+      console.error('Error en el proceso de envío:', error);
+      const msg = error?.text || error?.message || 'No se pudo enviar. Revisa la consola.';
+      await showAlert({ title: 'Error de envío', message: msg });
       setStatus('error');
     } finally {
       setLoading(false);
