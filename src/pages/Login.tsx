@@ -56,9 +56,7 @@ export default function Login() {
             className="w-56 h-auto object-contain drop-shadow-sm"
           />
         </div>
-        <h2 className="text-center text-3xl font-display font-bold text-slate-900 tracking-tight">
-          Mirapinos CRM
-        </h2>
+
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">

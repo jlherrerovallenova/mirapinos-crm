@@ -10,7 +10,6 @@ import {
   UserPlus,
   Loader2,
   MessageCircle,
-  Calendar,
   Filter,
   Building2,
   Download,
@@ -36,19 +35,47 @@ type Lead = Database['public']['Tables']['leads']['Row'];
 
 const ITEMS_PER_PAGE = 10; // Cantidad de leads por página
 
+const STATUS_LABELS: Record<string, string> = {
+  new: 'Nuevo',
+  contacted: 'Contactado',
+  qualified: 'Cualificado',
+  proposal: 'Propuesta',
+  negotiation: 'Negociación',
+  closed: 'Cerrado',
+  lost: 'Perdido',
+};
+
+const STATUS_CONFIG: Record<string, { dot: string; pill: string; border: string }> = {
+  new:         { dot: 'bg-blue-400',    pill: 'bg-blue-50 text-blue-700 border border-blue-200',       border: 'border-l-blue-400' },
+  contacted:   { dot: 'bg-purple-400',  pill: 'bg-purple-50 text-purple-700 border border-purple-200', border: 'border-l-purple-400' },
+  qualified:   { dot: 'bg-emerald-400', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200', border: 'border-l-emerald-400' },
+  proposal:    { dot: 'bg-amber-400',   pill: 'bg-amber-50 text-amber-700 border border-amber-200',   border: 'border-l-amber-400' },
+  negotiation: { dot: 'bg-orange-400',  pill: 'bg-orange-50 text-orange-700 border border-orange-200', border: 'border-l-orange-400' },
+  closed:      { dot: 'bg-slate-600',   pill: 'bg-slate-800 text-slate-100 border border-slate-700',  border: 'border-l-slate-600' },
+  lost:        { dot: 'bg-red-400',     pill: 'bg-red-50 text-red-700 border border-red-200',         border: 'border-l-red-400' },
+};
+
+const AVATAR_COLORS = [
+  'from-violet-500 to-purple-600',
+  'from-blue-500 to-cyan-600',
+  'from-emerald-500 to-teal-600',
+  'from-amber-500 to-orange-600',
+  'from-rose-500 to-pink-600',
+  'from-indigo-500 to-blue-600',
+  'from-teal-500 to-emerald-600',
+];
+
+const getAvatarColor = (name: string) => {
+  const idx = (name?.charCodeAt(0) || 0) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[idx];
+};
+
 const getStatusBadge = (status: Lead['status']) => {
-  const styles = {
-    new: 'bg-blue-100 text-blue-700 ring-blue-600/20',
-    contacted: 'bg-purple-100 text-purple-700 ring-purple-600/20',
-    qualified: 'bg-emerald-100 text-emerald-700 ring-emerald-600/20',
-    proposal: 'bg-amber-100 text-amber-700 ring-amber-600/20',
-    negotiation: 'bg-orange-100 text-orange-700 ring-orange-600/20',
-    closed: 'bg-slate-900 text-slate-100 ring-slate-600/20',
-    lost: 'bg-red-100 text-red-700 ring-red-600/20',
-  };
-  const label = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'New';
+  const cfg = STATUS_CONFIG[status || 'new'] || STATUS_CONFIG['new'];
+  const label = STATUS_LABELS[status || 'new'] || 'Nuevo';
   return (
-    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${styles[status || 'new']}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${cfg.pill}`}>
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
       {label}
     </span>
   );
@@ -330,96 +357,96 @@ export default function Leads() {
             )}
           </div>
         ) : (
-          <div className="divide-y divide-slate-100 flex-1">
-            <div className="grid grid-cols-12 gap-4 p-4 bg-slate-50/50 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 hidden md:grid">
+          <div className="flex-1">
+            {/* CABECERA */}
+            <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 hidden md:grid">
               <div
-                className={`col-span-3 pl-2 flex items-center gap-1 cursor-pointer transition-colors select-none ${sortField === 'name' ? 'text-slate-800' : 'hover:text-slate-700'}`}
+                className={`col-span-4 flex items-center gap-1 cursor-pointer select-none transition-colors ${sortField === 'name' ? 'text-slate-700' : 'hover:text-slate-600'}`}
                 onClick={() => handleSort('name')}
-                title="Ordenar por Nombre"
               >
-                Prospecto
-                {sortField === 'name' ? (sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} className="opacity-30" />}
+                Cliente
+                {sortField === 'name' ? (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-30" />}
               </div>
               <div className="col-span-2">Estado</div>
               <div className="col-span-3">Contacto</div>
               <div className="col-span-1">Origen</div>
               <div
-                className={`col-span-2 flex items-center gap-1 cursor-pointer transition-colors select-none ${sortField === 'created_at' ? 'text-slate-800' : 'hover:text-slate-700'}`}
+                className={`col-span-2 flex items-center gap-1 cursor-pointer select-none transition-colors ${sortField === 'created_at' ? 'text-slate-700' : 'hover:text-slate-600'}`}
                 onClick={() => handleSort('created_at')}
-                title="Ordenar por Fecha"
               >
-                Fecha de Alta
-                {sortField === 'created_at' ? (sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} className="opacity-30" />}
+                Alta
+                {sortField === 'created_at' ? (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-30" />}
               </div>
-              <div className="col-span-1 text-right pr-4">Acciones</div>
             </div>
 
-            {leads.map((lead) => (
-              <div
-                key={lead.id}
-                onClick={() => setSelectedLead(lead)}
-                className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center hover:bg-slate-50 transition-colors cursor-pointer group"
-              >
-                <div className="md:col-span-3 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm shrink-0 shadow-sm">
-                    {lead.name?.substring(0, 2).toUpperCase() || "L"}
+            {/* FILAS */}
+            {leads.map((lead) => {
+              const cfg = STATUS_CONFIG[lead.status || 'new'] || STATUS_CONFIG['new'];
+              const avatarGradient = getAvatarColor(lead.name || '');
+              return (
+                <div
+                  key={lead.id}
+                  onClick={() => setSelectedLead(lead)}
+                  className={`grid grid-cols-1 md:grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group border-b border-slate-100 border-l-4 ${cfg.border} hover:bg-slate-50/80 transition-all duration-150`}
+                >
+                  {/* AVATAR + NOMBRE */}
+                  <div className="md:col-span-4 flex items-center gap-3.5">
+                    <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-white font-black text-sm shrink-0 shadow-md`}>
+                      {lead.name?.substring(0, 2).toUpperCase() || 'CL'}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-slate-900 text-sm truncate group-hover:text-emerald-700 transition-colors leading-tight">{lead.name}</h3>
+                      {lead.company
+                        ? <p className="text-[11px] text-slate-400 flex items-center gap-1 truncate mt-0.5"><Building2 size={10} /> {lead.company}</p>
+                        : <p className="text-[11px] text-slate-300 italic mt-0.5">Sin empresa</p>
+                      }
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-slate-900 text-sm truncate group-hover:text-emerald-700 transition-colors">{lead.name}</h3>
-                    {lead.company && (
-                      <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
-                        <Building2 size={10} /> {lead.company}
-                      </p>
-                    )}
+
+                  {/* ESTADO */}
+                  <div className="md:col-span-2">
+                    {getStatusBadge(lead.status)}
+                  </div>
+
+                  {/* CONTACTO */}
+                  <div className="md:col-span-3 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2 text-xs text-slate-500 truncate">
+                      <div className="w-5 h-5 rounded-md bg-blue-50 flex items-center justify-center shrink-0">
+                        <Mail size={11} className="text-blue-400" />
+                      </div>
+                      <span className="truncate">{lead.email || <span className="text-slate-300 italic">Sin email</span>}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 truncate">
+                      <div className="w-5 h-5 rounded-md bg-emerald-50 flex items-center justify-center shrink-0">
+                        <Phone size={11} className="text-emerald-400" />
+                      </div>
+                      <span className="truncate">{lead.phone || <span className="text-slate-300 italic">Sin teléfono</span>}</span>
+                    </div>
+                  </div>
+
+                  {/* ORIGEN */}
+                  <div className="md:col-span-1">
+                    <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 rounded-full px-2.5 py-1 truncate block text-center">
+                      {lead.source || 'Directo'}
+                    </span>
+                  </div>
+
+                  {/* FECHA */}
+                  <div className="md:col-span-2">
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+
+                  {/* ACCIONES - ocultas, aparecen en hover */}
+                  <div className="md:col-span-0 md:hidden lg:flex hidden items-center justify-end gap-1 absolute right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={(e) => { e.stopPropagation(); openComposer(lead, 'whatsapp'); }} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="WhatsApp"><MessageCircle size={15} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); openComposer(lead, 'email'); }} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Email"><Mail size={15} /></button>
+                    <ChevronRight size={15} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
                   </div>
                 </div>
-
-                <div className="md:col-span-2">
-                  {getStatusBadge(lead.status)}
-                </div>
-
-                <div className="md:col-span-3 flex flex-col gap-1">
-                  <div className="flex items-center gap-2 text-xs text-slate-600 truncate">
-                    <Mail size={12} className="text-slate-400" />
-                    {lead.email || <span className="text-slate-300 italic">Sin email</span>}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-600 truncate">
-                    <Phone size={12} className="text-slate-400" />
-                    {lead.phone || <span className="text-slate-300 italic">Sin teléfono</span>}
-                  </div>
-                </div>
-
-                <div className="md:col-span-1 flex items-center">
-                  <p className="text-xs font-medium text-slate-700 truncate" title={lead.source || 'Directo'}>{lead.source || 'Directo'}</p>
-                </div>
-
-                <div className="md:col-span-2 flex items-center">
-                  <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
-                    <Calendar size={12} className="text-slate-400 shrink-0" /> {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </p>
-                </div>
-
-                <div className="md:col-span-1 flex items-center justify-end gap-2">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openComposer(lead, 'whatsapp'); }}
-                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                    title="WhatsApp"
-                  >
-                    <MessageCircle size={16} />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openComposer(lead, 'email'); }}
-                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                    title="Email"
-                  >
-                    <Mail size={16} />
-                  </button>
-                  <button className="p-2 text-slate-300 group-hover:text-emerald-600 transition-colors">
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

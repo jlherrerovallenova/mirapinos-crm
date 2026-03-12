@@ -15,6 +15,27 @@ import type { Database } from '../../types/supabase';
 type Lead = Database['public']['Tables']['leads']['Row'];
 type AgendaItem = Database['public']['Tables']['agenda']['Row'];
 
+const AVATAR_COLORS = [
+  'from-violet-500 to-purple-600',
+  'from-blue-500 to-cyan-600',
+  'from-emerald-500 to-teal-600',
+  'from-amber-500 to-orange-600',
+  'from-rose-500 to-pink-600',
+  'from-indigo-500 to-blue-600',
+  'from-teal-500 to-emerald-600',
+];
+const getAvatarColor = (name: string) => AVATAR_COLORS[(name?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
+
+const STATUS_CONFIG: Record<string, { dot: string; pill: string; label: string }> = {
+  new:         { dot: 'bg-blue-400',    pill: 'bg-blue-900/40 text-blue-200 border border-blue-700/50',     label: 'Nuevo' },
+  contacted:   { dot: 'bg-purple-400',  pill: 'bg-purple-900/40 text-purple-200 border border-purple-700/50', label: 'Contactado' },
+  qualified:   { dot: 'bg-emerald-400', pill: 'bg-emerald-900/40 text-emerald-200 border border-emerald-700/50', label: 'Cualificado' },
+  proposal:    { dot: 'bg-amber-400',   pill: 'bg-amber-900/40 text-amber-200 border border-amber-700/50',   label: 'Propuesta' },
+  negotiation: { dot: 'bg-orange-400',  pill: 'bg-orange-900/40 text-orange-200 border border-orange-700/50', label: 'Negociación' },
+  closed:      { dot: 'bg-slate-400',   pill: 'bg-slate-700/50 text-slate-300 border border-slate-600/50',   label: 'Cerrado' },
+  lost:        { dot: 'bg-red-400',     pill: 'bg-red-900/40 text-red-200 border border-red-700/50',         label: 'Perdido' },
+};
+
 interface Props {
   lead: Lead;
   onClose: () => void;
@@ -206,37 +227,47 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const whatsappUrl = cleanPhone ? `https://wa.me/${cleanPhone}` : '#';
   const mailtoUrl = formData.email ? `mailto:${formData.email}?subject=Información%20Finca%20Mirapinos` : '#';
 
+  const avatarGradient = getAvatarColor(formData.name);
+  const statusCfg = STATUS_CONFIG[formData.status || 'new'] || STATUS_CONFIG['new'];
+
   return (
     <>
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-        <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
+      <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="bg-white w-full max-w-6xl rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200">
 
-          {/* HEADER */}
-          <div className="px-8 py-5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+          {/* HEADER oscuro con avatar de color */}
+          <div className="px-8 py-5 bg-slate-900 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-emerald-200 text-emerald-800 rounded-xl flex items-center justify-center font-bold text-xl shadow-inner">
-                {formData.name.charAt(0).toUpperCase()}
+              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${avatarGradient} flex items-center justify-center font-black text-white text-xl shadow-lg shrink-0`}>
+                {formData.name.substring(0, 2).toUpperCase() || 'CL'}
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-900 leading-tight">Ficha del Cliente</h2>
-                <div className="flex items-center gap-3">
-                  <p className="text-sm text-slate-500 font-medium">{formData.name}</p>
-                  <div className="flex gap-2 ml-2">
+                <div className="flex items-center gap-3 mb-1">
+                  <h2 className="text-lg font-bold text-white leading-tight">{formData.name}</h2>
+                  {/* Badge de estado */}
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${statusCfg.pill}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+                    {statusCfg.label}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-slate-400 font-medium">Ficha del Cliente</p>
+                  <div className="flex gap-1.5">
                     {formData.phone && (
-                      <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-emerald-500 text-white rounded-full hover:bg-emerald-600 transition-colors shadow-sm" title="WhatsApp">
-                        <MessageCircle size={14} />
+                      <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors shadow-sm" title="WhatsApp">
+                        <MessageCircle size={13} />
                       </a>
                     )}
                     {formData.email && (
-                      <a href={mailtoUrl} className="p-1.5 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors shadow-sm" title="Email">
-                        <Mail size={14} />
+                      <a href={mailtoUrl} className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors shadow-sm" title="Email">
+                        <Mail size={13} />
                       </a>
                     )}
                   </div>
                 </div>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
+            <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-400 hover:text-white">
               <X size={20} />
             </button>
           </div>
@@ -260,11 +291,11 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     <div className="space-y-4">
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre</label>
-                        <input name="name" value={formData.name} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-bold border border-transparent focus:bg-white focus:border-emerald-500 transition-all" required />
+                        <input name="name" value={formData.name} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-800 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" required />
                       </div>
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
-                        <input name="email" value={formData.email} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium border border-transparent focus:bg-white focus:border-emerald-500 transition-all" />
+                        <input name="email" value={formData.email} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" />
                       </div>
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Origen</label>
@@ -274,7 +305,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                             name="source"
                             value={formData.source}
                             onChange={handleChange}
-                            className="w-full mt-1 pl-10 pr-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium border border-transparent focus:bg-white focus:border-emerald-500 transition-all appearance-none cursor-pointer text-slate-700"
+                            className="w-full mt-1 pl-9 pr-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all appearance-none cursor-pointer"
                           >
                             <option value="Idealista">Idealista</option>
                             <option value="Web">Web</option>
@@ -292,7 +323,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     <div className="space-y-4">
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estado</label>
-                        <select name="status" value={formData.status} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-bold text-emerald-600 border border-transparent focus:bg-white focus:border-emerald-500 cursor-pointer">
+                        <select name="status" value={formData.status} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 cursor-pointer transition-all appearance-none">
                           <option value="new">Nuevo</option>
                           <option value="contacted">Contactado</option>
                           <option value="qualified">Cualificado</option>
@@ -321,7 +352,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input name="phone" value={formData.phone} onChange={handleChange} placeholder="600..." className="w-full mt-1 pl-10 pr-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-bold border border-transparent focus:bg-white focus:border-emerald-500 transition-all" />
+                          <input name="phone" value={formData.phone} onChange={handleChange} placeholder="600..." className="w-full mt-1 pl-9 pr-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" />
                         </div>
                       </div>
                       <div>
@@ -332,7 +363,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                             name="created_at_date"
                             value={formData.created_at_date}
                             onChange={handleChange}
-                            className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-bold border border-transparent focus:bg-white focus:border-emerald-500 transition-all text-slate-700"
+                            className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all"
                           />
                         </div>
                       </div>
@@ -341,7 +372,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Notas Internas</label>
-                    <textarea name="notes" rows={3} value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-lg outline-none text-sm font-medium resize-none border border-transparent focus:bg-white focus:border-emerald-500 transition-all" placeholder="Escribe detalles importantes..." />
+                    <textarea name="notes" rows={3} value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 resize-none border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" placeholder="Escribe detalles importantes..." />
                   </div>
 
                   {/* Historial de Documentos */}
@@ -366,11 +397,11 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   </div>
 
                   <div className="flex items-center justify-between pt-2">
-                    <button type="button" onClick={handleDelete} className="text-red-500 font-bold text-xs flex items-center gap-2 px-3 py-2 hover:bg-red-50 rounded-lg transition-colors">
-                      <Trash2 size={16} /> ELIMINAR LEAD
+                    <button type="button" onClick={handleDelete} className="text-red-500 font-medium text-xs flex items-center gap-1.5 px-3 py-2 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 size={14} /> Eliminar lead
                     </button>
-                    <button type="submit" disabled={loading} className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-lg flex items-center gap-2 shadow-lg hover:bg-emerald-700 transition-all active:scale-95">
-                      {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} GUARDAR CAMBIOS
+                    <button type="submit" disabled={loading} className="px-6 py-2.5 bg-emerald-600 text-white font-semibold text-sm rounded-lg flex items-center gap-2 shadow-md hover:bg-emerald-700 transition-all active:scale-95">
+                      {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Guardar cambios
                     </button>
                   </div>
                 </form>
@@ -455,7 +486,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                             {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
                           </button>
                           <div>
-                            <p className={`text-xs font-bold ${task.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>{task.title}</p>
+                            <p className={`text-xs font-bold ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>{task.title}</p>
                             <p className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">
                               {task.type} • {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>

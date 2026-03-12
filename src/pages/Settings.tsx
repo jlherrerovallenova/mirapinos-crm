@@ -5,6 +5,7 @@ import {
   FileText,
   Trash2,
   Eye,
+  EyeOff,
   Edit3,
   Loader2,
   Search,
@@ -14,7 +15,10 @@ import {
   User as UserIcon,
   FolderOpen,
   Upload,
-  FolderLock
+  FolderLock,
+  KeyRound,
+  CheckCircle2,
+  Mail
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -32,6 +36,24 @@ const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'profile' | 'documents' | 'integrations'>('profile');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Resend API Key
+  const [resendKey, setResendKey] = useState(() => localStorage.getItem('resend_api_key') || '');
+  const [showResendKey, setShowResendKey] = useState(false);
+  const [resendSaved, setResendSaved] = useState(() => !!localStorage.getItem('resend_api_key'));
+
+  const handleSaveResendKey = () => {
+    if (!resendKey.trim()) return;
+    localStorage.setItem('resend_api_key', resendKey.trim());
+    setResendSaved(true);
+    setTimeout(() => setResendSaved(false), 3000);
+  };
+
+  const handleClearResendKey = () => {
+    localStorage.removeItem('resend_api_key');
+    setResendKey('');
+    setResendSaved(false);
+  };
 
   // Estados de Documentos
   const { data: documents = [], isLoading: loadingDocs } = useDocuments();
@@ -310,8 +332,69 @@ const Settings: React.FC = () => {
                 </div>
 
                 {/* Resend API Key */}
-                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm space-y-3 hidden">
-                  {/* Omitido dado que las Edge functions prefieren que los secrets se guarden via CLI */}
+                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-black flex items-center justify-center shrink-0">
+                        <Mail size={17} className="text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-sm">Resend API Key</h3>
+                        <p className="text-xs text-slate-500 mt-0.5">Necesaria para el envío de emails transaccionales desde el CRM.</p>
+                      </div>
+                    </div>
+                    {localStorage.getItem('resend_api_key') && (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
+                        <CheckCircle2 size={12} /> Configurada
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clave API</label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                        <input
+                          type={showResendKey ? 'text' : 'password'}
+                          value={resendKey}
+                          onChange={(e) => { setResendKey(e.target.value); setResendSaved(false); }}
+                          className="w-full pl-9 pr-10 py-2.5 text-sm border border-slate-200 bg-white rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-mono text-slate-700"
+                          placeholder="re_xxxxxxxxxxxxxxxxxxxx"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowResendKey(!showResendKey)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                          title={showResendKey ? 'Ocultar' : 'Mostrar'}
+                        >
+                          {showResendKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                      <button
+                        onClick={handleSaveResendKey}
+                        disabled={!resendKey.trim()}
+                        className="flex items-center gap-1.5 bg-slate-900 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-800 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {resendSaved ? <CheckCircle2 size={15} className="text-emerald-400" /> : <Save size={15} />}
+                        {resendSaved ? 'Guardada' : 'Guardar'}
+                      </button>
+                    </div>
+
+                    {localStorage.getItem('resend_api_key') && (
+                      <button
+                        onClick={handleClearResendKey}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1 mt-1 transition-colors"
+                      >
+                        <X size={12} /> Eliminar clave guardada
+                      </button>
+                    )}
+
+                    <p className="text-[11px] text-slate-400 pt-1">
+                      La clave se almacena localmente en este navegador. Puedes obtenerla en{' '}
+                      <a href="https://resend.com/api-keys" target="_blank" rel="noreferrer" className="text-emerald-600 hover:underline font-medium">resend.com/api-keys</a>.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

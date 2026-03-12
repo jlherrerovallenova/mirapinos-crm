@@ -179,7 +179,7 @@ export default function Agenda() {
 
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`font-bold text-slate-800 ${item.completed ? 'line-through text-slate-500' : ''}`}>
+                      <span className={`font-bold ${item.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>
                         {item.title}
                       </span>
                     </div>

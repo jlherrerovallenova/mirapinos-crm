@@ -416,7 +416,7 @@ export default function LeadDetail() {
                           <CheckCircle2 size={24} />
                         </button>
                         <div>
-                          <p className="font-medium text-slate-700 line-through text-sm">{task.title}</p>
+                          <p className="font-medium text-emerald-600 opacity-70 text-sm">{task.title}</p>
                           <p className="text-xs text-slate-500">{task.type} • {formatDateTime(task.due_date)}</p>
                         </div>
                       </div>

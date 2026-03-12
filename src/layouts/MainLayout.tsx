@@ -1,11 +1,13 @@
 // src/layouts/MainLayout.tsx
-import { useState } from 'react';
-import { Outlet, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { Outlet, Link, Link as RouterLink, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AppNotification } from '../components/AppNotification';
 import { ConnectionStatus } from '../components/ConnectionStatus';
 import DebugPanel from '../components/DebugPanel';
-import { LayoutDashboard, Users, Calendar, Map, Settings, Search, Bell, LogOut, Menu, X, Loader as Loader2, Mail } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Map, Settings, Search, Bell, LogOut, Menu, X, Loader as Loader2, Mail, AlertTriangle, Clock } from 'lucide-react';
+import { useAgendaAlerts } from '../hooks/useAgendaAlerts';
+
 
 export default function MainLayout() {
   const { session, loading, signOut } = useAuth();
@@ -21,6 +23,20 @@ export default function MainLayout() {
     message: '',
     type: 'info' as 'success' | 'error' | 'info'
   });
+  const [showBellPopover, setShowBellPopover] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+  const { todayCount, overdueCount, total: alertTotal } = useAgendaAlerts();
+
+  // Cierra el popover al hacer clic fuera
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setShowBellPopover(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // 1. PANTALLA DE CARGA
   if (loading) {
@@ -64,15 +80,7 @@ export default function MainLayout() {
     }
   };
 
-  // Manejador de notificaciones
-  const handleBellClick = () => {
-    setNotificationData({
-      title: "Notificaciones",
-      message: "No tienes avisos pendientes en este momento.",
-      type: 'info'
-    });
-    setShowNotification(true);
-  };
+
 
   return (
     <div className="flex h-screen bg-slate-100 font-sans text-slate-900 overflow-hidden">
@@ -150,24 +158,27 @@ export default function MainLayout() {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm z-40 relative flex-shrink-0">
-          <div className="flex items-center gap-4">
+          {/* IZQUIERDA: Menú móvil */}
+          <div className="flex items-center w-1/3">
             <button
               onClick={toggleSidebar}
               className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
             >
               <Menu size={24} />
             </button>
-            <h2 className="text-lg md:text-xl font-bold text-slate-800 tracking-tight truncate">
-              {location.pathname === '/' ? 'Resumen General' :
-                location.pathname.includes('leads') ? 'Gestión de Clientes' :
-                  location.pathname.includes('pipeline') ? 'Túnel de Ventas' :
-                    location.pathname.includes('inventory') ? 'Inventario de Propiedades' :
-                      'Panel de Administración'}
-            </h2>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-4">
-            {/* Buscador con manejo de envío (Submit) */}
+          {/* CENTRO: Logo */}
+          <div className="flex justify-center w-1/3">
+            <img
+              src="/logo-mirapinos.png"
+              alt="Mirapinos"
+              className="h-9 w-auto object-contain"
+            />
+          </div>
+
+          {/* DERECHA: Buscador y campana */}
+          <div className="flex items-center justify-end gap-2 md:gap-4 w-1/3">
             <form onSubmit={handleSearch} className="relative hidden md:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input
@@ -180,13 +191,75 @@ export default function MainLayout() {
             </form>
             <div className="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div>
 
-            <button
-              onClick={handleBellClick}
-              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg relative transition-colors"
-            >
-              <Bell size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-            </button>
+            {/* Campana con badge y popover */}
+            <div className="relative" ref={bellRef}>
+              <button
+                onClick={() => setShowBellPopover(v => !v)}
+                className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg relative transition-colors"
+                title="Notificaciones de agenda"
+              >
+                <Bell size={20} />
+                {alertTotal > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 border-2 border-white">
+                    {alertTotal > 9 ? '9+' : alertTotal}
+                  </span>
+                )}
+              </button>
+
+              {/* POPOVER */}
+              {showBellPopover && (
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                  <div className="bg-slate-900 px-4 py-3 flex items-center justify-between">
+                    <span className="text-xs font-black text-white uppercase tracking-widest">Agenda de hoy</span>
+                    <Bell size={14} className="text-slate-400" />
+                  </div>
+
+                  <div className="p-3 space-y-2">
+                    {/* Tareas de hoy */}
+                    <div className={`flex items-center gap-3 p-3 rounded-lg ${todayCount > 0 ? 'bg-blue-50 border border-blue-100' : 'bg-slate-50'}`}>
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${todayCount > 0 ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                        <Clock size={17} className={todayCount > 0 ? 'text-white' : 'text-slate-400'} />
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-xs font-bold ${todayCount > 0 ? 'text-blue-800' : 'text-slate-500'}`}>Tareas para hoy</p>
+                        <p className={`text-[11px] ${todayCount > 0 ? 'text-blue-600' : 'text-slate-400'}`}>
+                          {todayCount === 0 ? 'Sin tareas pendientes' : `${todayCount} tarea${todayCount !== 1 ? 's' : ''} pendiente${todayCount !== 1 ? 's' : ''}`}
+                        </p>
+                      </div>
+                      {todayCount > 0 && (
+                        <span className="text-lg font-black text-blue-600">{todayCount}</span>
+                      )}
+                    </div>
+
+                    {/* Tareas vencidas */}
+                    <div className={`flex items-center gap-3 p-3 rounded-lg ${overdueCount > 0 ? 'bg-red-50 border border-red-100' : 'bg-slate-50'}`}>
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${overdueCount > 0 ? 'bg-red-500' : 'bg-slate-200'}`}>
+                        <AlertTriangle size={17} className={overdueCount > 0 ? 'text-white' : 'text-slate-400'} />
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-xs font-bold ${overdueCount > 0 ? 'text-red-800' : 'text-slate-500'}`}>Tareas vencidas</p>
+                        <p className={`text-[11px] ${overdueCount > 0 ? 'text-red-600' : 'text-slate-400'}`}>
+                          {overdueCount === 0 ? 'Todo al día' : `${overdueCount} tarea${overdueCount !== 1 ? 's' : ''} sin completar`}
+                        </p>
+                      </div>
+                      {overdueCount > 0 && (
+                        <span className="text-lg font-black text-red-600">{overdueCount}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="px-3 pb-3">
+                    <RouterLink
+                      to="/agenda"
+                      onClick={() => setShowBellPopover(false)}
+                      className="w-full flex items-center justify-center gap-2 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-colors"
+                    >
+                      <Calendar size={13} /> Ver agenda completa
+                    </RouterLink>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
