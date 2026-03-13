@@ -36,80 +36,101 @@ serve(async (req) => {
         if (nlError || !newsletter) throw new Error("Newsletter not found")
         if (newsletter.status === 'sent') throw new Error("Newsletter already sent")
 
-        // 2. Build the query to get subscribed leads with emails based on audience
-        let leadsQuery = supabaseClient
-            .from('leads')
-            .select('email, name')
-            .eq('is_subscribed', true)
-            .not('email', 'is', null)
-            .not('email', 'eq', '');
+        // 2. Proceso de envío escalable (Paginación de DB + Lotes de Resend)
+        let totalSent = 0;
+        let hasMoreLeads = true;
+        let lastId = null; // Usamos cursor-based pagination si es posible o offset
+        const DB_BATCH_SIZE = 500; // Cuántos leads traemos de la DB cada vez
 
-        if (audience === 'phase' && phase) {
-            leadsQuery = leadsQuery.eq('status', phase);
-        } else if (audience === 'manual' && Array.isArray(leadIds) && leadIds.length > 0) {
-            leadsQuery = leadsQuery.in('id', leadIds);
-        }
+        console.log(`Iniciando envío masivo para newsletter: ${newsletterId}`);
 
-        const { data: leads, error: leadsError } = await leadsQuery;
+        while (hasMoreLeads) {
+            let leadsQuery = supabaseClient
+                .from('leads')
+                .select('id, email, name')
+                .eq('is_subscribed', true)
+                .not('email', 'is', null)
+                .not('email', 'eq', '')
+                .order('id', { ascending: true })
+                .range(totalSent, totalSent + DB_BATCH_SIZE - 1);
 
-        if (leadsError) throw leadsError
-        if (!leads || leads.length === 0) {
-            return new Response(JSON.stringify({ message: "No subscribed leads found" }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 200,
-            })
-        }
+            if (audience === 'phase' && phase) {
+                leadsQuery = leadsQuery.eq('status', phase);
+            } else if (audience === 'manual' && Array.isArray(leadIds) && leadIds.length > 0) {
+                leadsQuery = leadsQuery.in('id', leadIds);
+                // Si es manual, no necesitamos paginar de la DB si la lista es pequeña, 
+                // pero si leadIds tiene miles, la lógica de arriba ya lo maneja por range.
+            }
 
-        // 3. Send emails via Resend in batches
-        console.log(`Sending to ${leads.length} leads...`)
-        const emails = leads.map(lead => lead.email)
+            const { data: leads, error: leadsError } = await leadsQuery;
 
-        // For simplicity, we use Resend's BCC to send to max 50 at a time, or looping.
-        // Optimal way for Resend is utilizing Batch API: https://resend.com/docs/api-reference/emails/send-batch-emails
+            if (leadsError) throw leadsError;
+            
+            if (!leads || leads.length === 0) {
+                hasMoreLeads = false;
+                break;
+            }
 
-        // We'll prepare the batch request array limit 100 per API call based on Resend docs
-        const batchData = leads.map(lead => ({
-            from: 'Mirapinos CRM <info@terravallpromociones.com>',
-            to: [lead.email],
-            subject: newsletter.subject,
-            html: newsletter.html_content.replace('{{name}}', lead.name || 'Cliente'), // Simple merge tag
-        }))
+            // Enviar este lote de la DB a Resend (en sub-lotes de 100)
+            const resendBatch = leads.map(lead => ({
+                from: 'Mirapinos CRM <info@terravallpromociones.com>',
+                to: [lead.email],
+                subject: newsletter.subject,
+                html: newsletter.html_content.replace('{{name}}', lead.name || 'Cliente'),
+            }));
 
-        const CHUNK_SIZE = 100;
-        for (let i = 0; i < batchData.length; i += CHUNK_SIZE) {
-            const chunk = batchData.slice(i, i + CHUNK_SIZE);
-
-            const res = await fetch('https://api.resend.com/emails/batch', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${resendApiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(chunk)
-            });
-
-            if (!res.ok) {
-                const errBody = await res.json();
-                console.error("Resend API error:", errBody);
-                return new Response(JSON.stringify({ error: errBody.message || `Resend Error: ${res.statusText}` }), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 400,
+            const RESEND_CHUNK_SIZE = 100;
+            for (let i = 0; i < resendBatch.length; i += RESEND_CHUNK_SIZE) {
+                const chunk = resendBatch.slice(i, i + RESEND_CHUNK_SIZE);
+                
+                const res = await fetch('https://api.resend.com/emails/batch', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${resendApiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(chunk)
                 });
+
+                if (!res.ok) {
+                    const errBody = await res.json();
+                    console.error("Error en Resend Batch API:", errBody);
+                    // Podríamos decidir continuar o parar. Aquí paramos por seguridad.
+                    throw new Error(errBody.message || `Resend Error: ${res.statusText}`);
+                }
+            }
+
+            totalSent += leads.length;
+            console.log(`Progreso: ${totalSent} emails procesados...`);
+
+            // Si hemos traído menos de lo pedido, es que no hay más
+            if (leads.length < DB_BATCH_SIZE) {
+                hasMoreLeads = false;
             }
         }
 
-        console.log(`Successfully sent newsletter to ${leads.length} contacts`);
+        if (totalSent === 0) {
+            return new Response(JSON.stringify({ message: "No se encontraron suscriptores para los filtros seleccionados" }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 200,
+            });
+        }
 
-        // 4. Mark newsletter as sent
+        // 3. Marcar como enviada al finalizar todo el proceso exitosamente
         await supabaseClient
             .from('newsletters')
-            .update({ status: 'sent', sent_at: new Date().toISOString() })
-            .eq('id', newsletterId)
+            .update({ 
+                status: 'sent', 
+                sent_at: new Date().toISOString(),
+                // Guardamos el conteo final para registro
+                updated_at: new Date().toISOString() 
+            })
+            .eq('id', newsletterId);
 
-        return new Response(JSON.stringify({ success: true, count: leads.length }), {
+        return new Response(JSON.stringify({ success: true, count: totalSent }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,
-        })
+        });
 
     } catch (error) {
         console.error(error)

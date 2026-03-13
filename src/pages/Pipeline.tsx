@@ -1,7 +1,6 @@
 // src/pages/Pipeline.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import {
   Loader2,
   Globe,
@@ -10,11 +9,11 @@ import {
   HelpCircle,
   MoreHorizontal
 } from 'lucide-react';
+import { useLeads, useUpdateLead } from '../hooks/useLeads';
 import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 
-// Definición de las columnas del Kanban y sus estilos
 const COLUMNS = [
   { id: 'new', title: 'Nuevos', color: 'border-blue-400', bg: 'bg-blue-50/50', text: 'text-blue-700' },
   { id: 'contacted', title: 'Contactados', color: 'border-purple-400', bg: 'bg-purple-50/50', text: 'text-purple-700' },
@@ -26,44 +25,25 @@ const COLUMNS = [
 
 export default function Pipeline() {
   const navigate = useNavigate();
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Estado para gestionar qué elemento se está arrastrando
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPipelineLeads();
-  }, []);
+  // React Query para obtener todos los leads activos
+  const { data, isLoading: loading } = useLeads({
+    page: 1,
+    pageSize: 1000, // En el pipeline queremos ver todos los activos a la vez
+    statusFilter: undefined, // No filtramos por status aquí porque los separamos por columnas
+    sortField: 'created_at',
+    sortDirection: 'desc'
+  });
 
-  const fetchPipelineLeads = async () => {
-    setLoading(true);
-    try {
-      // Excluimos los leads con estado 'lost' (Perdidos) del tablero principal para mantenerlo limpio
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .neq('status', 'lost')
-        .order('created_at', { ascending: false });
+  const updateMutation = useUpdateLead();
+  const leads = (data?.leads || []).filter(l => l.status !== 'lost');
 
-      if (error) throw error;
-      if (data) setLeads(data);
-    } catch (error) {
-      console.error('Error fetching pipeline leads:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // --- LÓGICA DE DRAG & DROP NATIVO ---
   const handleDragStart = (e: React.DragEvent, leadId: string) => {
     setDraggedLeadId(leadId);
-    // Efecto visual al arrastrar
     e.dataTransfer.effectAllowed = 'move';
-    // Requerido por Firefox para que el drag funcione
     e.dataTransfer.setData('text/plain', leadId);
 
-    // Hacemos que la tarjeta original sea un poco transparente mientras se arrastra
     setTimeout(() => {
       const element = document.getElementById(`lead-card-${leadId}`);
       if (element) element.classList.add('opacity-50');
@@ -77,11 +57,11 @@ export default function Pipeline() {
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault(); // Necesario para permitir el "Drop"
+    e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = async (e: React.DragEvent, newStatus: string) => {
+  const handleDrop = (e: React.DragEvent, newStatus: string) => {
     e.preventDefault();
     const leadId = e.dataTransfer.getData('text/plain') || draggedLeadId;
 
@@ -90,28 +70,15 @@ export default function Pipeline() {
     const leadToMove = leads.find(l => l.id === leadId);
     if (!leadToMove || leadToMove.status === newStatus) return;
 
-    // 1. Actualización Optimista (Actualiza la UI al instante sin esperar a la base de datos)
-    setLeads(prev => prev.map(lead =>
-      lead.id === leadId ? { ...lead, status: newStatus as any } : lead
-    ));
-
-    // 2. Actualización en Base de Datos (Supabase)
-    try {
-      const { error } = await (supabase as any)
-        .from('leads')
-        .update({ status: newStatus })
-        .eq('id', leadId);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error actualizando estado en drop:', error);
-      // Si falla, revertimos recargando los datos
-      fetchPipelineLeads();
-    }
+    // Actualización mediante mutación de React Query
+    updateMutation.mutate({
+      id: leadId,
+      updates: { status: newStatus as any }
+    });
+    
     setDraggedLeadId(null);
   };
 
-  // Helper visual para iconos de origen
   const getSourceIcon = (sourceName: string | null) => {
     if (!sourceName) return <HelpCircle size={12} />;
     const lower = sourceName.toLowerCase();
@@ -121,7 +88,7 @@ export default function Pipeline() {
     return <HelpCircle size={12} />;
   };
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] text-slate-400 gap-4">
         <Loader2 className="animate-spin" size={40} />
@@ -132,8 +99,6 @@ export default function Pipeline() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500 overflow-hidden">
-
-      {/* HEADER DEL TABLERO */}
       <div className="flex justify-between items-end mb-6 shrink-0">
         <div>
           <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Fases de Venta</h1>
@@ -144,10 +109,8 @@ export default function Pipeline() {
         </div>
       </div>
 
-      {/* CONTENEDOR KANBAN HORIZONTAL FIT */}
       <div className="flex-1 flex gap-2 md:gap-3 overflow-hidden pb-6">
         {COLUMNS.map(column => {
-          // Filtramos los leads que pertenecen a esta columna
           const columnLeads = leads.filter(lead => (lead.status || 'new') === column.id);
           const totalValue = columnLeads.length;
 
@@ -158,7 +121,6 @@ export default function Pipeline() {
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, column.id)}
             >
-              {/* Cabecera de Columna */}
               <div className={`p-3 border-b border-slate-200/50 flex justify-between items-center rounded-t-2xl bg-white/50 backdrop-blur-sm border-t-4 ${column.color}`}>
                 <h3 className={`font-bold text-xs sm:text-sm ${column.text} uppercase tracking-wider truncate mr-2`}>
                   {column.title}
@@ -168,10 +130,9 @@ export default function Pipeline() {
                 </span>
               </div>
 
-              {/* Contenedor de Tarjetas (Scrollable vertical) */}
               <div className="p-2 sm:p-3 flex-1 overflow-y-auto space-y-3 custom-scrollbar">
                 {columnLeads.length === 0 ? (
-                  <div className="h-24 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center text-slate-400 text-xs font-medium bg-white/40">
+                  <div className="h-24 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center text-slate-400 text-xs font-medium bg-white/40 text-center px-4">
                     Arrastra aquí
                   </div>
                 ) : (
@@ -182,7 +143,7 @@ export default function Pipeline() {
                       draggable
                       onDragStart={(e) => handleDragStart(e, lead.id)}
                       onDragEnd={(e) => handleDragEnd(e, lead.id)}
-                      onClick={() => navigate(`/leads/${lead.id}`)}
+                      onDoubleClick={() => navigate(`/leads?search=${encodeURIComponent(lead.name)}`)}
                       className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-emerald-300 transition-all group"
                     >
                       <div className="flex justify-between items-start mb-2 gap-2">
@@ -193,8 +154,6 @@ export default function Pipeline() {
                           <MoreHorizontal size={14} />
                         </button>
                       </div>
-
-
 
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
                         <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50 px-1.5 py-1 rounded border border-slate-100 w-fit">

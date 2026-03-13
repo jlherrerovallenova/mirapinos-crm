@@ -10,9 +10,11 @@ interface Props {
   onSuccess: () => void;
 }
 
+import { useCreateLead } from '../../hooks/useLeads';
+
 export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const createMutation = useCreateLead();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -24,9 +26,9 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
 
   if (!isOpen) return null;
 
-  const isValidEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
+  const loading = createMutation.isPending;
+
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const isValidPhone = (phone: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
@@ -35,34 +37,27 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
 
   const checkDuplicates = async (email: string, phone: string) => {
     if (!email && !phone) return false;
-
     try {
       if (email) {
         const { data, error } = await supabase.from('leads').select('id').eq('email', email).limit(1);
-        if (error) throw error;
-        if (data && data.length > 0) return true;
+        if (!error && data && data.length > 0) return true;
       }
-
       if (phone) {
         const { data, error } = await supabase.from('leads').select('id').eq('phone', phone).limit(1);
-        if (error) throw error;
-        if (data && data.length > 0) return true;
+        if (!error && data && data.length > 0) return true;
       }
-
       return false;
     } catch (err) {
-      console.warn('⚠️ Aviso en validación de duplicados (continuando guardado):', err);
       return false;
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setErrorMsg(null);
 
     try {
-      if (!user?.id) throw new Error('Sesión de usuario no detectada. Por favor, recarga la página.');
+      if (!user?.id) throw new Error('Sesión de usuario no detectada.');
       if (!formData.name.trim()) throw new Error('El nombre es obligatorio.');
 
       if (formData.email && !isValidEmail(formData.email)) {
@@ -78,7 +73,6 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
         throw new Error('Ya existe un cliente registrado con este email o teléfono.');
       }
 
-      // CORRECCIÓN: Se cambia 'user_id' por 'assigned_to' que es la columna que sí existe en el esquema
       const payload: any = {
         name: formData.name,
         email: formData.email || null,
@@ -88,30 +82,19 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
         assigned_to: user.id
       };
 
-      const { error } = await (supabase as any)
-        .from('leads')
-        .insert([payload])
-        .select();
-
-      if (error) {
-        if (error.code === '42501' || error.message.includes('row-level security')) {
-          throw new Error('Permiso denegado por seguridad (RLS). Tu usuario no tiene privilegios de escritura.');
+      createMutation.mutate(payload, {
+        onSuccess: () => {
+          setFormData({ name: '', email: '', phone: '', source: 'Web' });
+          onSuccess();
+          onClose();
+        },
+        onError: (err: any) => {
+          setErrorMsg(err.message || 'Error al guardar el cliente.');
         }
-        if (error.code === '42703') {
-          throw new Error('Error de esquema: La columna especificada no existe en tu tabla "leads" en Supabase.');
-        }
-        throw error;
-      }
-
-      setFormData({ name: '', email: '', phone: '', source: 'Web' });
-      onSuccess();
-      onClose();
+      });
 
     } catch (error: any) {
-      console.error('❌ Error creating lead:', error);
-      setErrorMsg(error.message || 'Ocurrió un error de red al guardar. Revisa la consola.');
-    } finally {
-      setLoading(false);
+      setErrorMsg(error.message);
     }
   };
 

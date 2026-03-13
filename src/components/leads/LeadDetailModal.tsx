@@ -15,16 +15,7 @@ import type { Database } from '../../types/supabase';
 type Lead = Database['public']['Tables']['leads']['Row'];
 type AgendaItem = Database['public']['Tables']['agenda']['Row'];
 
-const AVATAR_COLORS = [
-  'from-violet-500 to-purple-600',
-  'from-blue-500 to-cyan-600',
-  'from-emerald-500 to-teal-600',
-  'from-amber-500 to-orange-600',
-  'from-rose-500 to-pink-600',
-  'from-indigo-500 to-blue-600',
-  'from-teal-500 to-emerald-600',
-];
-const getAvatarColor = (name: string) => AVATAR_COLORS[(name?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
+// getAvatarColor removed as it's no longer used for emerald square avatars
 
 const STATUS_CONFIG: Record<string, { dot: string; pill: string; label: string }> = {
   new:         { dot: 'bg-blue-400',    pill: 'bg-blue-900/40 text-blue-200 border border-blue-700/50',     label: 'Nuevo' },
@@ -39,17 +30,23 @@ const STATUS_CONFIG: Record<string, { dot: string; pill: string; label: string }
 interface Props {
   lead: Lead;
   onClose: () => void;
-  onUpdate: () => void;
+  onUpdate: (deleted?: boolean) => void;
 }
+
+import { useUpdateLead, useDeleteLead } from '../../hooks/useLeads';
 
 export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const { session } = useAuth();
   const { showAlert, showConfirm } = useDialog();
-  const [loading, setLoading] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const { data: rawDocs = [] } = useDocuments();
   const availableDocs = rawDocs.filter(d => d.url).map(d => ({ name: d.name, url: d.url!, category: d.category }));
   const [sentHistory, setSentHistory] = useState<any[]>([]);
+
+  // Mutations
+  const updateMutation = useUpdateLead();
+  const deleteMutation = useDeleteLead();
+  const [loading, setLoading] = useState(false); // Mantener para el estado local de guardado de tareas o procesos largos
 
   // Tareas de la agenda
   const [tasks, setTasks] = useState<AgendaItem[]>([]);
@@ -78,8 +75,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     fetchHistory();
     fetchTasks();
   }, [lead.id]);
-
-
 
   async function fetchHistory() {
     const { data } = await supabase.from('sent_documents').select('*').eq('lead_id', lead.id).order('sent_at', { ascending: false });
@@ -117,6 +112,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
       completed: false
     };
 
+    setLoading(true);
     try {
       if (editingTaskId) {
         // Editar
@@ -126,18 +122,18 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
             title: taskData.title,
             type: taskData.type,
             due_date: finalDate
-          } as any)
+          })
           .eq('id', editingTaskId);
         if (error) throw error;
         setEditingTaskId(null);
       } else {
-        // Insertar
+        // En lugar de Google Calendar directo aquí, lo mantenemos igual por ahora
         const { error } = await (supabase as any).from('agenda').insert([taskData]);
         if (error) throw error;
 
-        // Abrir Google Calendar solo al crear tareas nuevas
+        // Abrir Google Calendar
         const parsedDate = new Date(finalDate);
-        const endParsedDate = new Date(parsedDate.getTime() + 60 * 60 * 1000); // Duración: 1 hora
+        const endParsedDate = new Date(parsedDate.getTime() + 60 * 60 * 1000);
         const formatGoogleDate = (d: Date) => d.toISOString().replace(/-|:|\.\d\d\d/g, '');
 
         const googleCalUrl = new URL('https://calendar.google.com/calendar/render');
@@ -149,13 +145,14 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
         window.open(googleCalUrl.toString(), '_blank');
       }
 
-      // Reset y recargar
       setNewTask({ type: 'Llamada', title: '', date: new Date().toISOString().slice(0, 10), time: '10:00' });
       fetchTasks();
 
     } catch (error) {
       console.error("Error guardando tarea:", error);
       await showAlert({ title: 'Error', message: 'Error al guardar la tarea.' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -190,20 +187,22 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
+    
     const { created_at_date, ...restData } = formData;
     const finalData = {
       ...restData,
       created_at: new Date(`${created_at_date}T12:00:00Z`).toISOString()
     };
 
-    const { error } = await (supabase as any).from('leads').update(finalData).eq('id', lead.id);
-    if (!error) {
-      onUpdate();
-      onClose();
-    }
-    setLoading(false);
+    updateMutation.mutate({ id: lead.id, updates: finalData }, {
+      onSuccess: () => {
+        onUpdate();
+        onClose();
+      },
+      onError: (err) => {
+        console.error("Error actualizando lead:", err);
+      }
+    });
   };
 
   const handleDelete = async () => {
@@ -214,12 +213,19 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
       cancelText: 'Cancelar'
     });
     if (!confirmed) return;
-    setLoading(true);
-    // Borrar tareas asociadas primero (por seguridad, si no hay cascade)
+
+    // Borrar tareas asociadas primero (por seguridad)
     await supabase.from('agenda').delete().eq('lead_id', lead.id);
-    await supabase.from('leads').delete().eq('id', lead.id);
-    onUpdate();
-    onClose();
+    
+    deleteMutation.mutate(lead.id, {
+      onSuccess: () => {
+        onUpdate(true);
+        onClose();
+      },
+      onError: (err) => {
+        console.error("Error eliminando lead:", err);
+      }
+    });
   };
 
   // URLs rápidas
@@ -227,18 +233,17 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const whatsappUrl = cleanPhone ? `https://wa.me/${cleanPhone}` : '#';
   const mailtoUrl = formData.email ? `mailto:${formData.email}?subject=Información%20Finca%20Mirapinos` : '#';
 
-  const avatarGradient = getAvatarColor(formData.name);
   const statusCfg = STATUS_CONFIG[formData.status || 'new'] || STATUS_CONFIG['new'];
 
   return (
     <>
       <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-        <div className="bg-white w-full max-w-6xl rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200">
+        <div className="bg-white w-full max-w-6xl rounded-xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200">
 
           {/* HEADER oscuro con avatar de color */}
           <div className="px-8 py-5 bg-slate-900 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${avatarGradient} flex items-center justify-center font-black text-white text-xl shadow-lg shrink-0`}>
+              <div className="w-14 h-14 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black text-xl border border-emerald-100/50 shadow-sm shrink-0">
                 {formData.name.substring(0, 2).toUpperCase() || 'CL'}
               </div>
               <div>
@@ -273,20 +278,20 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           </div>
 
           {/* CONTENIDO PRINCIPAL */}
-          <div className="flex-1 overflow-y-auto p-8 bg-white">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+          <div className="flex-1 overflow-y-auto p-6 bg-white">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
 
               {/* COLUMNA IZQUIERDA: FORMULARIO */}
-              <div className="space-y-6 flex flex-col h-full">
+              <div className="space-y-4 flex flex-col h-full">
                 <button
                   onClick={() => setIsEmailModalOpen(true)}
-                  className="w-full p-4 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 transition-all active:scale-95"
+                  className="w-full py-3 px-4 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 transition-all active:scale-95 text-xs"
                 >
-                  <Send size={18} /> Enviar Documentación (WhatsApp / Email)
+                  <Send size={16} /> Enviar Documentación (WhatsApp / Email)
                 </button>
 
-                <form onSubmit={handleUpdate} className="space-y-5 flex-1 overflow-y-auto pr-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <form onSubmit={handleUpdate} className="space-y-4 flex-1 overflow-y-auto pr-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Bloque 1 */}
                     <div className="space-y-4">
                       <div>
@@ -372,13 +377,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Notas Internas</label>
-                    <textarea name="notes" rows={3} value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-3 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 resize-none border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" placeholder="Escribe detalles importantes..." />
+                    <textarea name="notes" rows={2} value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 resize-none border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" placeholder="Escribe detalles importantes..." />
                   </div>
 
                   {/* Historial de Documentos */}
                   <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                      <Clock size={14} /> Documentación Enviada
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                      <Clock size={12} /> Documentación Enviada
                     </h3>
                     <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
                       {sentHistory.length === 0 ? (
@@ -413,8 +418,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   <CalendarIcon size={14} /> Agenda de Acciones
                 </h3>
 
-                {/* Formulario Inline */}
-                <div className="grid grid-cols-1 gap-3 mb-6 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                {/* Formulario Inline Compacto */}
+                <div className="grid grid-cols-1 gap-2 mb-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
                   <div className="flex gap-2">
                     <select
                       value={newTask.type}
@@ -480,7 +485,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   {tasks.map((task) => {
                     const dateObj = new Date(task.due_date);
                     return (
-                      <div key={task.id} className={`group flex items-center justify-between p-3 rounded-lg border transition-all ${task.completed ? 'bg-slate-50 border-transparent opacity-50' : 'bg-white border-slate-200 hover:border-emerald-200 shadow-sm'}`}>
+                      <div key={task.id} className={`group flex items-center justify-between p-2.5 rounded-lg border transition-all ${task.completed ? 'bg-slate-50 border-transparent opacity-50' : 'bg-white border-slate-200 hover:border-emerald-200 shadow-sm'}`}>
                         <div className="flex items-center gap-3">
                           <button onClick={() => toggleTaskStatus(task)} className={`transition-transform hover:scale-110 ${task.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-emerald-500'}`}>
                             {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}

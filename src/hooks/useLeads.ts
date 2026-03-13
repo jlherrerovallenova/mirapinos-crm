@@ -3,91 +3,120 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../types/supabase';
 
-type LeadInfo = Database['public']['Tables']['leads']['Row'];
+type Lead = Database['public']['Tables']['leads']['Row'];
 type LeadUpdate = Database['public']['Tables']['leads']['Update'];
+type LeadInsert = Database['public']['Tables']['leads']['Insert'];
 
-/**
- * Hook para obtener la lista de Leads filtrada por estado y ordenamiento
- */
-export function useLeads(filters?: { source?: string, status?: string }) {
-    return useQuery({
-        queryKey: ['leads', filters],
-        queryFn: async () => {
-            let query = supabase.from('leads').select('*');
+export const LEADS_QUERY_KEY = ['leads'];
 
-            if (filters?.source && filters.source !== 'All') {
-                query = query.eq('source', filters.source);
-            }
-            if (filters?.status && filters.status !== 'All') {
-                query = query.eq('status', filters.status);
-            }
-
-            const { data, error } = await query.order('created_at', { ascending: false });
-
-            if (error) throw new Error(error.message);
-            return data as LeadInfo[];
-        },
-    });
+interface FetchLeadsParams {
+  page: number;
+  pageSize: number;
+  searchTerm?: string;
+  statusFilter?: string;
+  sourceFilter?: string;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
 }
 
-/**
- * Hook para obtener los detalles de un Lead específico
- */
-export function useLeadDetail(id: string | null) {
-    return useQuery({
-        queryKey: ['leads', id],
-        queryFn: async () => {
-            if (!id) return null;
-            const { data, error } = await supabase
-                .from('leads')
-                .select('*')
-                .eq('id', id)
-                .single();
+export function useLeads(params: FetchLeadsParams) {
+  const { page, pageSize, searchTerm, statusFilter, sourceFilter, sortField = 'created_at', sortDirection = 'desc' } = params;
 
-            if (error) throw new Error(error.message);
-            return data as LeadInfo;
-        },
-        enabled: !!id, // Solo se ejecuta si hay ID
-    });
+  return useQuery({
+    queryKey: [...LEADS_QUERY_KEY, params],
+    queryFn: async () => {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      let query = supabase
+        .from('leads' as any)
+        .select('*', { count: 'exact' });
+
+      // Apply sorting
+      query = query.order(sortField as any, { ascending: sortDirection === 'asc' });
+
+      // Apply search
+      if (searchTerm) {
+        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
+      }
+
+      // Apply filters
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
+      }
+      if (sourceFilter) {
+        query = query.ilike('source', `%${sourceFilter}%`);
+      }
+
+      const { data, error, count } = await query.range(from, to);
+
+      if (error) throw error;
+
+      return {
+        leads: (data || []) as Lead[],
+        totalCount: count || 0
+      };
+    }
+  });
 }
 
-/**
- * Hook mutador para actualizar el pipeline (Drag & Drop Optimista) o estados
- */
 export function useUpdateLead() {
-    const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: async ({ id, updates }: { id: string; updates: LeadUpdate }) => {
-            const { error } = await (supabase as any)
-                .from('leads')
-                .update(updates)
-                .eq('id', id);
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: LeadUpdate }) => {
+      const { data, error } = await supabase
+        .from('leads' as any)
+        .update(updates as any)
+        .eq('id', id)
+        .select()
+        .single();
 
-            if (error) throw new Error(error.message);
-        },
-        // Mutación Optimista para que el Pipeline cambie al vuelo
-        onMutate: async ({ id, updates }) => {
-            await queryClient.cancelQueries({ queryKey: ['leads'] });
+      if (error) throw error;
+      return data as Lead;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: LEADS_QUERY_KEY });
+      queryClient.setQueryData(['lead', data.id], data);
+    }
+  });
+}
 
-            // Actualizamos TODAS las queries que empiecen por ['leads'] (listas y detalles)
-            queryClient.setQueriesData({ queryKey: ['leads'] }, (old: any) => {
-                if (!old) return old;
-                if (Array.isArray(old)) {
-                    return old.map((lead: any) => lead.id === id ? { ...lead, ...updates } : lead);
-                }
-                if (old.id === id) {
-                    return { ...old, ...updates };
-                }
-                return old;
-            });
-        },
-        onError: () => {
-            // En caso de error, el onSettled invalidará todo y recuperará el valor real
-        },
-        // Al finalizar o errar, reconciliamos el servidor
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['leads'] });
-        },
-    });
+export function useCreateLead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (newLead: LeadInsert) => {
+      const { data, error } = await (supabase as any)
+        .from('leads')
+        .insert([newLead])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Lead;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: LEADS_QUERY_KEY });
+    }
+  });
+}
+
+export function useDeleteLead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from('leads')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: LEADS_QUERY_KEY });
+    }
+  });
 }

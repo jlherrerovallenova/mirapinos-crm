@@ -1,7 +1,6 @@
 // src/pages/Leads.tsx
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import {
   Search,
   Mail,
@@ -28,11 +27,12 @@ import ExportLeadsModal from '../components/leads/ExportLeadsModal';
 import ImportLeadsModal from '../components/leads/ImportLeadsModal';
 import { AppNotification } from '../components/AppNotification';
 import { useDocuments } from '../hooks/useDocuments';
+import { useLeads } from '../hooks/useLeads';
 import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 
-const ITEMS_PER_PAGE = 10; // Cantidad de leads por página
+const ITEMS_PER_PAGE = 10;
 
 const STATUS_LABELS: Record<string, string> = {
   new: 'Nuevo',
@@ -54,20 +54,7 @@ const STATUS_CONFIG: Record<string, { dot: string; pill: string; border: string 
   lost:        { dot: 'bg-red-400',     pill: 'bg-red-50 text-red-700 border border-red-200',         border: 'border-l-red-400' },
 };
 
-const AVATAR_COLORS = [
-  'from-violet-500 to-purple-600',
-  'from-blue-500 to-cyan-600',
-  'from-emerald-500 to-teal-600',
-  'from-amber-500 to-orange-600',
-  'from-rose-500 to-pink-600',
-  'from-indigo-500 to-blue-600',
-  'from-teal-500 to-emerald-600',
-];
-
-const getAvatarColor = (name: string) => {
-  const idx = (name?.charCodeAt(0) || 0) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[idx];
-};
+// getAvatarColor is no longer used
 
 const getStatusBadge = (status: Lead['status']) => {
   const cfg = STATUS_CONFIG[status || 'new'] || STATUS_CONFIG['new'];
@@ -82,12 +69,10 @@ const getStatusBadge = (status: Lead['status']) => {
 
 export default function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [leads, setLeads] = useState<Lead[]>([]);
   const { data: rawDocs = [] } = useDocuments();
   const availableDocs = rawDocs
     .filter(doc => doc.url)
     .map(doc => ({ name: doc.name, url: doc.url!, category: doc.category }));
-  const [loading, setLoading] = useState(true);
 
   // Estados de Búsqueda y Filtros sincronizados con la URL
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
@@ -96,7 +81,6 @@ export default function Leads() {
 
   // Estados de Paginación
   const [page, setPage] = useState(1);
-  const [totalLeads, setTotalLeads] = useState(0);
 
   // Estados de Ordenación
   const [sortField, setSortField] = useState<'name' | 'created_at'>('created_at');
@@ -117,17 +101,30 @@ export default function Leads() {
     type: 'success' | 'error' | 'info';
   }>({ show: false, title: '', message: '', type: 'success' });
 
-  // Sincronizar el estado interno si la URL cambia (ej. al navegar desde el Dashboard)
+  // React Query para la gestión de leads
+  const { 
+    data, 
+    isLoading: loading, 
+    refetch 
+  } = useLeads({
+    page,
+    pageSize: ITEMS_PER_PAGE,
+    searchTerm,
+    statusFilter,
+    sourceFilter,
+    sortField,
+    sortDirection
+  });
+
+  const leads = data?.leads || [];
+  const totalLeads = data?.totalCount || 0;
+
+  // Sincronizar el estado interno si la URL cambia
   useEffect(() => {
     setSearchTerm(searchParams.get('search') || '');
     setStatusFilter(searchParams.get('status') || '');
     setSourceFilter(searchParams.get('source') || '');
   }, [searchParams]);
-
-  // Recargar datos cuando cambia la página, la búsqueda o los filtros
-  useEffect(() => {
-    fetchLeads();
-  }, [page, searchTerm, statusFilter, sourceFilter, sortField, sortDirection]);
 
   const handleSort = (field: 'name' | 'created_at') => {
     if (sortField === field) {
@@ -142,45 +139,6 @@ export default function Leads() {
   const showMsg = (type: 'success' | 'error' | 'info', title: string, message: string) => {
     setNotification({ show: true, type, title, message });
   };
-
-  async function fetchLeads() {
-    try {
-      setLoading(true);
-
-      const from = (page - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-
-      let query = supabase
-        .from('leads')
-        .select('*', { count: 'exact' })
-        .order(sortField, { ascending: sortDirection === 'asc' });
-
-      if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
-      }
-
-      if (statusFilter) {
-        query = query.eq('status', statusFilter);
-      }
-
-      if (sourceFilter) {
-        query = query.ilike('source', `%${sourceFilter}%`);
-      }
-
-      const { data, error, count } = await query.range(from, to);
-
-      if (error) throw error;
-
-      if (data) setLeads(data);
-      if (count !== null) setTotalLeads(count);
-
-    } catch (error) {
-      console.error('Error fetching leads:', error);
-      showMsg('error', 'Error de conexión', 'No se pudieron cargar los prospectos.');
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const openComposer = (lead: Lead, method: 'email' | 'whatsapp') => {
     setInitialMethod(method);
@@ -222,8 +180,6 @@ export default function Leads() {
     setStatusFilter('');
     setSourceFilter('');
     setPage(1);
-
-    // Limpiar todos los parámetros de la URL
     setSearchParams({}, { replace: true });
   };
 
@@ -357,7 +313,6 @@ export default function Leads() {
           </div>
         ) : (
           <div className="flex-1">
-            {/* CABECERA */}
             <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 hidden md:grid">
               <div
                 className={`col-span-4 flex items-center gap-1 cursor-pointer select-none transition-colors ${sortField === 'name' ? 'text-slate-700' : 'hover:text-slate-600'}`}
@@ -378,19 +333,16 @@ export default function Leads() {
               </div>
             </div>
 
-            {/* FILAS */}
             {leads.map((lead) => {
               const cfg = STATUS_CONFIG[lead.status || 'new'] || STATUS_CONFIG['new'];
-              const avatarGradient = getAvatarColor(lead.name || '');
               return (
                 <div
                   key={lead.id}
                   onClick={() => setSelectedLead(lead)}
                   className={`grid grid-cols-1 md:grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group border-b border-slate-100 border-l-4 ${cfg.border} hover:bg-slate-50/80 transition-all duration-150`}
                 >
-                  {/* AVATAR + NOMBRE */}
                   <div className="md:col-span-4 flex items-center gap-3.5">
-                    <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-white font-black text-sm shrink-0 shadow-md`}>
+                    <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm border border-emerald-100 shrink-0">
                       {lead.name?.substring(0, 2).toUpperCase() || 'CL'}
                     </div>
                     <div className="min-w-0 flex items-center">
@@ -398,12 +350,10 @@ export default function Leads() {
                     </div>
                   </div>
 
-                  {/* ESTADO */}
                   <div className="md:col-span-2">
                     {getStatusBadge(lead.status)}
                   </div>
 
-                  {/* CONTACTO */}
                   <div className="md:col-span-3 flex flex-col gap-1.5">
                     <div className="flex items-center gap-2 text-xs text-slate-500 truncate">
                       <div className="w-5 h-5 rounded-md bg-blue-50 flex items-center justify-center shrink-0">
@@ -419,21 +369,18 @@ export default function Leads() {
                     </div>
                   </div>
 
-                  {/* ORIGEN */}
                   <div className="md:col-span-1">
                     <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 rounded-full px-2.5 py-1 truncate block text-center">
                       {lead.source || 'Directo'}
                     </span>
                   </div>
 
-                  {/* FECHA */}
-                  <div className="md:col-span-2">
-                    <p className="text-[11px] text-slate-500 font-medium">
+                  <div className="md:col-span-2 text-right md:text-left">
+                    <p className="text-[11px] text-slate-500 font-medium whitespace-nowrap">
                       {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
 
-                  {/* ACCIONES - ocultas, aparecen en hover */}
                   <div className="md:col-span-0 md:hidden lg:flex hidden items-center justify-end gap-1 absolute right-4 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={(e) => { e.stopPropagation(); openComposer(lead, 'whatsapp'); }} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="WhatsApp"><MessageCircle size={15} /></button>
                     <button onClick={(e) => { e.stopPropagation(); openComposer(lead, 'email'); }} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Email"><Mail size={15} /></button>
@@ -447,45 +394,41 @@ export default function Leads() {
 
         {totalLeads > 0 && (
           <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-medium">
+            <span className="text-xs text-slate-500 font-medium text-center md:text-left">
               Mostrando {leads.length} de {totalLeads} leads
             </span>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 md:gap-2">
               <button
                 onClick={() => setPage(1)}
                 disabled={page === 1}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                title="Primera página"
+                className="p-1.5 md:p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
               >
                 <ChevronsLeft size={16} />
               </button>
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                title="Anterior"
+                className="p-1.5 md:p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
               >
                 <ChevronLeft size={16} />
               </button>
 
-              <span className="text-xs font-bold text-slate-700 px-2">
-                Página {page} de {totalPages || 1}
+              <span className="text-[10px] md:text-xs font-bold text-slate-700 px-1 md:px-2 whitespace-nowrap">
+                {page} / {totalPages || 1}
               </span>
 
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                title="Siguiente"
+                className="p-1.5 md:p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
               >
                 <ChevronRight size={16} />
               </button>
               <button
                 onClick={() => setPage(totalPages)}
                 disabled={page >= totalPages}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                title="Última página"
+                className="p-1.5 md:p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
               >
                 <ChevronsRight size={16} />
               </button>
@@ -499,13 +442,13 @@ export default function Leads() {
       <ImportLeadsModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        onSuccess={() => { fetchLeads(); showMsg('success', '¡Importación completada!', 'Los clientes han sido importados correctamente.'); }}
+        onSuccess={() => { refetch(); showMsg('success', '¡Importación completada!', 'Los clientes han sido importados correctamente.'); }}
       />
 
       <CreateLeadModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={() => { fetchLeads(); showMsg('success', '¡Completado!', 'El nuevo cliente ha sido creado con éxito.'); }}
+        onSuccess={() => { showMsg('success', '¡Completado!', 'El nuevo cliente ha sido creado con éxito.'); }}
       />
 
       {selectedLead && (
@@ -513,7 +456,6 @@ export default function Leads() {
           lead={selectedLead}
           onClose={() => setSelectedLead(null)}
           onUpdate={(deleted?: boolean) => {
-            fetchLeads();
             if (deleted) showMsg('success', 'Cliente eliminado', 'Cliente borrado.');
             else showMsg('info', 'Cliente actualizado', 'Cambios guardados.');
           }}
@@ -529,7 +471,7 @@ export default function Leads() {
           leadEmail={emailLead.email}
           leadPhone={emailLead.phone}
           availableDocs={availableDocs}
-          onSentSuccess={() => { fetchLeads(); showMsg('success', 'Mensaje enviado', 'Registrado correctamente.'); }}
+          onSentSuccess={() => { showMsg('success', 'Mensaje enviado', 'Registrado correctamente.'); }}
           initialMethod={initialMethod}
         />
       )}
