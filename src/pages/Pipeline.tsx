@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import {
   Loader2,
-  Building2,
   Globe,
   Smartphone,
   Users,
@@ -195,12 +194,7 @@ export default function Pipeline() {
                         </button>
                       </div>
 
-                      {lead.company && (
-                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-500 mb-3">
-                          <Building2 size={12} className="text-slate-400 shrink-0" />
-                          <span className="truncate font-medium">{lead.company}</span>
-                        </div>
-                      )}
+
 
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
                         <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50 px-1.5 py-1 rounded border border-slate-100 w-fit">

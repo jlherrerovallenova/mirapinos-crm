@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Loader2, Plus, Mail, Clock, Send, Edit } from 'lucide-react';
+import { Loader2, Plus, Mail, Clock, Send, Edit, Copy } from 'lucide-react';
 
 type Newsletter = {
     id: string;
@@ -63,6 +63,37 @@ export default function Newsletters() {
             alert("Asegúrate de haber ejecutado el SQL en Supabase para crear la tabla newsletters.");
         }
     };
+
+    const handleDuplicate = async (newsletter: Newsletter) => {
+        try {
+            // Obtener el diseño completo del original
+            const { data: original, error: fetchError } = await supabase
+                .from('newsletters')
+                .select('design, html_content')
+                .eq('id', newsletter.id)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            const { data, error } = await (supabase as any)
+                .from('newsletters')
+                .insert([{ 
+                    subject: `${newsletter.subject} (Copia)`,
+                    design: (original as any).design,
+                    html_content: (original as any).html_content,
+                    status: 'draft'
+                }])
+                .select()
+                .single();
+
+            if (error) throw error;
+            if (data) navigate(`/newsletters/${data.id}`);
+        } catch (error) {
+            console.error("Error duplicating newsletter", error);
+            alert("No se pudo duplicar la campaña.");
+        }
+    };
+
 
     if (loading) {
         return (
@@ -141,7 +172,14 @@ export default function Newsletters() {
                                                 onClick={() => navigate(`/newsletters/${nl.id}`)}
                                                 className="text-emerald-600 hover:text-emerald-800 transition-colors tooltip flex items-center font-bold text-sm"
                                             >
-                                                {nl.status === 'draft' ? 'Continuar Editando' : 'Ver Detalles'}
+                                                {nl.status === 'draft' ? 'Editar' : 'Ver/Editar'}
+                                            </button>
+                                            <button
+                                                onClick={() => handleDuplicate(nl)}
+                                                className="text-slate-400 hover:text-emerald-600 transition-colors p-1 rounded hover:bg-emerald-50"
+                                                title="Duplicar campaña"
+                                            >
+                                                <Copy size={16} />
                                             </button>
                                         </div>
                                     </td>

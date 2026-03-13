@@ -110,7 +110,7 @@ export default function NewsletterEditor() {
 
         try {
             // Call Supabase Edge Function to dispatch emails via Resend
-            const { error } = await (supabase as any).functions.invoke('send-newsletter', {
+            const { data, error } = await (supabase as any).functions.invoke('send-newsletter', {
                 body: {
                     newsletterId: id,
                     audience: config.audience,
@@ -119,15 +119,20 @@ export default function NewsletterEditor() {
                 }
             });
 
-            if (error) throw error;
+            if (error || data?.error) {
+                const errorMsg = data?.error || error?.message || 'Error desconocido en el servidor';
+                throw new Error(errorMsg);
+            }
+
             setIsSendModalOpen(false);
             showMsg('success', 'Campaña en curso!', 'Los correos se están enviando a tus clientes.');
             setStatus('sent');
 
             setTimeout(() => navigate('/newsletters'), 4000);
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error sending newsletter", err);
-            showMsg('error', 'Error de envío', 'Hubo un problema contactando con el servidor de correo. Configuración de API pendiente.');
+            const detail = err.message || 'No se pudo contactar con el servicio.';
+            showMsg('error', 'Error de envío', detail);
         } finally {
             setSending(false);
         }
@@ -160,11 +165,10 @@ export default function NewsletterEditor() {
                             type="text"
                             value={subject}
                             onChange={(e) => setSubject(e.target.value)}
-                            disabled={isSent}
                             placeholder="Asunto de tu Newsletter..."
                             className="text-lg font-bold text-slate-900 bg-transparent border-none focus:ring-0 p-0 placeholder:text-slate-300 disabled:opacity-50"
                         />
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{isSent ? 'CAMPAÑA ENVIADA' : 'MODO EDICIÓN'}</span>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{isSent ? 'CAMPAÑA ENVIADA (Modo Editar)' : 'MODO EDICIÓN'}</span>
                     </div>
                 </div>
 
@@ -176,35 +180,26 @@ export default function NewsletterEditor() {
                         <Eye size={16} /> Previsualizar
                     </button>
 
-                    {!isSent && (
-                        <>
-                            <button
-                                onClick={() => saveDesign(false)}
-                                disabled={saving}
-                                className="flex items-center gap-2 px-4 py-2 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-bold text-sm rounded-lg transition-colors border border-emerald-200 shadow-sm"
-                            >
-                                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                                Guardar
-                            </button>
-                            <button
-                                onClick={handleSendClick}
-                                className="flex items-center gap-2 px-4 py-2 text-white bg-slate-900 hover:bg-slate-800 font-bold text-sm rounded-lg shadow-md transition-all"
-                            >
-                                <Send size={16} />
-                                Enviar Ahora
-                            </button>
-                        </>
-                    )}
+                    <button
+                        onClick={() => saveDesign(false)}
+                        disabled={saving}
+                        className="flex items-center gap-2 px-4 py-2 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-bold text-sm rounded-lg transition-colors border border-emerald-200 shadow-sm"
+                    >
+                        {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        Guardar
+                    </button>
+                    <button
+                        onClick={handleSendClick}
+                        className="flex items-center gap-2 px-4 py-2 text-white bg-slate-900 hover:bg-slate-800 font-bold text-sm rounded-lg shadow-md transition-all"
+                    >
+                        <Send size={16} />
+                        {isSent ? 'Volver a Enviar' : 'Enviar Ahora'}
+                    </button>
                 </div>
             </div>
 
             {/* Unlayer Editor */}
             <div className="w-full bg-slate-100 relative flex-1">
-                {/* Cover editor with read-only overlay if sent */}
-                {isSent && (
-                    <div className="absolute inset-0 z-50 bg-slate-50/50 backdrop-blur-[1px] cursor-not-allowed"></div>
-                )}
-
                 <EmailEditor
                     ref={emailEditorRef}
                     // EL PROJECT ID DEL USUARIO AQUI

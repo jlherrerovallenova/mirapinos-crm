@@ -69,7 +69,7 @@ serve(async (req) => {
 
         // We'll prepare the batch request array limit 100 per API call based on Resend docs
         const batchData = leads.map(lead => ({
-            from: 'Mirapinos CRM <onboarding@resend.dev>', // Change this to a verified domain!
+            from: 'Mirapinos CRM <info@terravallpromociones.com>',
             to: [lead.email],
             subject: newsletter.subject,
             html: newsletter.html_content.replace('{{name}}', lead.name || 'Cliente'), // Simple merge tag
@@ -89,9 +89,12 @@ serve(async (req) => {
             });
 
             if (!res.ok) {
-                const errBody = await res.text();
+                const errBody = await res.json();
                 console.error("Resend API error:", errBody);
-                throw new Error(`Resend Error: ${res.statusText}`);
+                return new Response(JSON.stringify({ error: errBody.message || `Resend Error: ${res.statusText}` }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 400,
+                });
             }
         }
 

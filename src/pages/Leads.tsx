@@ -11,7 +11,6 @@ import {
   Loader2,
   MessageCircle,
   Filter,
-  Building2,
   Download,
   ChevronLeft,
   ChevronsLeft,
@@ -394,12 +393,8 @@ export default function Leads() {
                     <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-white font-black text-sm shrink-0 shadow-md`}>
                       {lead.name?.substring(0, 2).toUpperCase() || 'CL'}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex items-center">
                       <h3 className="font-bold text-slate-900 text-sm truncate group-hover:text-emerald-700 transition-colors leading-tight">{lead.name}</h3>
-                      {lead.company
-                        ? <p className="text-[11px] text-slate-400 flex items-center gap-1 truncate mt-0.5"><Building2 size={10} /> {lead.company}</p>
-                        : <p className="text-[11px] text-slate-300 italic mt-0.5">Sin empresa</p>
-                      }
                     </div>
                   </div>
 
