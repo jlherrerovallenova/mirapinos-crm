@@ -1,11 +1,26 @@
 // src/layouts/MainLayout.tsx
 import { useState, useRef, useEffect } from 'react';
-import { Outlet, Link, Link as RouterLink, useLocation, Navigate, useNavigate } from 'react-router-dom';
+import { Outlet, Link, RouterLink, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AppNotification } from '../components/AppNotification';
 import { ConnectionStatus } from '../components/ConnectionStatus';
 import DebugPanel from '../components/DebugPanel';
-import { LayoutDashboard, Users, Calendar, Map, Settings, Search, Bell, LogOut, Menu, X, Loader as Loader2, Mail, AlertTriangle, Clock } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  Users, 
+  Calendar, 
+  Map, 
+  Settings, 
+  Search, 
+  Bell, 
+  LogOut, 
+  Menu, 
+  X, 
+  Loader2, 
+  Mail, 
+  AlertTriangle, 
+  Clock 
+} from 'lucide-react';
 import { useAgendaAlerts } from '../hooks/useAgendaAlerts';
 
 
@@ -79,8 +94,6 @@ export default function MainLayout() {
       setShowNotification(true);
     }
   };
-
-
 
   return (
     <div className="flex h-screen bg-slate-100 font-sans text-slate-900 overflow-hidden">
@@ -249,13 +262,13 @@ export default function MainLayout() {
                   </div>
 
                   <div className="px-3 pb-3">
-                    <RouterLink
+                    <Link
                       to="/agenda"
                       onClick={() => setShowBellPopover(false)}
                       className="w-full flex items-center justify-center gap-2 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-colors"
                     >
                       <Calendar size={13} /> Ver agenda completa
-                    </RouterLink>
+                    </Link>
                   </div>
                 </div>
               )}

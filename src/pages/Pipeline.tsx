@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useLeads, useUpdateLead } from '../hooks/useLeads';
 import type { Database } from '../types/supabase';
+import LeadDetailModal from '../components/leads/LeadDetailModal';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 
@@ -25,6 +26,7 @@ const COLUMNS = [
 
 export default function Pipeline() {
   const navigate = useNavigate();
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
 
   // React Query para obtener todos los leads activos
@@ -143,6 +145,7 @@ export default function Pipeline() {
                       draggable
                       onDragStart={(e) => handleDragStart(e, lead.id)}
                       onDragEnd={(e) => handleDragEnd(e, lead.id)}
+                      onClick={() => setSelectedLead(lead)}
                       onDoubleClick={() => navigate(`/leads?search=${encodeURIComponent(lead.name)}`)}
                       className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-emerald-300 transition-all group"
                     >
@@ -172,6 +175,17 @@ export default function Pipeline() {
           );
         })}
       </div>
+
+      {selectedLead && (
+        <LeadDetailModal
+          lead={selectedLead}
+          onClose={() => setSelectedLead(null)}
+          onUpdate={() => {
+            // React Query se encarga de invalidar las queries, así que no necesitamos una función local
+            setSelectedLead(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -37,23 +37,12 @@ const Settings: React.FC = () => {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Resend API Key
-  const [resendKey, setResendKey] = useState(() => localStorage.getItem('resend_api_key') || '');
-  const [showResendKey, setShowResendKey] = useState(false);
-  const [resendSaved, setResendSaved] = useState(() => !!localStorage.getItem('resend_api_key'));
-
-  const handleSaveResendKey = () => {
-    if (!resendKey.trim()) return;
-    localStorage.setItem('resend_api_key', resendKey.trim());
-    setResendSaved(true);
-    setTimeout(() => setResendSaved(false), 3000);
-  };
-
-  const handleClearResendKey = () => {
-    localStorage.removeItem('resend_api_key');
-    setResendKey('');
-    setResendSaved(false);
-  };
+  // Estados de Integraciones
+  const [resendApiKey, setResendApiKey] = useState('');
+  const [unlayerProjectId, setUnlayerProjectId] = useState('');
+  const [isSavingResend, setIsSavingResend] = useState(false);
+  const [isSavingUnlayer, setIsSavingUnlayer] = useState(false);
+  const [showResendApiKey, setShowResendApiKey] = useState(false);
 
   // Estados de Documentos
   const { data: documents = [], isLoading: loadingDocs } = useDocuments();
@@ -70,14 +59,32 @@ const Settings: React.FC = () => {
   // Estados de Formulario de Perfil
   const [fullName, setFullName] = useState(profile?.full_name || '');
 
-
-
   // Sincronizar nombre de perfil cuando cargue el contexto
   useEffect(() => {
     if (profile?.full_name) {
       setFullName(profile.full_name);
     }
+    fetchIntegrations();
   }, [profile]);
+
+  const fetchIntegrations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('*')
+        .in('key', ['resend_api_key', 'unlayer_project_id']);
+
+      if (error) throw error;
+      if (data) {
+        const resend = data.find((s: any) => s.key === 'resend_api_key') as any;
+        const unlayer = data.find((s: any) => s.key === 'unlayer_project_id') as any;
+        if (resend) setResendApiKey(resend.value || '');
+        if (unlayer) setUnlayerProjectId(unlayer.value || '');
+      }
+    } catch (err) {
+      console.error('Error fetching integrations:', err);
+    }
+  };
 
   // --- Lógica de Perfil ---
   const handleUpdateProfile = async () => {
@@ -86,7 +93,7 @@ const Settings: React.FC = () => {
     try {
       const { error } = await supabase
         .from('profiles')
-        // @ts-ignore
+        // @ts-expect-error
         .update({ full_name: fullName })
         .eq('id', profile.id);
 
@@ -101,7 +108,23 @@ const Settings: React.FC = () => {
     }
   };
 
+  // --- Lógica de Integraciones ---
+  const handleSaveIntegration = async (key: string, value: string, setLoading: (l: boolean) => void) => {
+    setLoading(true);
+    try {
+      const { error } = await (supabase as any)
+        .from('settings')
+        .upsert({ key, value }, { onConflict: 'key' });
 
+      if (error) throw error;
+      await showAlert({ title: 'Éxito', message: 'Configuración guardada correctamente' });
+    } catch (err) {
+      console.error(`Error saving ${key}:`, err);
+      await showAlert({ title: 'Error', message: `No se pudo guardar la integración` });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleMove = async (doc: SystemDocument, newCategory: string) => {
     if (doc.category === newCategory) return;
@@ -124,7 +147,7 @@ const Settings: React.FC = () => {
 
     setIsUploading(true);
     try {
-      let duplicateFiles: string[] = [];
+      const duplicateFiles: string[] = [];
 
       const uploadPromises = Array.from(files).map(async (file) => {
         const fullPath = `${uploadCategory}/${file.name}`;
@@ -184,7 +207,7 @@ const Settings: React.FC = () => {
       const { data, error } = await supabase.storage.from('documents').createSignedUrl(fullPath, 60);
       if (error) throw error;
       setPreviewUrl(data.signedUrl);
-    } catch (error) {
+    } catch (ignore) {
       await showAlert({ title: 'Error', message: 'No se pudo generar la vista temporizada del archivo.' });
     }
   };
@@ -322,11 +345,17 @@ const Settings: React.FC = () => {
                   <div className="flex items-center gap-3">
                     <input
                       type="text"
-                      className="flex-1 p-2.5 text-sm border bg-white rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                      value={unlayerProjectId}
+                      onChange={(e) => setUnlayerProjectId(e.target.value)}
+                      className="flex-1 p-2.5 text-sm border bg-white rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-mono"
                       placeholder="Ej. 285017"
                     />
-                    <button className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-800 transition-colors shrink-0">
-                      Guardar
+                    <button
+                      onClick={() => handleSaveIntegration('unlayer_project_id', unlayerProjectId, setIsSavingUnlayer)}
+                      disabled={isSavingUnlayer}
+                      className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-800 transition-colors shrink-0 disabled:opacity-50"
+                    >
+                      {isSavingUnlayer ? <Loader2 size={16} className="animate-spin" /> : 'Guardar'}
                     </button>
                   </div>
                 </div>
@@ -343,7 +372,7 @@ const Settings: React.FC = () => {
                         <p className="text-xs text-slate-500 mt-0.5">Necesaria para el envío de emails transaccionales desde el CRM.</p>
                       </div>
                     </div>
-                    {localStorage.getItem('resend_api_key') && (
+                    {resendApiKey && (
                       <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
                         <CheckCircle2 size={12} /> Configurada
                       </span>
@@ -351,47 +380,39 @@ const Settings: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clave API</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Clave API (Backend)</label>
                     <div className="flex items-center gap-2">
                       <div className="relative flex-1">
                         <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                         <input
-                          type={showResendKey ? 'text' : 'password'}
-                          value={resendKey}
-                          onChange={(e) => { setResendKey(e.target.value); setResendSaved(false); }}
+                          type={showResendApiKey ? 'text' : 'password'}
+                          value={resendApiKey}
+                          onChange={(e) => setResendApiKey(e.target.value)}
                           className="w-full pl-9 pr-10 py-2.5 text-sm border border-slate-200 bg-white rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-mono text-slate-700"
                           placeholder="re_xxxxxxxxxxxxxxxxxxxx"
                         />
                         <button
                           type="button"
-                          onClick={() => setShowResendKey(!showResendKey)}
+                          onClick={() => setShowResendApiKey(!showResendApiKey)}
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                          title={showResendKey ? 'Ocultar' : 'Mostrar'}
+                          title={showResendApiKey ? 'Ocultar' : 'Mostrar'}
                         >
-                          {showResendKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                          {showResendApiKey ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
                       </div>
                       <button
-                        onClick={handleSaveResendKey}
-                        disabled={!resendKey.trim()}
+                        onClick={() => handleSaveIntegration('resend_api_key', resendApiKey, setIsSavingResend)}
+                        disabled={isSavingResend || !resendApiKey.trim()}
                         className="flex items-center gap-1.5 bg-slate-900 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-800 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        {resendSaved ? <CheckCircle2 size={15} className="text-emerald-400" /> : <Save size={15} />}
-                        {resendSaved ? 'Guardada' : 'Guardar'}
+                        {isSavingResend ? <Loader2 size={16} className="animate-spin" /> : <Save size={15} />}
+                        {isSavingResend ? 'Guardando...' : 'Guardar'}
                       </button>
                     </div>
 
-                    {localStorage.getItem('resend_api_key') && (
-                      <button
-                        onClick={handleClearResendKey}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1 mt-1 transition-colors"
-                      >
-                        <X size={12} /> Eliminar clave guardada
-                      </button>
-                    )}
-
                     <p className="text-[11px] text-slate-400 pt-1">
-                      La clave se almacena localmente en este navegador. Puedes obtenerla en{' '}
+                      Esta clave se almacena de forma segura en la base de datos para que las funciones del servidor puedan enviar correos.
+                      Obtenla en{' '}
                       <a href="https://resend.com/api-keys" target="_blank" rel="noreferrer" className="text-emerald-600 hover:underline font-medium">resend.com/api-keys</a>.
                     </p>
                   </div>

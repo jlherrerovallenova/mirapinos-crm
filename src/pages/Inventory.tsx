@@ -9,7 +9,8 @@ import {
   Home,
   BedDouble,
   Bath,
-  AlertTriangle
+  AlertTriangle,
+  Filter
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import CreatePropertyModal from '../components/inventory/CreatePropertyModal';
@@ -25,6 +26,7 @@ interface Property {
   habitaciones: number;
   banos: number;
   precio: number;
+  estado_vivienda?: string;
   created_at: string;
 }
 
@@ -32,6 +34,7 @@ export default function Inventory() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [stateFilter, setStateFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const { showAlert } = useDialog();
@@ -83,44 +86,66 @@ export default function Inventory() {
     }
   };
 
-  const filteredProperties = properties.filter(p =>
-    p.modelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.numero_vivienda.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  return (
-    <div className="animate-in fade-in duration-500">
+  const filteredProperties = properties.filter(p => {
+    const matchesSearch = p.modelo.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          p.numero_vivienda.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesState = stateFilter === '' || p.estado_vivienda === stateFilter;
+    return matchesSearch && matchesState;
+  });
+
+  return (
+    <div className="p-6 md:p-8 space-y-8 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex justify-between items-end mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Inventario de Viviendas</h1>
-          <p className="text-slate-500 text-sm mt-1">Gestión profesional del catálogo de activos.</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventario de Viviendas</h1>
+          <p className="text-slate-500 mt-1 font-medium">Gestión profesional del catálogo de activos.</p>
         </div>
         <button
           onClick={() => {
             setEditingProperty(null);
             setIsModalOpen(true);
           }}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm shadow-emerald-900/20 transition-all flex items-center gap-2"
+          className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all active:scale-95"
         >
-          <Plus size={18} />
-          <span>Añadir Propiedad</span>
+          <Plus size={20} />
+          Añadir Propiedad
         </button>
       </div>
 
-      {/* Buscador (Estilo simplificado coincidente con diseño moderno) */}
-      <div className="relative mb-6">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-        <input
-          type="text"
-          placeholder="Buscar por modelo o número de vivienda..."
-          className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium shadow-sm"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+      {/* Buscador y Filtros */}
+      <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-1 w-full group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
+          <input
+            type="text"
+            placeholder="Buscar por modelo o número de vivienda..."
+            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all font-medium text-slate-700"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="relative w-full md:w-64">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <select
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value)}
+            className="w-full pl-12 pr-8 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none appearance-none cursor-pointer text-slate-700 font-medium font-bold"
+          >
+            <option value="">Cualquier Estado</option>
+            <option value="DISPONIBLE">DISPONIBLE</option>
+            <option value="NO DISPONIBLE">NO DISPONIBLE</option>
+            <option value="BLOQUEADA">BLOQUEADA</option>
+            <option value="RESERVADA">RESERVADA</option>
+            <option value="CONTRATO CV">CONTRATO CV</option>
+            <option value="ESCRITURADA">ESCRITURADA</option>
+          </select>
+        </div>
       </div>
 
       {/* Tabla */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 className="animate-spin text-emerald-600" size={40} />
@@ -130,59 +155,59 @@ export default function Inventory() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Vivienda</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Modelo</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Hab / Baños</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Precio</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Acciones</th>
+                <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">Vivienda</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">Modelo</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Hab / Baños</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">Precio</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-50">
                 {filteredProperties.map((property) => (
-                  <tr key={property.id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4 align-middle">
+                  <tr key={property.id} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="px-6 py-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm border border-emerald-100">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
                           {property.numero_vivienda}
                         </div>
                         <span className="font-bold text-slate-900">Urb. Mirapinos</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 align-middle font-bold text-slate-600 text-sm">{property.modelo}</td>
-                    <td className="px-6 py-4 align-middle">
-                      <div className="flex items-center justify-center gap-4 text-slate-500 text-sm font-bold">
-                        <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-md">
-                          <BedDouble size={14} />
-                          <span>{property.habitaciones}</span>
+                    <td className="px-6 py-5 font-semibold text-slate-600">{property.modelo}</td>
+                    <td className="px-6 py-5">
+                      <div className="flex items-center justify-center gap-4 text-slate-500">
+                        <div className="flex items-center gap-1.5">
+                          <BedDouble size={16} />
+                          <span className="font-bold">{property.habitaciones}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-md">
-                          <Bath size={14} />
-                          <span>{property.banos}</span>
+                        <div className="flex items-center gap-1.5">
+                          <Bath size={16} />
+                          <span className="font-bold">{property.banos}</span>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 align-middle">
-                      <span className="inline-flex px-3 py-1 rounded-lg bg-slate-900 text-white font-bold text-[11px] tracking-tight uppercase">
+                    <td className="px-6 py-5">
+                      <span className="inline-flex px-3 py-1 rounded-lg bg-slate-900 text-white font-bold text-sm">
                         {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(property.precio)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 align-middle">
+                    <td className="px-6 py-5">
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => {
                             setEditingProperty(property);
                             setIsModalOpen(true);
                           }}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                         >
-                          <Edit2 size={16} />
+                          <Edit2 size={18} />
                         </button>
                         <button
                           onClick={() => setPropertyToDelete(property)}
                           className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </td>
@@ -199,36 +224,32 @@ export default function Inventory() {
         )}
       </div>
 
-      {/* Modal de Confirmación de Borrado */}
+      {/* Modal de Confirmación de Borrado Profesional */}
       {propertyToDelete && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6">
-              <div className="flex items-start gap-4 mb-6">
-                <div className="w-12 h-12 bg-red-50 text-red-600 rounded-lg flex items-center justify-center shrink-0">
-                  <AlertTriangle size={24} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">¿Eliminar vivienda?</h3>
-                  <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                    Estás a punto de borrar la vivienda <span className="text-slate-900 font-bold">{propertyToDelete.numero_vivienda}</span>. Esta acción es permanente.
-                  </p>
-                </div>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 text-center">
+              <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertTriangle size={40} />
               </div>
-              <div className="flex gap-3 justify-end">
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">¿Eliminar vivienda?</h3>
+              <p className="text-slate-500 font-medium mb-8">
+                Estás a punto de borrar la vivienda <span className="text-slate-900 font-bold">{propertyToDelete.numero_vivienda}</span> (Modelo {propertyToDelete.modelo}). Esta acción no se puede deshacer.
+              </p>
+              <div className="flex gap-3">
                 <button
                   onClick={() => setPropertyToDelete(null)}
                   disabled={isDeleting}
-                  className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-colors text-sm"
+                  className="flex-1 px-4 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={confirmDelete}
                   disabled={isDeleting}
-                  className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 active:scale-95 transition-all text-sm flex items-center gap-2"
+                  className="flex-1 px-4 py-4 bg-red-600 text-white font-bold rounded-2xl shadow-lg shadow-red-100 hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
-                  {isDeleting ? <Loader2 className="animate-spin" size={16} /> : 'Si, eliminar'}
+                  {isDeleting ? <Loader2 className="animate-spin" size={20} /> : 'Sí, eliminar'}
                 </button>
               </div>
             </div>

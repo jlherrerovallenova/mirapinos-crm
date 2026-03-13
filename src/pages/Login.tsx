@@ -49,13 +49,14 @@ export default function Login() {
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* LOGO O ICONO */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-6 px-4 sm:px-0">
           <img
             src="/logo-mirapinos.png"
             alt="Mirapinos Logo"
-            className="w-56 h-auto object-contain drop-shadow-sm"
+            className="w-5/6 h-auto object-contain drop-shadow-sm"
           />
         </div>
+
 
       </div>
 
