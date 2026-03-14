@@ -25,7 +25,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
 
   const [formData, setFormData] = useState({
     title: '',
-    type: 'Llamada',
+    type: 'Llamada' as Database['public']['Tables']['agenda']['Row']['type'],
     date: new Date().toISOString().split('T')[0],
     time: '10:00',
   });
@@ -70,7 +70,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
       const parsedDate = new Date(`${formData.date}T${formData.time}:00`);
       const dateTime = parsedDate.toISOString();
 
-      const { error } = await (supabase as any).from('agenda').insert([
+      const { error } = await supabase.from('agenda').insert([
         {
           title: formData.title,
           type: formData.type,
@@ -78,7 +78,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
           user_id: session.user.id,
           lead_id: selectedLead?.id || null, // Puede ser nula si es una tarea general
           completed: false,
-        } as any,
+        },
       ]);
 
       if (error) throw error;
@@ -114,7 +114,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
       setSearchTerm('');
     } catch (error) {
       console.error('Error creating task:', error);
-      await showAlert({ title: 'Error', message: 'No se pudo crear la tarea' });
+      await showAlert({ title: 'Error', message: 'No se pudo crear la tarea. Verifica los tipos permitidos.' });
     } finally {
       setLoading(false);
     }
@@ -205,7 +205,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
                 <select
                   className="w-full mt-1 px-4 py-3 bg-slate-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-emerald-500 transition-all text-sm font-bold text-slate-700"
                   value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                 >
                   <option value="Llamada">📞 Llamada</option>
                   <option value="Email">📧 Email</option>

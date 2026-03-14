@@ -125,7 +125,7 @@ export interface Database {
           created_at: string
           lead_id: string | null
           title: string
-          type: string
+          type: 'Llamada' | 'Email' | 'WhatsApp' | 'Visita' | 'Reunión'
           due_date: string
           completed: boolean
           user_id: string | null
@@ -135,7 +135,7 @@ export interface Database {
           created_at?: string
           lead_id?: string | null
           title: string
-          type: string
+          type: 'Llamada' | 'Email' | 'WhatsApp' | 'Visita' | 'Reunión'
           due_date: string
           completed?: boolean
           user_id?: string | null
@@ -145,7 +145,7 @@ export interface Database {
           created_at?: string
           lead_id?: string | null
           title?: string
-          type?: string
+          type?: 'Llamada' | 'Email' | 'WhatsApp' | 'Visita' | 'Reunión'
           due_date?: string
           completed?: boolean
           user_id?: string | null

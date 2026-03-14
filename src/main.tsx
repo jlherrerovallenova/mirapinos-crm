@@ -6,20 +6,19 @@ import App from './App'
 import { AuthProvider } from './context/AuthContext'
 import { DialogProvider } from './context/DialogContext'
 
-// Importamos el test
+// Importamos el test de diagnóstico (opcional)
 import { runExhaustiveConnectionTest } from './utils/connectionDiagnostic'
 
-// Configuramos React Query
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: false, // Evitar polling oculto o retries infinitos
+      retry: false,
       refetchOnWindowFocus: false,
     },
   },
 })
 
-// El test de diagnóstico manual se invoca con F9 (sin interceptar fetch globalmente)
+// El test de diagnóstico manual se invoca con F9
 if (typeof window !== 'undefined') {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'F9') {

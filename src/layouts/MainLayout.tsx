@@ -1,6 +1,7 @@
 // src/layouts/MainLayout.tsx
 import { useState, useRef, useEffect } from 'react';
-import { Outlet, Link, RouterLink, useLocation, Navigate, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
+
 import { useAuth } from '../context/AuthContext';
 import { AppNotification } from '../components/AppNotification';
 import { ConnectionStatus } from '../components/ConnectionStatus';
