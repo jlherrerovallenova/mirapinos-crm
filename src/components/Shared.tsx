@@ -42,6 +42,7 @@ export function StageBadge({ stage }: { stage: string }) {
      'new':         { label: 'Nuevo', class: 'bg-slate-100 text-slate-600 border-slate-200' },
      'contacted':   { label: 'Contactado', class: 'bg-blue-50 text-blue-700 border-blue-200' },
      'qualified':   { label: 'Cualificado', class: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+     'visiting':    { label: 'Visitando', class: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
      'proposal':    { label: 'Propuesta', class: 'bg-amber-50 text-amber-700 border-amber-200' },
      'negotiation': { label: 'Negociación', class: 'bg-orange-50 text-orange-700 border-orange-200' },
      'closed':      { label: 'Ganado', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },

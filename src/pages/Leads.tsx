@@ -38,6 +38,7 @@ const STATUS_LABELS: Record<string, string> = {
   new: 'Nuevo',
   contacted: 'Contactado',
   qualified: 'Cualificado',
+  visiting: 'Visitando',
   proposal: 'Propuesta',
   negotiation: 'Negociación',
   closed: 'Cerrado',
@@ -48,6 +49,7 @@ const STATUS_CONFIG: Record<string, { dot: string; pill: string; border: string 
   new:         { dot: 'bg-blue-400',    pill: 'bg-blue-50 text-blue-700 border border-blue-200',       border: 'border-l-blue-400' },
   contacted:   { dot: 'bg-purple-400',  pill: 'bg-purple-50 text-purple-700 border border-purple-200', border: 'border-l-purple-400' },
   qualified:   { dot: 'bg-emerald-400', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200', border: 'border-l-emerald-400' },
+  visiting:    { dot: 'bg-cyan-400',    pill: 'bg-cyan-50 text-cyan-700 border border-cyan-200',       border: 'border-l-cyan-400' },
   proposal:    { dot: 'bg-amber-400',   pill: 'bg-amber-50 text-amber-700 border border-amber-200',   border: 'border-l-amber-400' },
   negotiation: { dot: 'bg-orange-400',  pill: 'bg-orange-50 text-orange-700 border border-orange-200', border: 'border-l-orange-400' },
   closed:      { dot: 'bg-slate-600',   pill: 'bg-slate-800 text-slate-100 border border-slate-700',  border: 'border-l-slate-600' },
@@ -250,6 +252,7 @@ export default function Leads() {
                 <option value="new">Nuevos</option>
                 <option value="contacted">Contactados</option>
                 <option value="qualified">Cualificados</option>
+                <option value="visiting">Visitando</option>
                 <option value="proposal">Propuesta</option>
                 <option value="negotiation">Negociación</option>
                 <option value="closed">Cerrados</option>

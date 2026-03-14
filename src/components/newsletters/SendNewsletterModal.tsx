@@ -20,6 +20,7 @@ const PHASES: { value: PhaseType; label: string }[] = [
     { value: 'new', label: 'Nuevo' },
     { value: 'contacted', label: 'Contactado' },
     { value: 'qualified', label: 'Cualificado' },
+    { value: 'visiting', label: 'Visitando' },
     { value: 'proposal', label: 'Propuesta' },
     { value: 'negotiation', label: 'Negociación' },
     { value: 'closed', label: 'Cerrado/Ganado' },
@@ -32,12 +33,17 @@ export function SendNewsletterModal({ isOpen, onClose, onSend, isSending }: Send
     const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const { data: leads, isLoading: leadsLoading } = useLeads();
+    const { data, isLoading: leadsLoading } = useLeads({
+        page: 1,
+        pageSize: 5000, // Traer todos para poder filtrar manualmente en el modal
+        sortField: 'name',
+        sortDirection: 'asc'
+    });
 
     if (!isOpen) return null;
 
     // Solo mostraremos clientes suscritos y con email
-    const eligibleLeads = leads?.filter((l: LeadInfo) => l.is_subscribed !== false && l.email) || [];
+    const eligibleLeads = data?.leads?.filter((l: LeadInfo) => l.is_subscribed !== false && l.email) || [];
 
     const filteredManualLeads = eligibleLeads.filter((l: LeadInfo) =>
         l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

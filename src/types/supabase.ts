@@ -45,7 +45,7 @@ export interface Database {
           email: string | null
           phone: string | null
           company: string | null
-          status: 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'closed' | 'lost'
+          status: 'new' | 'contacted' | 'qualified' | 'visiting' | 'proposal' | 'negotiation' | 'closed' | 'lost'
           source: string | null
           notes: string | null
           assigned_to: string | null
@@ -59,7 +59,7 @@ export interface Database {
           email?: string | null
           phone?: string | null
           company?: string | null
-          status?: 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'closed' | 'lost'
+          status?: 'new' | 'contacted' | 'qualified' | 'visiting' | 'proposal' | 'negotiation' | 'closed' | 'lost'
           source?: string | null
           notes?: string | null
           assigned_to?: string | null
@@ -73,7 +73,7 @@ export interface Database {
           email?: string | null
           phone?: string | null
           company?: string | null
-          status?: 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'closed' | 'lost'
+          status?: 'new' | 'contacted' | 'qualified' | 'visiting' | 'proposal' | 'negotiation' | 'closed' | 'lost'
           source?: string | null
           notes?: string | null
           assigned_to?: string | null

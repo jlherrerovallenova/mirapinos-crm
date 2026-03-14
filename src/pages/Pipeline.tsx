@@ -19,6 +19,7 @@ const COLUMNS = [
   { id: 'new', title: 'Nuevos', color: 'border-blue-400', bg: 'bg-blue-50/50', text: 'text-blue-700' },
   { id: 'contacted', title: 'Contactados', color: 'border-purple-400', bg: 'bg-purple-50/50', text: 'text-purple-700' },
   { id: 'qualified', title: 'Cualificados', color: 'border-emerald-400', bg: 'bg-emerald-50/50', text: 'text-emerald-700' },
+  { id: 'visiting', title: 'Visitando', color: 'border-cyan-400', bg: 'bg-cyan-50/50', text: 'text-cyan-700' },
   { id: 'proposal', title: 'Propuesta', color: 'border-amber-400', bg: 'bg-amber-50/50', text: 'text-amber-700' },
   { id: 'negotiation', title: 'Negociación', color: 'border-orange-400', bg: 'bg-orange-50/50', text: 'text-orange-700' },
   { id: 'closed', title: 'Ganados', color: 'border-slate-800', bg: 'bg-slate-100', text: 'text-slate-800' },
