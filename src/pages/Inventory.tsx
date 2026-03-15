@@ -11,8 +11,11 @@ import {
   Bath,
   AlertTriangle,
   Filter,
-  Copy
+  Copy,
+  FileText
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { supabase } from '../lib/supabase';
 import CreatePropertyModal from '../components/inventory/CreatePropertyModal';
 import { useDialog } from '../context/DialogContext';
@@ -43,6 +46,7 @@ export default function Inventory() {
   // Estados para el nuevo modal de confirmación de borrado
   const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchProperties();
@@ -101,6 +105,171 @@ export default function Inventory() {
     return matchesSearch && matchesState;
   });
 
+  const handleExportPDF = async () => {
+    if (filteredProperties.length === 0) return;
+
+    try {
+      setIsExporting(true);
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      // Función para cargar imagen de forma asíncrona y convertirla a base64 preservando calidad y fondo
+      const getBase64Image = (url: string): Promise<{ data: string, width: number, height: number } | null> => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              // 1. Rellenar con blanco (para PNGs transparentes)
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              // 2. Dibujar imagen
+              ctx.drawImage(img, 0, 0);
+              // 3. Exportar como JPEG (máxima compatibilidad)
+              const dataURL = canvas.toDataURL('image/jpeg', 0.95);
+              resolve({ data: dataURL, width: img.width, height: img.height });
+            } else {
+              resolve(null);
+            }
+          };
+          img.onerror = () => resolve(null);
+          img.src = url;
+        });
+      };
+
+      const logoInfo = await getBase64Image('/logo-mirapinos.png');
+      
+      // Función para añadir cabecera premium
+      const addHeader = () => {
+        // Franja superior blanca para el logotipo
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, 297, 20, 'F');
+        
+        // Líneas decorativas inferiores
+        doc.setFillColor(15, 23, 42); // Slate-900
+        doc.rect(0, 20, 297, 0.5, 'F');
+        
+        doc.setFillColor(16, 185, 129); // Emerald-500
+        doc.rect(0, 20.5, 297, 1.5, 'F');
+
+        // Logo si existe
+        if (logoInfo) {
+          const targetHeight = 10; // Altura fija deseada en mm
+          const aspectRatio = logoInfo.width / logoInfo.height;
+          const targetWidth = targetHeight * aspectRatio;
+          
+          // Centrado vertical en la franja de 20mm
+          doc.addImage(logoInfo.data, 'JPEG', 14, (20 - targetHeight) / 2, targetWidth, targetHeight);
+        } else {
+          doc.setTextColor(15, 23, 42);
+          doc.setFontSize(10);
+          doc.text('MIRAPINOS', 14, 12);
+        }
+
+        // Título y Subtítulo
+        doc.setTextColor(15, 23, 42);
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text('CATÁLOGO DE VIVIENDAS', 14, 30);
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100);
+        const statusText = stateFilter === '' ? 'TODOS LOS ESTADOS' : stateFilter.toUpperCase();
+        doc.text(`INVENTARIO ACTUAL - MODO: ${statusText}`, 14, 37);
+
+        // Fecha y página (derecha)
+        doc.setFontSize(9);
+        doc.text(`Generado: ${new Date().toLocaleString('es-ES')}`, 240, 30);
+        doc.text(`Total registros: ${filteredProperties.length}`, 240, 35);
+      };
+
+      addHeader();
+
+    // Preparar datos
+    const tableColumn = ["№", "MODELO", "PARCELA", "ÚTIL", "CONST.", "HAB/BAÑOS", "PRECIO", "ESTADO"];
+    const tableRows = filteredProperties.map(p => [
+      p.numero_vivienda,
+      p.modelo,
+      `${p.superficie_parcela} m²`,
+      `${p.superficie_util} m²`,
+      `${p.superficie_construida} m²`,
+      `${p.habitaciones} / ${p.banos}`,
+      new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(p.precio),
+      (p.estado_vivienda || 'DISPONIBLE').toUpperCase()
+    ]);
+
+    // Generar tabla con estilo corporativo
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 45,
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [16, 185, 129], 
+        textColor: 255, 
+        fontSize: 11,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      styles: { 
+        fontSize: 10,
+        cellPadding: 4,
+        valign: 'middle'
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', halign: 'center', cellWidth: 15 },
+        1: { fontStyle: 'bold', cellWidth: 35 },
+        6: { fontStyle: 'bold', halign: 'right', textColor: [15, 23, 42] },
+        7: { halign: 'center' }
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252]
+      },
+      didParseCell: (data) => {
+        // Colorear celda de estado
+        if (data.section === 'body' && data.column.index === 7) {
+          const status = data.cell.raw as string;
+          if (status === 'DISPONIBLE') data.cell.styles.textColor = [16, 185, 129];
+          if (status === 'RESERVADA') data.cell.styles.textColor = [245, 158, 11];
+          if (['BLOQUEADA', 'NO DISPONIBLE'].includes(status)) data.cell.styles.textColor = [239, 68, 68];
+        }
+      }
+    });
+
+    // Pie de página
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Página ${i} de ${pageCount}`, 270, 200);
+    }
+
+    // Generar el PDF y abrirlo en una nueva pestaña (más fiable para depuración y visualización)
+    const pdfOutput = doc.output('bloburl');
+    window.open(pdfOutput, '_blank');
+    
+    // También guardarlo por si el usuario lo prefiere
+    doc.save(`listado_viviendas_${stateFilter || 'todas'}_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      await showAlert({ 
+        title: 'Error de Exportación', 
+        message: 'No se pudo generar el documento PDF correctamente.' 
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="p-6 md:p-8 space-y-8 animate-in fade-in duration-500">
       {/* Header */}
@@ -109,16 +278,27 @@ export default function Inventory() {
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventario de Viviendas</h1>
           <p className="text-slate-500 mt-1 font-medium">Gestión profesional del catálogo de activos.</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingProperty(null);
-            setIsModalOpen(true);
-          }}
-          className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all active:scale-95"
-        >
-          <Plus size={20} />
-          Añadir Propiedad
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto">
+          <button
+            onClick={handleExportPDF}
+            disabled={loading || isExporting || filteredProperties.length === 0}
+            className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-5 py-3 rounded-2xl font-bold shadow-sm transition-all active:scale-95 disabled:opacity-50 min-w-[150px]"
+            title="Descargar Listado PDF"
+          >
+            {isExporting ? <Loader2 className="animate-spin text-emerald-600" size={20} /> : <FileText size={20} className="text-red-500" />}
+            {isExporting ? 'Generando...' : 'Exportar PDF'}
+          </button>
+          <button
+            onClick={() => {
+              setEditingProperty(null);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all active:scale-95"
+          >
+            <Plus size={20} />
+            Añadir Propiedad
+          </button>
+        </div>
       </div>
 
       {/* Buscador y Filtros */}
