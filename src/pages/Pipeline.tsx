@@ -112,7 +112,7 @@ export default function Pipeline() {
         </div>
       </div>
 
-      <div className="flex-1 flex gap-2 md:gap-3 overflow-hidden pb-6">
+      <div className="flex-1 flex gap-1.5 md:gap-2 overflow-hidden pb-4">
         {COLUMNS.map(column => {
           const columnLeads = leads.filter(lead => (lead.status || 'new') === column.id);
           const totalValue = columnLeads.length;
@@ -120,23 +120,23 @@ export default function Pipeline() {
           return (
             <div
               key={column.id}
-              className={`flex flex-col min-w-0 w-full flex-1 rounded-2xl border ${column.bg} border-slate-200 shadow-sm`}
+              className={`flex flex-col min-w-0 flex-1 rounded-xl border ${column.bg} border-slate-200 shadow-sm`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, column.id)}
             >
-              <div className={`p-3 border-b border-slate-200/50 flex justify-between items-center rounded-t-2xl bg-white/50 backdrop-blur-sm border-t-4 ${column.color}`}>
-                <h3 className={`font-bold text-xs sm:text-sm ${column.text} uppercase tracking-wider truncate mr-2`}>
+              <div className={`p-2 border-b border-slate-200/50 flex flex-col sm:flex-row justify-between items-center rounded-t-xl bg-white/50 backdrop-blur-sm border-t-2 ${column.color}`}>
+                <h3 className={`font-bold text-[9px] sm:text-[10px] ${column.text} uppercase tracking-tighter truncate w-full text-center sm:text-left`}>
                   {column.title}
                 </h3>
-                <span className="bg-white text-slate-700 px-2 py-1 rounded-md text-xs font-bold border border-slate-200 shadow-sm shrink-0">
+                <span className="bg-white/80 text-slate-700 px-1.5 py-0.5 rounded-full text-[9px] font-black border border-slate-100 shadow-sm shrink-0">
                   {totalValue}
                 </span>
               </div>
 
-              <div className="p-2 sm:p-3 flex-1 overflow-y-auto space-y-3 custom-scrollbar">
+              <div className="p-1.5 flex-1 overflow-y-auto space-y-2 custom-scrollbar">
                 {columnLeads.length === 0 ? (
-                  <div className="h-24 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center text-slate-400 text-xs font-medium bg-white/40 text-center px-4">
-                    Arrastra aquí
+                  <div className="h-16 border border-dashed border-slate-200 rounded-lg flex items-center justify-center text-slate-300 text-[8px] font-bold uppercase tracking-tighter text-center">
+                    +
                   </div>
                 ) : (
                   columnLeads.map(lead => (
@@ -148,24 +148,22 @@ export default function Pipeline() {
                       onDragEnd={(e) => handleDragEnd(e, lead.id)}
                       onClick={() => setSelectedLead(lead)}
                       onDoubleClick={() => navigate(`/leads?search=${encodeURIComponent(lead.name)}`)}
-                      className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-emerald-300 transition-all group"
+                      className="bg-white p-2 rounded-lg shadow-sm border border-slate-100 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-emerald-400 transition-all group relative overflow-hidden"
                     >
-                      <div className="flex justify-between items-start mb-2 gap-2">
-                        <h4 className="font-bold text-slate-900 text-[10px] sm:text-xs leading-tight break-words group-hover:text-emerald-700 transition-colors">
-                          {lead.name}
-                        </h4>
-                        <button className="text-slate-300 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100 hidden sm:block shrink-0">
-                          <MoreHorizontal size={14} />
-                        </button>
-                      </div>
+                      {/* Name */}
+                      <h4 className="font-bold text-slate-900 text-[10px] sm:text-[11px] leading-tight break-words group-hover:text-emerald-700 transition-colors mb-2">
+                        {lead.name}
+                      </h4>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
-                        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50 px-1.5 py-1 rounded border border-slate-100 w-fit">
+                      {/* Footer: Ultra compact */}
+                      <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-slate-50">
+                        <div className="flex items-center gap-1 text-[8px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[60%]">
                           {getSourceIcon(lead.source)}
-                          <span className="truncate max-w-[60px] sm:max-w-[80px]">{lead.source || 'Directo'}</span>
+                          <span className="truncate">{lead.source || 'Dir'}</span>
                         </div>
-                        <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium whitespace-nowrap">
-                          {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                        
+                        <span className="text-[8px] text-slate-400 font-bold whitespace-nowrap bg-slate-50 px-1 rounded border border-slate-100">
+                          {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
                         </span>
                       </div>
                     </div>

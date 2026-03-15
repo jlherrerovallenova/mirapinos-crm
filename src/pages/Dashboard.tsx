@@ -56,7 +56,8 @@ export default function Dashboard() {
 
   // Estado para la búsqueda del cliente y el tab activo
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'futuras' | 'caducadas'>('futuras');
+  const [activeTab, setActiveTab] = useState<'futuras' | 'caducadas' | 'sinActividad'>('futuras');
+  const [noActivityLeads, setNoActivityLeads] = useState<RecentLead[]>([]);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -114,6 +115,25 @@ export default function Dashboard() {
         })) as AgendaItem[];
 
         setAgenda(formattedData);
+      }
+
+      // 3. CARGA DE CLIENTES SIN ACTIVIDAD
+      // Obtenemos leads y sus IDs de agenda para filtrar los que no tienen nada
+      const { data: noActivityData, error: noActError } = await supabase
+        .from('leads')
+        .select('id, name, source, created_at, agenda(id)');
+
+      if (!noActError && noActivityData) {
+        const filtered = noActivityData
+          .filter((l: any) => !l.agenda || l.agenda.length === 0)
+          .map((l: any) => ({
+            id: l.id,
+            name: l.name,
+            source: l.source,
+            created_at: l.created_at
+          }))
+          .slice(0, 50); // Mostramos los 50 más antiguos o relevantes
+        setNoActivityLeads(filtered);
       }
 
     } catch (error) {
@@ -304,6 +324,20 @@ export default function Dashboard() {
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setActiveTab('sinActividad')}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeTab === 'sinActividad'
+                  ? 'bg-white text-orange-600 shadow-sm ring-1 ring-slate-200'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                  }`}
+              >
+                Sin Actividad
+                {noActivityLeads.length > 0 && (
+                  <span className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full select-none">
+                    {noActivityLeads.length}
+                  </span>
+                )}
+              </button>
             </div>
 
             {/* BUSCADOR DE CLIENTE */}
@@ -320,7 +354,40 @@ export default function Dashboard() {
           </div>
 
           <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[500px]">
-            {filteredAgenda.length === 0 && !loading ? (
+            {activeTab === 'sinActividad' ? (
+              noActivityLeads.length === 0 && !loading ? (
+                <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-in fade-in">
+                  <CheckCircle2 size={48} className="mb-4 opacity-30 text-emerald-500" />
+                  <p className="text-sm font-medium text-slate-600">¡Increíble!</p>
+                  <p className="text-xs opacity-60">Todos tus clientes tienen acciones programadas.</p>
+                </div>
+              ) : (
+                noActivityLeads
+                  .filter(l => l.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map((lead) => (
+                    <div key={lead.id} className="p-4 hover:bg-slate-50 transition-all flex items-center justify-between group bg-white cursor-pointer" onClick={() => navigate(`/leads?search=${encodeURIComponent(lead.name)}`)}>
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-orange-50 text-orange-600 border border-orange-100 font-bold text-xs">
+                          {lead.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-bold text-slate-800">{lead.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <span className="font-medium">{lead.source || 'Sin origen'}</span>
+                            <span>•</span>
+                            <span className="text-red-400 font-medium">Sin actividad registrada</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Plus size={18} className="text-emerald-500" />
+                      </div>
+                    </div>
+                  ))
+              )
+            ) : filteredAgenda.length === 0 && !loading ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-in fade-in">
                 {activeTab === 'caducadas' ? (
                   <>

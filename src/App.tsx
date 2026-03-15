@@ -16,6 +16,7 @@ const Agenda = lazy(() => import('./pages/Agenda'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Newsletters = lazy(() => import('./pages/Newsletters'));
 const NewsletterEditor = lazy(() => import('./pages/NewsletterEditor'));
+const Stats = lazy(() => import('./pages/Stats'));
 
 const PageLoader = () => (
   <div className="w-full h-[60vh] flex flex-col items-center justify-center">
@@ -46,6 +47,7 @@ function App() {
           <Route path="/settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
           <Route path="/newsletters" element={<Suspense fallback={<PageLoader />}><Newsletters /></Suspense>} />
           <Route path="/newsletters/:id" element={<Suspense fallback={<PageLoader />}><NewsletterEditor /></Suspense>} />
+          <Route path="/stats" element={<Suspense fallback={<PageLoader />}><Stats /></Suspense>} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
