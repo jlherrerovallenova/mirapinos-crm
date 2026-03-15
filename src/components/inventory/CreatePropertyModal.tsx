@@ -10,8 +10,7 @@ import {
   Bath,
   Euro,
   Loader2,
-  Save,
-  Plus
+  Save
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useDialog } from '../../context/DialogContext';
@@ -51,7 +50,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
     try {
       const propertyData = {
         modelo: formData.modelo,
-        numero_vivienda: formData.numero_vivienda,
+        numero_vivienda: formData.numero_vivienda.trim(),
         superficie_parcela: parseFloat(formData.superficie_parcela) || 0,
         superficie_util: parseFloat(formData.superficie_util) || 0,
         superficie_construida: parseFloat(formData.superficie_construida) || 0,
@@ -60,6 +59,31 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
         precio: parseFloat(formData.precio) || 0,
         estado_vivienda: formData.estado_vivienda
       };
+
+      // 1. Validar duplicados (mismo modelo + mismo nº vivienda)
+      let query = supabase
+        .from('inventory')
+        .select('id')
+        .eq('modelo', propertyData.modelo)
+        .eq('numero_vivienda', propertyData.numero_vivienda);
+
+      // Si estamos editando, excluir la vivienda actual de la búsqueda
+      if (initialData?.id) {
+        query = query.neq('id', initialData.id);
+      }
+
+      const { data: existing, error: checkError } = await query;
+
+      if (checkError) throw checkError;
+
+      if (existing && existing.length > 0) {
+        await showAlert({ 
+          title: 'Vivienda Duplicada', 
+          message: `Ya existe una vivienda con el número ${propertyData.numero_vivienda} para el modelo ${propertyData.modelo}.` 
+        });
+        setLoading(false);
+        return;
+      }
 
       if (initialData?.id) {
         // Modo Edición: Actualizar

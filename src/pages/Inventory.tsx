@@ -10,7 +10,8 @@ import {
   BedDouble,
   Bath,
   AlertTriangle,
-  Filter
+  Filter,
+  Copy
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import CreatePropertyModal from '../components/inventory/CreatePropertyModal';
@@ -84,6 +85,13 @@ export default function Inventory() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleClone = (property: Property) => {
+    // Para clonar, pasamos los datos pero SIN el ID
+    const { id, created_at, ...cloneData } = property;
+    setEditingProperty(cloneData as any);
+    setIsModalOpen(true);
   };
 
   const filteredProperties = properties.filter(p => {
@@ -195,17 +203,26 @@ export default function Inventory() {
                     <td className="px-6 py-5">
                       <div className="flex justify-end gap-2">
                         <button
+                          onClick={() => handleClone(property)}
+                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                          title="Clonar Vivienda"
+                        >
+                          <Copy size={18} />
+                        </button>
+                        <button
                           onClick={() => {
                             setEditingProperty(property);
                             setIsModalOpen(true);
                           }}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          title="Editar"
                         >
                           <Edit2 size={18} />
                         </button>
                         <button
                           onClick={() => setPropertyToDelete(property)}
                           className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                          title="Borrar"
                         >
                           <Trash2 size={18} />
                         </button>
