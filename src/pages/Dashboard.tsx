@@ -348,7 +348,7 @@ export default function Dashboard() {
                 placeholder="Buscar por cliente o tarea..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700"
               />
             </div>
           </div>
@@ -422,7 +422,7 @@ export default function Dashboard() {
 
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${task.type === 'Llamada' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                          <span className={`text-xs font-medium uppercase tracking-wider px-2 py-0.5 rounded border ${task.type === 'Llamada' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                             task.type === 'WhatsApp' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                               task.type === 'Visita' ? 'bg-purple-50 text-purple-600 border-purple-100' :
                                 'bg-slate-50 text-slate-600 border-slate-100'
@@ -434,7 +434,7 @@ export default function Dashboard() {
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-500">
-                          <span className="font-medium">{task.title}</span>
+                           <span className="font-medium">{task.title}</span>
                           <span>•</span>
                           <span className={`${isOverdue ? "text-red-500 font-bold flex items-center gap-1" : ""}`}>
                             {isOverdue && <AlertCircle size={10} />}

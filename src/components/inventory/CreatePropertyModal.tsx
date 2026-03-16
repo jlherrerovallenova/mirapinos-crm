@@ -26,7 +26,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
   const [loading, setLoading] = useState(false);
   const { showAlert } = useDialog();
   const [formData, setFormData] = useState({
-    modelo: initialData?.modelo || '1. OLIVO',
+    modelo: initialData?.modelo || 'OLIVO',
     numero_vivienda: initialData?.numero_vivienda || '',
     superficie_parcela: initialData?.superficie_parcela || '',
     superficie_util: initialData?.superficie_util || '',
@@ -106,7 +106,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
       // Resetear formulario si era creación
       if (!initialData?.id) {
         setFormData({
-          modelo: '1. OLIVO',
+          modelo: 'OLIVO',
           numero_vivienda: '',
           superficie_parcela: '',
           superficie_util: '',
@@ -155,24 +155,24 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
 
               {/* 1. MODELO */}
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Modelo</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Modelo</label>
                 <div className="relative mt-1.5">
                   <Home className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <select
                     name="modelo"
                     value={formData.modelo}
                     onChange={handleChange}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-bold appearance-none cursor-pointer text-slate-700"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 appearance-none cursor-pointer"
                   >
-                    <option value="1. OLIVO">1. OLIVO</option>
-                    <option value="2. ARCE">2. ARCE</option>
+                    <option value="OLIVO">OLIVO</option>
+                    <option value="ARCE">ARCE</option>
                   </select>
                 </div>
               </div>
 
               {/* 2. Nº DE VIVIENDA */}
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nº de Vivienda</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nº de Vivienda</label>
                 <div className="relative mt-1.5">
                   <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
@@ -181,14 +181,14 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                     value={formData.numero_vivienda}
                     onChange={handleChange}
                     placeholder="Ej: 14A"
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-medium transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all"
                   />
                 </div>
               </div>
 
               {/* 3. SUPERFICIE PARCELA */}
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Superficie Parcela (m²)</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Superficie Parcela (m²)</label>
                 <div className="relative mt-1.5">
                   <Maximize className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
@@ -198,14 +198,14 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                     value={formData.superficie_parcela}
                     onChange={handleChange}
                     placeholder="0"
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-bold transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all"
                   />
                 </div>
               </div>
 
               {/* 4. SUPERFICIE UTIL */}
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Superficie Útil (m²)</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Superficie Útil (m²)</label>
                 <div className="relative mt-1.5">
                   <Ruler className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
@@ -215,14 +215,14 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                     value={formData.superficie_util}
                     onChange={handleChange}
                     placeholder="0"
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-bold transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all"
                   />
                 </div>
               </div>
 
               {/* 5. SUPERFICIE CONSTRUIDA */}
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Superficie Construida (m²)</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Superficie Construida (m²)</label>
                 <div className="relative mt-1.5">
                   <Ruler className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
@@ -232,14 +232,14 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                     value={formData.superficie_construida}
                     onChange={handleChange}
                     placeholder="0"
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-bold transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all"
                   />
                 </div>
               </div>
 
               {/* 6. HABITACIONES */}
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Habitaciones</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Habitaciones</label>
                 <div className="relative mt-1.5">
                   <BedDouble className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
@@ -249,14 +249,14 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                     value={formData.habitaciones}
                     onChange={handleChange}
                     placeholder="0"
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-bold transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all"
                   />
                 </div>
               </div>
 
               {/* 7. BAÑOS */}
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Baños</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Baños</label>
                 <div className="relative mt-1.5">
                   <Bath className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
@@ -266,14 +266,14 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                     value={formData.banos}
                     onChange={handleChange}
                     placeholder="0"
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-bold transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all"
                   />
                 </div>
               </div>
 
               {/* 8. PRECIO */}
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio (€)</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Precio (€)</label>
                 <div className="relative mt-1.5">
                   <Euro className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
@@ -283,21 +283,21 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                     value={formData.precio}
                     onChange={handleChange}
                     placeholder="0.00"
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-bold transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all"
                   />
                 </div>
               </div>
 
               {/* 9. ESTADO VIVIENDA */}
               <div className="md:col-span-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estado de la Vivienda</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Estado de la Vivienda</label>
                 <div className="relative mt-2">
                   <Home className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <select
                     name="estado_vivienda"
                     value={formData.estado_vivienda}
                     onChange={handleChange}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-bold appearance-none cursor-pointer text-slate-700"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 appearance-none cursor-pointer"
                   >
                     <option value="DISPONIBLE">DISPONIBLE</option>
                     <option value="NO DISPONIBLE">NO DISPONIBLE</option>

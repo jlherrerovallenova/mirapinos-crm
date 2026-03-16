@@ -244,7 +244,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           {/* HEADER oscuro con avatar de color */}
           <div className="px-8 py-5 bg-slate-900 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black text-xl border border-emerald-100/50 shadow-sm shrink-0">
+              <div className="w-14 h-14 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xl border border-emerald-100/50 shadow-sm shrink-0">
                 {formData.name.substring(0, 2).toUpperCase() || 'CL'}
               </div>
               <div>
@@ -296,15 +296,15 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     {/* Bloque 1 */}
                     <div className="space-y-4">
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre</label>
-                        <input name="name" value={formData.name} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-800 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" required />
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nombre</label>
+                        <input name="name" value={formData.name} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" required />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email</label>
                         <input name="email" value={formData.email} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Origen</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Origen</label>
                         <div className="relative">
                           <Compass className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                           <select
@@ -328,7 +328,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     {/* Bloque 2 */}
                     <div className="space-y-4">
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estado</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Estado</label>
                         <select name="status" value={formData.status} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 cursor-pointer transition-all appearance-none">
                           <option value="new">Nuevo</option>
                           <option value="contacted">Contactado</option>
@@ -341,9 +341,9 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                         </select>
                       </div>
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Newsletters</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Newsletters</label>
                         <div className="mt-1 px-4 py-2 bg-slate-50 rounded-lg flex items-center justify-between border border-transparent">
-                          <span className="text-xs font-bold text-slate-700">Suscrito a Correos</span>
+                           <span className="text-sm font-medium text-slate-700">Suscrito a Correos</span>
                           <label className="relative inline-flex items-center cursor-pointer">
                             <input
                               type="checkbox"
@@ -356,14 +356,14 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                         </div>
                       </div>
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                           <input name="phone" value={formData.phone} onChange={handleChange} placeholder="600..." className="w-full mt-1 pl-9 pr-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" />
                         </div>
                       </div>
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Alta</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Alta</label>
                         <div className="relative">
                           <input
                             type="date"
@@ -378,13 +378,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Notas Internas</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Notas Internas</label>
                     <textarea name="notes" rows={2} value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 resize-none border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" placeholder="Escribe detalles importantes..." />
                   </div>
 
                   {/* Historial de Documentos */}
                   <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                       <Clock size={12} /> Documentación Enviada
                     </h3>
                     <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
@@ -394,7 +394,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                         sentHistory.map((item) => (
                           <div key={item.id} className="bg-white p-2.5 rounded-lg border border-slate-100 flex items-center justify-between shadow-sm">
                             <span className="text-xs font-bold text-slate-700 truncate max-w-[180px]">{item.doc_name}</span>
-                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase ${item.method === 'whatsapp' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase ${item.method === 'whatsapp' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
                               {item.method}
                             </span>
                           </div>
@@ -416,7 +416,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
               {/* COLUMNA DERECHA: AGENDA (CONECTADA A LA TABLA AGENDA) */}
               <div className="bg-slate-50 rounded-2xl p-6 text-slate-900 shadow-sm flex flex-col h-full border border-slate-200">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-600">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-600">
                   <CalendarIcon size={14} /> Agenda de Acciones
                 </h3>
 
@@ -426,7 +426,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     <select
                       value={newTask.type}
                       onChange={(e) => setNewTask({ ...newTask, type: e.target.value })}
-                      className="bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-700"
+                      className="bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-700"
                     >
                       <option value="Llamada">Llamada</option>
                       <option value="Email">Email</option>
@@ -493,8 +493,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                             {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
                           </button>
                           <div>
-                            <p className={`text-xs font-bold ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>{task.title}</p>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">
+                            <p className={`text-sm font-medium ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>{task.title}</p>
+                            <p className="text-xs text-slate-500 font-medium uppercase flex items-center gap-1">
                               {task.type} • {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </div>
