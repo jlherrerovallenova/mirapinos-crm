@@ -21,7 +21,8 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
     name: '',
     email: '',
     phone: '',
-    source: 'Web'
+    source: 'Web',
+    interested_in: ''
   });
 
   if (!isOpen) return null;
@@ -78,13 +79,14 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
         email: formData.email || null,
         phone: formData.phone || null,
         source: formData.source,
+        interested_in: formData.interested_in || null,
         status: 'new',
         assigned_to: user.id
       };
 
       createMutation.mutate(payload, {
         onSuccess: () => {
-          setFormData({ name: '', email: '', phone: '', source: 'Web' });
+          setFormData({ name: '', email: '', phone: '', source: 'Web', interested_in: '' });
           onSuccess();
           onClose();
         },
@@ -167,6 +169,20 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
               <option value="Referido">Referido</option>
               <option value="Llamada">Llamada</option>
               <option value="Otro">Otro</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Interesado en</label>
+            <select
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-700 cursor-pointer"
+              value={formData.interested_in}
+              onChange={e => setFormData({ ...formData, interested_in: e.target.value })}
+            >
+              <option value="">Sin especificar</option>
+              <option value="Chalet Olivo">Chalet Olivo</option>
+              <option value="Chalet Arce">Chalet Arce</option>
+              <option value="Parcelas">Parcelas</option>
             </select>
           </div>
 

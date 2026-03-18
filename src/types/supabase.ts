@@ -51,6 +51,7 @@ export interface Database {
           assigned_to: string | null
           value: number | null
           is_subscribed?: boolean
+          interested_in: string | null
         }
         Insert: {
           id?: string
@@ -65,6 +66,7 @@ export interface Database {
           assigned_to?: string | null
           value?: number | null
           is_subscribed?: boolean
+          interested_in?: string | null
         }
         Update: {
           id?: string
@@ -79,6 +81,7 @@ export interface Database {
           assigned_to?: string | null
           value?: number | null
           is_subscribed?: boolean
+          interested_in?: string | null
         }
       }
       inventory: {

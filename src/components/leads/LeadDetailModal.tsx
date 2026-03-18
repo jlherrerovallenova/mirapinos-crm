@@ -69,7 +69,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     source: lead.source || 'Web',
     notes: lead.notes || '',
     is_subscribed: lead.is_subscribed ?? true,
-    created_at_date: lead.created_at ? new Date(lead.created_at).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)
+    created_at_date: lead.created_at ? new Date(lead.created_at).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+    interested_in: lead.interested_in || ''
   });
 
   useEffect(() => {
@@ -322,6 +323,20 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                             <option value="Otro">Otro</option>
                           </select>
                         </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Interesado en</label>
+                        <select
+                          name="interested_in"
+                          value={formData.interested_in}
+                          onChange={handleChange}
+                          className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all appearance-none cursor-pointer"
+                        >
+                          <option value="">Sin especificar</option>
+                          <option value="Chalet Olivo">Chalet Olivo</option>
+                          <option value="Chalet Arce">Chalet Arce</option>
+                          <option value="Parcelas">Parcelas</option>
+                        </select>
                       </div>
                     </div>
 

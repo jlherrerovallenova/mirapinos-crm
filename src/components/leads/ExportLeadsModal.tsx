@@ -78,7 +78,7 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
     doc.text(`Fecha de exportación: ${new Date().toLocaleDateString('es-ES')}`, 14, 36);
 
     // 3. Definir columnas
-    const tableColumn = ["Nombre", "Email", "Teléfono", "Origen", "Estado", "Fecha Alta"];
+    const tableColumn = ["Nombre", "Email", "Teléfono", "Origen", "Estado", "Interés", "Fecha Alta"];
 
     // 4. Mapear datos a filas
     const tableRows: any[] = [];
@@ -91,6 +91,7 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
 
         lead.source || 'Desconocido', // Importante: Clasificación visible
         lead.status?.toUpperCase() || 'NUEVO',
+        lead.interested_in || 'Sin especificar',
         new Date(lead.created_at).toLocaleDateString('es-ES'),
       ];
       tableRows.push(leadData);
