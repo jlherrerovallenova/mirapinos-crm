@@ -54,11 +54,42 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
 
   // Estado local para el formulario de nueva tarea
+  const getCurrentTime = () => {
+    const now = new Date();
+    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  const getFollowUpTime = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    const scheduled = new Date(now);
+    
+    if (hour < 13) {
+      scheduled.setHours(hour + 1);
+      return { 
+        date: scheduled.toISOString().slice(0, 10), 
+        time: scheduled.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) 
+      };
+    } else if (hour < 19) {
+      return { 
+        date: scheduled.toISOString().slice(0, 10), 
+        time: '17:00' 
+      };
+    } else {
+      scheduled.setDate(now.getDate() + 1);
+      return { 
+        date: scheduled.toISOString().slice(0, 10), 
+        time: '10:00' 
+      };
+    }
+  };
+
   const [newTask, setNewTask] = useState({
     type: 'Llamada',
     title: '',
     date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
-    time: '10:00'
+    time: getCurrentTime(),
+    call_attended: null as boolean | null
   });
 
   const [formData, setFormData] = useState({
@@ -72,6 +103,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     created_at_date: lead.created_at ? new Date(lead.created_at).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
     interested_in: lead.interested_in || ''
   });
+  
+  const INTERESTED_OPTIONS = ["Chalet Olivo", "Chalet Arce", "Parcelas"];
 
   useEffect(() => {
     fetchHistory();
@@ -98,20 +131,48 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const saveTask = async () => {
-    if (!newTask.title || !session?.user.id) return;
+  const handleInterestedInToggle = (option: string) => {
+    const current = formData.interested_in ? formData.interested_in.split(', ').filter(Boolean) : [];
+    let updated;
+    if (current.includes(option)) {
+      updated = current.filter(o => o !== option);
+    } else {
+      updated = [...current, option];
+    }
+    
+    const newValue = updated.join(', ');
+    const updates: any = { interested_in: newValue };
+    
+    // Si se selecciona algo (no vacío) y el estado es Nuevo o Contactado, pasar a Cualificado
+    if (updated.length > 0 && (formData.status === 'new' || formData.status === 'contacted')) {
+      updates.status = 'qualified';
+    }
+    
+    setFormData(prev => ({ ...prev, ...updates }));
+  };
+
+  const saveTask = async (overrides?: any) => {
+    const taskTitle = overrides?.title || newTask.title;
+    const taskType = overrides?.type || newTask.type;
+    const taskDate = overrides?.date || newTask.date;
+    const taskTime = overrides?.time || newTask.time;
+    const taskAttended = overrides?.call_attended !== undefined ? overrides.call_attended : newTask.call_attended;
+    const isCompleted = overrides?.completed !== undefined ? overrides.completed : false;
+
+    if (!taskTitle || !session?.user.id) return;
 
     // Combinar fecha y hora para crear un ISO String
-    const dateTimeString = `${newTask.date}T${newTask.time}:00`;
+    const dateTimeString = `${taskDate}T${taskTime}:00`;
     const finalDate = new Date(dateTimeString).toISOString();
 
     const taskData = {
-      title: newTask.title,
-      type: newTask.type,
+      title: taskTitle,
+      type: taskType,
       due_date: finalDate,
       lead_id: lead.id,          // Vinculación clave con el cliente
       user_id: session.user.id,  // Vinculación clave con el usuario
-      completed: false
+      completed: isCompleted,
+      call_attended: taskType === 'Llamada' ? taskAttended : null
     };
 
     setLoading(true);
@@ -147,7 +208,20 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
         window.open(googleCalUrl.toString(), '_blank');
       }
 
-      setNewTask({ type: 'Llamada', title: '', date: new Date().toISOString().slice(0, 10), time: '10:00' });
+      // Lógica de transición automática al guardar una tarea completada con éxito
+      if (isCompleted && formData.status === 'new') {
+        const updatedStatus = 'contacted';
+        setFormData(prev => ({ ...prev, status: updatedStatus }));
+        await (supabase as any).from('leads').update({ status: updatedStatus }).eq('id', lead.id);
+      }
+
+      setNewTask({ 
+        type: 'Llamada', 
+        title: '', 
+        date: new Date().toISOString().slice(0, 10), 
+        time: getCurrentTime(), 
+        call_attended: null 
+      });
       fetchTasks();
 
     } catch (error) {
@@ -177,7 +251,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
       type: task.type,
       title: task.title,
       date: dateObj.toISOString().slice(0, 10),
-      time: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+      time: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+      call_attended: (task as any).call_attended ?? null
     });
   };
 
@@ -185,6 +260,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     const newStatus = !task.completed;
     setTasks(tasks.map(t => t.id === task.id ? { ...t, completed: newStatus } : t));
     await (supabase as any).from('agenda').update({ completed: newStatus }).eq('id', task.id);
+    
+    // Lógica de transición automática al marcar una tarea como realizada
+    if (newStatus && formData.status === 'new') {
+      const updatedStatus = 'contacted';
+      setFormData(prev => ({ ...prev, status: updatedStatus }));
+      await (supabase as any).from('leads').update({ status: updatedStatus }).eq('id', lead.id);
+    }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -201,8 +283,19 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
         onUpdate();
         onClose();
       },
-      onError: (err) => {
+      onError: (err: any) => {
         console.error("Error actualizando lead:", err);
+        if (err.message?.includes('interested_in')) {
+          showAlert({ 
+            title: 'Error de Base de Datos', 
+            message: 'La columna "interested_in" no existe en la base de datos. Por favor, ejecuta la migración SQL necesaria.' 
+          });
+        } else {
+          showAlert({ 
+            title: 'Error', 
+            message: 'No se pudieron guardar los cambios: ' + (err.message || 'Error desconocido') 
+          });
+        }
       }
     });
   };
@@ -326,17 +419,28 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Interesado en</label>
-                        <select
-                          name="interested_in"
-                          value={formData.interested_in}
-                          onChange={handleChange}
-                          className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all appearance-none cursor-pointer"
-                        >
-                          <option value="">Sin especificar</option>
-                          <option value="Chalet Olivo">Chalet Olivo</option>
-                          <option value="Chalet Arce">Chalet Arce</option>
-                          <option value="Parcelas">Parcelas</option>
-                        </select>
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {INTERESTED_OPTIONS.map(option => {
+                            const isSelected = formData.interested_in.split(', ').includes(option);
+                            return (
+                              <button
+                                key={option}
+                                type="button"
+                                onClick={() => handleInterestedInToggle(option)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                                  isSelected 
+                                    ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm' 
+                                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                                }`}
+                              >
+                                {option}
+                              </button>
+                            );
+                          })}
+                          {formData.interested_in === '' && (
+                            <span className="text-[10px] text-slate-400 italic ml-1 self-center">Sin especificar</span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -470,11 +574,59 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                       className="flex-1 bg-slate-50 border border-slate-200 rounded-lg text-xs p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-900 placeholder-slate-400"
                     />
+                    
+                    {newTask.type === 'Llamada' && (
+                      <div className="flex bg-slate-50 border border-slate-200 rounded-lg p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setNewTask({ ...newTask, call_attended: true })}
+                          className={`px-2 py-1 text-[10px] rounded-md font-bold transition-all ${newTask.call_attended === true ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                          Atendida
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const currentTitle = newTask.title || 'Llamada no atendida';
+                            // 1. Guardar la llamada actual como completada
+                            const currentTaskData = { 
+                              ...newTask, 
+                              call_attended: false, 
+                              title: currentTitle,
+                              completed: true 
+                            };
+                            setNewTask(currentTaskData);
+                            await saveTask(currentTaskData);
+
+                            // 2. Generar nueva tarea de seguimiento
+                            const followUp = getFollowUpTime();
+                            const nextTaskData = {
+                              type: 'Llamada',
+                              title: `Re-intento: ${currentTitle.replace('Re-intento: ', '')}`,
+                              date: followUp.date,
+                              time: followUp.time,
+                              call_attended: null,
+                              completed: false
+                            };
+                            await saveTask(nextTaskData);
+                          }}
+                          className={`px-2 py-1 text-[10px] rounded-md font-bold transition-all ${newTask.call_attended === false ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                          No atendida
+                        </button>
+                      </div>
+                    )}
                     {editingTaskId && (
                       <button
                         onClick={() => {
                           setEditingTaskId(null);
-                          setNewTask({ type: 'Llamada', title: '', date: new Date().toISOString().slice(0, 10), time: '10:00' });
+                          setNewTask({ 
+                            type: 'Llamada', 
+                            title: '', 
+                            date: new Date().toISOString().slice(0, 10), 
+                            time: getCurrentTime(), 
+                            call_attended: null 
+                          });
                         }}
                         className="bg-slate-100 px-3 rounded-lg hover:bg-slate-200 transition-colors text-slate-500"
                         title="Cancelar edición"
@@ -511,6 +663,11 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                             <p className={`text-sm font-medium ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>{task.title}</p>
                             <p className="text-xs text-slate-500 font-medium uppercase flex items-center gap-1">
                               {task.type} • {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {(task as any).call_attended !== null && task.type === 'Llamada' && (
+                                <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${(task as any).call_attended ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                  {(task as any).call_attended ? 'ATENDIDA' : 'NO ATENDIDA'}
+                                </span>
+                              )}
                             </p>
                           </div>
                         </div>

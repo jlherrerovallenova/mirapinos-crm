@@ -103,3 +103,28 @@ export function useDeleteAgendaItem() {
         },
     });
 }
+/**
+ * Mutación para crear un nuevo item en la agenda
+ */
+export function useCreateAgendaItem() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (newItem: any) => {
+            const { data, error } = await (supabase as any)
+                .from('agenda')
+                .insert([newItem])
+                .select()
+                .single();
+
+            if (error) throw new Error(error.message);
+            return data;
+        },
+        onSuccess: (data: any) => {
+            queryClient.invalidateQueries({ queryKey: ['agenda'] });
+            if (data?.lead_id) {
+                queryClient.invalidateQueries({ queryKey: ['agenda', data.lead_id] });
+            }
+        },
+    });
+}

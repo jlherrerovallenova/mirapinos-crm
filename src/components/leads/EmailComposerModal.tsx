@@ -6,10 +6,13 @@ import {
   Paperclip,
   Loader2,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Upload
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useDialog } from '../../context/DialogContext';
+import { useCreateAgendaItem } from '../../hooks/useAgenda';
+import { useAuth } from '../../context/AuthContext';
 
 // Importamos la imagen de la firma (asegúrate de que la ruta sea correcta según tu estructura)
 // import firmaImg from '../../assets/Firma.png';
@@ -38,10 +41,13 @@ export default function EmailComposerModal({
   availableDocs,
   onSentSuccess
 }: Props) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const { showAlert } = useDialog();
   const [method, setMethod] = useState<'email' | 'whatsapp'>('email');
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  
+  const createAgendaMutation = useCreateAgendaItem();
 
   const [subject, setSubject] = useState(`Documentación MIRAPINOS para ${leadName}`);
   const [message, setMessage] = useState(
@@ -70,6 +76,26 @@ export default function EmailComposerModal({
     );
   };
 
+  const createTaskRecord = async (sentMethod: 'email' | 'whatsapp') => {
+    try {
+      const methodLabel = sentMethod === 'email' ? 'Email' : 'WhatsApp';
+      const docNames = selectedDocs.length > 0 
+        ? selectedDocs.map(d => d.name).join(', ')
+        : 'Documentación manual';
+      
+      await createAgendaMutation.mutateAsync({
+        lead_id: leadId,
+        user_id: user?.id,
+        title: `Envío ${methodLabel}: ${docNames}`,
+        type: methodLabel,
+        due_date: new Date().toISOString(),
+        completed: true
+      });
+    } catch (error) {
+      console.error('Error al crear tarea de agenda:', error);
+    }
+  };
+
   const saveHistory = async (sentMethod: 'email' | 'whatsapp') => {
     if (selectedDocs.length === 0) return;
 
@@ -90,6 +116,35 @@ export default function EmailComposerModal({
       if (onSentSuccess) onSentSuccess();
     } catch (error) {
       console.error('Error al guardar el historial:', error);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    try {
+      const fileName = `${Date.now()}_${file.name}`;
+      const filePath = `clientes/${leadId}/${fileName}`;
+      
+      const { error } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      const newDoc = { name: file.name, url: publicUrl, category: 'Archivo Externo' };
+      setSelectedDocs(prev => [...prev, newDoc]);
+    } catch (error: any) {
+      console.error('Error subiendo archivo:', error);
+      await showAlert({ title: 'Error', message: 'No se pudo subir el archivo: ' + error.message });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -142,6 +197,7 @@ export default function EmailComposerModal({
         }
 
         await saveHistory('email');
+        await createTaskRecord('email');
         setStatus('success');
         setTimeout(onClose, 2000);
       } else {
@@ -165,6 +221,7 @@ export default function EmailComposerModal({
 
         window.open(whatsappUrl, '_blank');
         await saveHistory('whatsapp');
+        await createTaskRecord('whatsapp');
         setStatus('success');
         setTimeout(onClose, 1000);
       }
@@ -238,38 +295,53 @@ export default function EmailComposerModal({
           <div>
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Documentación a enviar</label>
             <div className="space-y-3">
-              {['Documentos Olivo', 'Documentos Arce', 'Parcelas', 'Renders-Fotos', 'Sin Categoría'].map(cat => {
-                const catDocs = availableDocs.filter(d => (d.category || 'Sin Categoría') === cat);
-                if (catDocs.length === 0) return null;
+                {['Documentos Olivo', 'Documentos Arce', 'Parcelas', 'Renders-Fotos', 'Sin Categoría', 'Archivo Externo'].map(cat => {
+                  const catDocs = (cat === 'Archivo Externo') 
+                    ? selectedDocs.filter(d => d.category === 'Archivo Externo')
+                    : availableDocs.filter(d => (d.category || 'Sin Categoría') === cat);
+                    
+                  if (catDocs.length === 0 && cat !== 'Archivo Externo') return null;
 
-                return (
-                  <div key={cat} className="border border-slate-200 rounded-lg overflow-hidden">
-                    <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
-                      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{cat}</h4>
+                  return (
+                    <div key={cat} className="border border-slate-200 rounded-lg overflow-hidden">
+                      <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{cat}</h4>
+                        {cat === 'Archivo Externo' && (
+                          <label className="cursor-pointer flex items-center gap-1.5 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px] font-bold hover:bg-emerald-200 transition-colors">
+                            <Upload size={10} /> Adjuntar nuevo
+                            <input type="file" className="hidden" onChange={handleFileUpload} />
+                          </label>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-px bg-slate-100">
+                        {catDocs.length === 0 && cat === 'Archivo Externo' ? (
+                          <div className="col-span-2 bg-white px-4 py-3 text-center">
+                            <p className="text-[10px] text-slate-400 italic">No hay archivos externos adjuntos para este envío.</p>
+                          </div>
+                        ) : (
+                          catDocs.map((doc, idx) => {
+                            const isSelected = selectedDocs.find(d => d.url === doc.url);
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => toggleDoc(doc)}
+                                className={`flex items-center gap-2.5 px-4 py-3 text-left transition-all ${
+                                  isSelected
+                                    ? 'bg-emerald-50 text-emerald-700'
+                                    : 'bg-white text-slate-600 hover:bg-slate-50'
+                                }`}
+                              >
+                                <Paperclip size={13} className={isSelected ? 'text-emerald-500 shrink-0' : 'text-slate-300 shrink-0'} />
+                                <span className="text-xs font-semibold truncate" title={doc.name}>{doc.name}</span>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-px bg-slate-100">
-                      {catDocs.map((doc, idx) => {
-                        const isSelected = selectedDocs.find(d => d.url === doc.url);
-                        return (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => toggleDoc(doc)}
-                            className={`flex items-center gap-2.5 px-4 py-3 text-left transition-all ${
-                              isSelected
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-white text-slate-600 hover:bg-slate-50'
-                            }`}
-                          >
-                            <Paperclip size={13} className={isSelected ? 'text-emerald-500 shrink-0' : 'text-slate-300 shrink-0'} />
-                            <span className="text-xs font-semibold truncate" title={doc.name}>{doc.name}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           </div>
 
