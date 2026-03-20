@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Mail, Phone, Save, Trash2, Loader2, Send,
   Clock, Compass, MessageCircle, Calendar as CalendarIcon,
-  CheckCircle2, Circle, Plus, Pencil, RotateCcw
+  CheckCircle2, Circle, Plus, Pencil, RotateCcw, Smartphone, Users
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -635,7 +635,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </button>
                     )}
                     <button
-                      onClick={saveTask}
+                      onClick={() => saveTask()}
                       className={`${editingTaskId ? 'bg-blue-600 hover:bg-blue-500' : 'bg-emerald-600 hover:bg-emerald-500'} px-4 text-white rounded-lg transition-colors shadow-sm active:scale-95`}
                     >
                       {editingTaskId ? <Save size={18} /> : <Plus size={18} />}
@@ -659,10 +659,26 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                           <button onClick={() => toggleTaskStatus(task)} className={`transition-transform hover:scale-110 ${task.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-emerald-500'}`}>
                             {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
                           </button>
-                          <div>
-                            <p className={`text-sm font-medium ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>{task.title}</p>
-                            <p className="text-xs text-slate-500 font-medium uppercase flex items-center gap-1">
-                              {task.type} • {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                                task.type === 'Llamada' ? 'bg-blue-100 text-blue-700' :
+                                task.type === 'WhatsApp' ? 'bg-emerald-100 text-emerald-700' :
+                                task.type === 'Visita' ? 'bg-purple-100 text-purple-700' :
+                                task.type === 'Email' ? 'bg-amber-100 text-amber-700' :
+                                'bg-slate-100 text-slate-700'
+                              }`}>
+                                {task.type === 'Llamada' && <Phone size={10} />}
+                                {task.type === 'WhatsApp' && <Smartphone size={10} />}
+                                {task.type === 'Visita' && <CalendarIcon size={10} />}
+                                {task.type === 'Email' && <Mail size={10} />}
+                                {task.type === 'Reunión' && <Users size={10} />}
+                                {task.type}
+                              </span>
+                              <p className={`text-sm font-bold ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>{task.title}</p>
+                            </div>
+                            <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
+                              {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               {(task as any).call_attended !== null && task.type === 'Llamada' && (
                                 <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${(task as any).call_attended ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                                   {(task as any).call_attended ? 'ATENDIDA' : 'NO ATENDIDA'}

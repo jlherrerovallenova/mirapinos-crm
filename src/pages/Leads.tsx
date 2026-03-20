@@ -126,7 +126,16 @@ export default function Leads() {
     setSearchTerm(searchParams.get('search') || '');
     setStatusFilter(searchParams.get('status') || '');
     setSourceFilter(searchParams.get('source') || '');
-  }, [searchParams]);
+    
+    // Check for "create=true" to open the New Client modal
+    if (searchParams.get('create') === 'true') {
+      setIsCreateModalOpen(true);
+      // Clean up the URL
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('create');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleSort = (field: 'name' | 'created_at') => {
     if (sortField === field) {

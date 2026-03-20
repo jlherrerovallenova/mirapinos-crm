@@ -1,6 +1,6 @@
 // src/components/leads/CreateLeadModal.tsx
 import { useState } from 'react';
-import { X, Loader2, AlertCircle } from 'lucide-react';
+import { X, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -22,8 +22,11 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
     email: '',
     phone: '',
     source: 'Web',
-    interested_in: ''
+    interested_in: '',
+    notes: ''
   });
+  const [magicText, setMagicText] = useState('');
+  const [showMagicPaste, setShowMagicPaste] = useState(false);
 
   if (!isOpen) return null;
 
@@ -53,6 +56,42 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
     }
   };
 
+  const handleMagicPaste = () => {
+    if (!magicText.trim()) return;
+    
+    // Patterns for direct emails
+    const nameMatch = magicText.match(/Nombre:\s*(.*)/i);
+    const phoneMatch = magicText.match(/Teléfono:\s*([0-9\s]+)/i);
+    const emailMatch = magicText.match(/Email:\s*([^\s]+@[^\s]+\.[^\s]+)/i);
+    const messageMatch = magicText.match(/Mensaje:\s*([\s\S]*)/i);
+
+    // Patterns for Idealista
+    const isIdealista = magicText.toLowerCase().includes('idealista');
+    
+    let updates: any = {};
+    
+    if (nameMatch) updates.name = nameMatch[1].trim();
+    if (phoneMatch) updates.phone = phoneMatch[1].trim();
+    if (emailMatch) updates.email = emailMatch[1].trim();
+    if (messageMatch) updates.notes = messageMatch[1].trim();
+    
+    if (isIdealista) {
+      updates.source = 'Idealista';
+      if (!updates.phone) {
+        const idealPhones = magicText.match(/[679][0-9\s]{8,}/);
+        if (idealPhones) updates.phone = idealPhones[0].replace(/\s/g, '');
+      }
+      if (!updates.email) {
+        const idealEmails = magicText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (idealEmails) updates.email = idealEmails[0].trim();
+      }
+    }
+
+    setFormData(prev => ({ ...prev, ...updates }));
+    setMagicText('');
+    setShowMagicPaste(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -80,13 +119,14 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
         phone: formData.phone || null,
         source: formData.source,
         interested_in: formData.interested_in || null,
+        notes: formData.notes || null,
         status: 'new',
         assigned_to: user.id
       };
 
       createMutation.mutate(payload, {
         onSuccess: () => {
-          setFormData({ name: '', email: '', phone: '', source: 'Web', interested_in: '' });
+          setFormData({ name: '', email: '', phone: '', source: 'Web', interested_in: '', notes: '' });
           onSuccess();
           onClose();
         },
@@ -110,6 +150,41 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={24} />
           </button>
+        </div>
+
+        <div className="px-8 pt-6">
+          <button 
+            type="button"
+            onClick={() => setShowMagicPaste(!showMagicPaste)}
+            className={`w-full py-4 px-3 rounded-2xl border-2 border-dashed transition-all flex items-center justify-center gap-3 ${
+              showMagicPaste ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'
+            }`}
+          >
+            <Sparkles size={20} className={showMagicPaste ? 'animate-pulse' : ''} />
+            <span className="text-sm font-bold">
+              {showMagicPaste ? 'Cerrar Pegado Mágico' : 'Pegado Mágico (Desde Email)'}
+            </span>
+          </button>
+
+          {showMagicPaste && (
+            <div className="mt-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 animate-in slide-in-from-top-4 duration-300">
+              <p className="text-[11px] text-emerald-600 font-bold uppercase tracking-wider mb-2">Pega aquí el texto del correo</p>
+              <textarea
+                autoFocus
+                className="w-full h-32 p-3 bg-white border border-emerald-200 rounded-xl outline-none text-sm text-slate-700 placeholder:text-slate-300 resize-none focus:ring-2 focus:ring-emerald-500/20"
+                placeholder="Nombre: Juan Pérez..."
+                value={magicText}
+                onChange={(e) => setMagicText(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={handleMagicPaste}
+                className="w-full mt-3 py-2.5 bg-emerald-600 text-white font-bold rounded-xl shadow-md hover:bg-emerald-700 active:scale-95 transition-all text-sm"
+              >
+                Auto-completar Formulario
+              </button>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-5">
@@ -155,35 +230,48 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
             </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Origen</label>
-            <select
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-700 cursor-pointer"
-              value={formData.source}
-              onChange={e => setFormData({ ...formData, source: e.target.value })}
-            >
-              <option value="Idealista">Idealista</option>
-              <option value="Web">Web</option>
-              <option value="Instagram">Instagram</option>
-              <option value="Facebook">Facebook</option>
-              <option value="Referido">Referido</option>
-              <option value="Llamada">Llamada</option>
-              <option value="Otro">Otro</option>
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Origen</label>
+              <select
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-700 cursor-pointer"
+                value={formData.source}
+                onChange={e => setFormData({ ...formData, source: e.target.value })}
+              >
+                <option value="Idealista">Idealista</option>
+                <option value="Web">Web</option>
+                <option value="Instagram">Instagram</option>
+                <option value="Facebook">Facebook</option>
+                <option value="Referido">Referido</option>
+                <option value="Llamada">Llamada</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Interesado en</label>
+              <select
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-700 cursor-pointer"
+                value={formData.interested_in}
+                onChange={e => setFormData({ ...formData, interested_in: e.target.value })}
+              >
+                <option value="">Sin especificar</option>
+                <option value="Chalet Olivo">Chalet Olivo</option>
+                <option value="Chalet Arce">Chalet Arce</option>
+                <option value="Parcelas">Parcelas</option>
+              </select>
+            </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Interesado en</label>
-            <select
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-700 cursor-pointer"
-              value={formData.interested_in}
-              onChange={e => setFormData({ ...formData, interested_in: e.target.value })}
-            >
-              <option value="">Sin especificar</option>
-              <option value="Chalet Olivo">Chalet Olivo</option>
-              <option value="Chalet Arce">Chalet Arce</option>
-              <option value="Parcelas">Parcelas</option>
-            </select>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Notas / Mensaje</label>
+            <textarea
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-700 resize-none"
+              rows={3}
+              placeholder="Detalles sobre la consulta..."
+              value={formData.notes}
+              onChange={e => setFormData({ ...formData, notes: e.target.value })}
+            />
           </div>
 
           <div className="pt-4 flex gap-3">

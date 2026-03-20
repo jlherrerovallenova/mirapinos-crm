@@ -1,5 +1,6 @@
 // src/pages/Agenda.tsx
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -10,6 +11,7 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
+  Smartphone,
   Loader2,
   Trash2,
   User
@@ -27,6 +29,7 @@ const ITEMS_PER_PAGE = 8;
 
 export default function Agenda() {
   const { session } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,7 +41,16 @@ export default function Agenda() {
 
   useEffect(() => {
     fetchAgenda();
-  }, [page, filterStatus]);
+
+    // Check for "create=true" to open the New Task modal
+    if (searchParams.get('create') === 'true') {
+      setIsCreateModalOpen(true);
+      // Clean up the URL
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('create');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [page, filterStatus, searchParams, setSearchParams]);
 
   const fetchAgenda = async () => {
     if (!session) return;
@@ -105,6 +117,9 @@ export default function Agenda() {
     const t = type.toLowerCase();
     if (t.includes('llamada')) return <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Clock size={18} /></div>;
     if (t.includes('visita')) return <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><CalendarIcon size={18} /></div>;
+    if (t.includes('whatsapp')) return <div className="p-2 bg-green-50 text-green-600 rounded-lg"><Smartphone size={18} /></div>;
+    if (t.includes('email')) return <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><Clock size={18} /></div>; // Podría cambiarse por icono de email
+    if (t.includes('reunión')) return <div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><User size={18} /></div>;
     return <div className="p-2 bg-slate-50 text-slate-500 rounded-lg"><AlertCircle size={18} /></div>;
   };
 
