@@ -99,8 +99,9 @@ export default function Inventory() {
   };
 
   const filteredProperties = properties.filter(p => {
-    const matchesSearch = p.modelo.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          p.numero_vivienda.toLowerCase().includes(searchTerm.toLowerCase());
+    const modelMatch = (p.modelo || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const numberMatch = (p.numero_vivienda || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = modelMatch || numberMatch;
     const matchesState = stateFilter === '' || p.estado_vivienda === stateFilter;
     return matchesSearch && matchesState;
   });
