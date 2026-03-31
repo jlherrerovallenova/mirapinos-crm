@@ -12,7 +12,8 @@ import {
   AlertTriangle,
   Filter,
   Copy,
-  FileText
+  FileText,
+  CreditCard
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -48,6 +49,13 @@ export default function Inventory() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  const formatSurface = (num: number) => {
+    return new Intl.NumberFormat('es-ES', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    }).format(num || 0) + ' m²';
+  };
+
   useEffect(() => {
     fetchProperties();
   }, []);
@@ -61,7 +69,22 @@ export default function Inventory() {
         .order('numero_vivienda', { ascending: true });
 
       if (error) throw error;
-      setProperties(data || []);
+
+      // Orden numérico manual para evitar el orden alfabético (1, 10, 2...)
+      const sortedData = (data as Property[] || []).sort((a, b) => {
+        const numA = parseInt(a.numero_vivienda);
+        const numB = parseInt(b.numero_vivienda);
+        
+        // Si ambos son números, comparar numéricamente
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return numA - numB;
+        }
+        
+        // Si no, usar comparación de strings (como respaldo para letras)
+        return a.numero_vivienda.localeCompare(b.numero_vivienda, undefined, { numeric: true });
+      });
+
+      setProperties(sortedData);
     } catch (error) {
       console.error('Error fetching inventory:', error);
     } finally {
@@ -195,15 +218,14 @@ export default function Inventory() {
       addHeader();
 
     // Preparar datos
-    const tableColumn = ["№", "MODELO", "PARCELA", "ÚTIL", "CONST.", "HAB/BAÑOS", "PRECIO", "ESTADO"];
+    const tableColumn = ["№", "MODELO", "PARCELA", "ÚTIL", "HAB/BAÑOS", "PRECIO", "ESTADO"];
     const tableRows = filteredProperties.map(p => [
       p.numero_vivienda,
       p.modelo,
-      `${p.superficie_parcela} m²`,
-      `${p.superficie_util} m²`,
-      `${p.superficie_construida} m²`,
+      formatSurface(p.superficie_parcela),
+      formatSurface(p.superficie_util),
       `${p.habitaciones} / ${p.banos}`,
-      new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(p.precio),
+      new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(p.precio),
       (p.estado_vivienda || 'DISPONIBLE').toUpperCase()
     ]);
 
@@ -223,13 +245,13 @@ export default function Inventory() {
       styles: { 
         fontSize: 10,
         cellPadding: 4,
-        valign: 'middle'
+        valign: 'middle',
+        halign: 'center'
       },
       columnStyles: {
-        0: { fontStyle: 'bold', halign: 'center', cellWidth: 15 },
+        0: { fontStyle: 'bold', cellWidth: 15 },
         1: { fontStyle: 'bold', cellWidth: 35 },
-        6: { fontStyle: 'bold', halign: 'right', textColor: [15, 23, 42] },
-        7: { halign: 'center' }
+        6: { fontStyle: 'bold', textColor: [15, 23, 42] }
       },
       alternateRowStyles: {
         fillColor: [248, 250, 252]
@@ -268,6 +290,220 @@ export default function Inventory() {
       });
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleGeneratePaymentForm = async (property: Property) => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const getBase64Image = (url: string): Promise<{ data: string, width: number, height: number } | null> => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, 0, 0);
+              resolve({
+                data: canvas.toDataURL('image/jpeg', 0.95),
+                width: img.width,
+                height: img.height
+              });
+            } else resolve(null);
+          };
+          img.onerror = () => resolve(null);
+          img.src = url;
+        });
+      };
+
+      const logoMirapinos = await getBase64Image('/logo-mirapinos.png');
+
+      const margin = 15;
+      const pageWidth = 210;
+      const contentWidth = pageWidth - (margin * 2);
+      
+      // Colores Premium
+      const emeraldPrimary = [5, 150, 105];   // Emerald-600
+      const slateDark = [15, 23, 42];         // Slate-900
+      const grayLight = [241, 245, 249];      // Slate-100
+      
+      const formatCurrency = (num: number) => {
+        const parts = num.toFixed(2).split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        return parts.join(',') + ' \u20AC';
+      };
+
+      // --- CABECERA LIMPIA (FONDO BLANCO) ---
+      
+      // Logo centrado y ampliado (110mm)
+      let logoYEnd = 45; // Valor por defecto si no hay logo
+      if (logoMirapinos) {
+        const maxWidth = 110;
+        const ratio = logoMirapinos.height / logoMirapinos.width;
+        const finalHeight = maxWidth * ratio;
+        const logoY = 15; // Bajamos de 12 a 15
+        
+        doc.addImage(logoMirapinos.data, 'JPEG', (pageWidth/2) - (maxWidth/2), logoY, maxWidth, finalHeight);
+        
+        // Línea verde centrada debajo del logo
+        logoYEnd = logoY + finalHeight + 8;
+        doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
+        doc.rect((pageWidth/2) - (maxWidth/2), logoYEnd, maxWidth, 1.5, 'F');
+      }
+
+      // --- TÍTULO PRINCIPAL (Bajamos para dejar espacio a la nueva línea) ---
+      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
+      doc.setFontSize(26);
+      doc.setFont('helvetica', 'bold');
+      const titleY = logoYEnd + 15;
+      doc.text('PLAN DE PAGOS', margin, titleY);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100);
+      doc.text(`Vivienda No. ${property.numero_vivienda} | Modelo ${property.modelo} | ${new Date().toLocaleDateString('es-ES')}`, margin, titleY + 6);
+
+      // --- RESUMEN DE IMPORTES (CARD) ---
+      const summaryY = titleY + 15;
+      doc.setFillColor(grayLight[0], grayLight[1], grayLight[2]);
+      doc.roundedRect(margin, summaryY, contentWidth, 25, 3, 3, 'F');
+
+      const basePrice = property.precio;
+      const iva = basePrice * 0.1;
+      const total = basePrice + iva;
+
+      // Importe Base
+      doc.setFontSize(9);
+      doc.setTextColor(120);
+      doc.text('IMPORTE BASE', margin + 10, summaryY + 10);
+      doc.setFontSize(12);
+      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatCurrency(basePrice), margin + 10, summaryY + 17);
+
+      // IVA
+      doc.setFontSize(9);
+      doc.setTextColor(120);
+      doc.setFont('helvetica', 'normal');
+      doc.text('IVA (10%)', margin + (contentWidth/3) + 10, summaryY + 10);
+      doc.setFontSize(12);
+      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatCurrency(iva), margin + (contentWidth/3) + 10, summaryY + 17);
+
+      // TOTAL DESTACADO
+      doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
+      doc.roundedRect(margin + (contentWidth * 2/3), summaryY, (contentWidth/3), 25, 3, 3, 'F');
+      doc.setTextColor(255);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('TOTAL VIVIENDA', margin + (contentWidth * 2/3) + 8, summaryY + 10);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatCurrency(total), margin + (contentWidth * 2/3) + 8, summaryY + 17);
+
+      // --- HITOS DE PAGO ---
+      let currentY = 115;
+      const renderPhase = (num: string, title: string, amount: number, subtitle: string, isLast = false) => {
+        const cardHeight = 35;
+        
+        // Círculo del número
+        doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
+        doc.circle(margin + 5, currentY + 5, 5, 'F');
+        doc.setTextColor(255);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(num, margin + 5, currentY + 6.5, { align: 'center' });
+
+        // Título y Subtítulo
+        doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
+        doc.setFontSize(14);
+        doc.text(title, margin + 15, currentY + 6);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(120);
+        doc.text(subtitle, margin + 15, currentY + 11);
+
+        // Desglose Base / IVA / Total
+        const breakdownY = currentY + 18;
+        const colW = (contentWidth - 15) / 3;
+        
+        // Base
+        doc.setFontSize(8);
+        doc.text('BASE', margin + 15, breakdownY);
+        doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
+        doc.setFont('helvetica', 'bold');
+        doc.text(formatCurrency(amount / 1.1), margin + 15, breakdownY + 6);
+
+        // IVA
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(120);
+        doc.text('IVA 10%', margin + 15 + colW, breakdownY);
+        doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
+        doc.setFont('helvetica', 'bold');
+        doc.text(formatCurrency(amount - (amount/1.1)), margin + 15 + colW, breakdownY + 6);
+
+        // Subtotal Phase
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(120);
+        doc.text('TOTAL HITO', margin + 15 + (colW * 2), breakdownY);
+        doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(formatCurrency(amount), margin + 15 + (colW * 2), breakdownY + 6);
+
+        // Línea divisoria si no es el último
+        if (!isLast) {
+          doc.setDrawColor(230, 230, 230);
+          doc.line(margin + 5, currentY + 32, margin + contentWidth, currentY + 32);
+        }
+        
+        currentY += cardHeight + 5;
+      };
+
+      const hito1 = 6000;
+      const hito2 = (total * 0.1) - 6000;
+      const hito3 = (total * 0.1);
+      const hito4 = (total * 0.8);
+
+      renderPhase('1', 'RESERVA DE VIVIENDA', hito1, 'Pago inicial para bloqueo de unidad en inventario.');
+      renderPhase('2', 'FIRMA DE CONTRATO', hito2, 'A la firma del contrato privado de compraventa (10% - Reserva).');
+      
+      // Especial para cuotas
+      const cuota = hito3 / 24;
+      renderPhase('3', 'PAGOS APLAZADOS', hito3, `24 Cuotas mensuales de ${formatCurrency(cuota)} cada una.`);
+      
+      renderPhase('4', 'ESCRITURA PÚBLICA', hito4, 'Entrega de llaves y firma ante notario (80% restante).', true);
+
+      // --- PIE DE PÁGINA ---
+      doc.setFillColor(grayLight[0], grayLight[1], grayLight[2]);
+      doc.rect(0, 265, pageWidth, 32, 'F');
+      
+      doc.setFontSize(8);
+      doc.setTextColor(120);
+      doc.setFont('helvetica', 'normal');
+      const footerMsg = "Este documento es meramente informativo y no constituye una oferta contractual oficial.\nTodos los importes incluyen IVA al 10% sujeto a variaciones legales.";
+      doc.text(footerMsg, pageWidth / 2, 275, { align: 'center' });
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
+      doc.text("MIRAPINOS CRM | GESTIÓN PROFESIONAL", pageWidth / 2, 285, { align: 'center' });
+
+      const pdfUrl = doc.output('bloburl');
+      window.open(pdfUrl, '_blank');
+    } catch (error) {
+      console.error('Error generating payment form:', error);
+      await showAlert({ title: 'Error', message: 'No se pudo generar la forma de pago.' });
     }
   };
 
@@ -345,25 +581,30 @@ export default function Inventory() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">Vivienda</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">Modelo</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Vivienda</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Modelo</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Parcela</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Útil</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Hab / Baños</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">Precio</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Acciones</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Precio</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Estado</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredProperties.map((property) => (
                   <tr key={property.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-5">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
                           {property.numero_vivienda}
                         </div>
                         <span className="font-bold text-slate-900">Urb. Mirapinos</span>
                       </div>
                     </td>
-                    <td className="px-6 py-5 font-semibold text-slate-600">{property.modelo}</td>
+                    <td className="px-6 py-5 font-semibold text-slate-600 text-center">{property.modelo}</td>
+                    <td className="px-6 py-5 text-sm font-medium text-slate-500 text-center">{formatSurface(property.superficie_parcela)}</td>
+                    <td className="px-6 py-5 text-sm font-medium text-slate-500 text-center">{formatSurface(property.superficie_util)}</td>
                     <td className="px-6 py-5">
                       <div className="flex items-center justify-center gap-4 text-slate-500">
                         <div className="flex items-center gap-1.5">
@@ -376,13 +617,32 @@ export default function Inventory() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-5">
+                    <td className="px-6 py-5 text-center">
                       <span className="inline-flex px-3 py-1 rounded-lg bg-slate-900 text-white font-bold text-sm">
-                        {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(property.precio)}
+                        {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(property.precio)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wide ${
+                        property.estado_vivienda === 'DISPONIBLE' ? 'bg-emerald-100 text-emerald-700' :
+                        property.estado_vivienda === 'RESERVADA' ? 'bg-amber-100 text-amber-700' :
+                        property.estado_vivienda === 'BLOQUEADA' || property.estado_vivienda === 'NO DISPONIBLE' ? 'bg-red-100 text-red-700' :
+                        property.estado_vivienda === 'CONTRATO CV' ? 'bg-blue-100 text-blue-700' :
+                        property.estado_vivienda === 'ESCRITURADA' ? 'bg-slate-100 text-slate-700' :
+                        'bg-slate-100 text-slate-600'
+                      }`}>
+                        {property.estado_vivienda || 'DISPONIBLE'}
                       </span>
                     </td>
                     <td className="px-6 py-5">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => handleGeneratePaymentForm(property)}
+                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                          title="Generar Forma de Pago"
+                        >
+                          <CreditCard size={18} />
+                        </button>
                         <button
                           onClick={() => handleClone(property)}
                           className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
