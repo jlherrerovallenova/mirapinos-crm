@@ -314,13 +314,13 @@ export default function Inventory() {
         doc.setTextColor(255);
         doc.setFontSize(22);
         doc.setFont('helvetica', 'bold');
-        doc.text(title, pageWidth - margin, 25, { align: 'right' });
+        doc.text(title, margin, 25);
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(160);
-        doc.text(subtitle, pageWidth - margin, 34, { align: 'right' });
+        doc.text(subtitle, margin, 34);
         doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-        doc.rect(pageWidth - margin - 40, 38, 40, 1.5, 'F');
+        doc.rect(margin, 38, 40, 1.5, 'F');
       };
 
       const principal = property.precio * (1 - downPaymentPct / 100);
@@ -334,7 +334,7 @@ export default function Inventory() {
 
       doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
       doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-      doc.text('DATOS DE LA OPERACIÓN', pageWidth - margin, currentY, { align: 'right' });
+      doc.text('DATOS DE LA OPERACIÓN', margin, currentY);
       currentY += 10;
       autoTable(doc, {
         startY: currentY,
@@ -346,9 +346,14 @@ export default function Inventory() {
           ['Tipo Interés Aplicado', `${rate.toFixed(2)} %`],
           ['Plazo del Préstamo', `${termYears} años`],
         ],
-        theme: 'plain', styles: { fontSize: 10, cellPadding: 5, halign: 'right' },
+        theme: 'plain', styles: { fontSize: 10, cellPadding: 5 },
         columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-        headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], halign: 'right' }
+        headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42] },
+        didParseCell: (data) => {
+          if (data.section === 'head' && data.column.index === 1) {
+            data.cell.styles.halign = 'right';
+          }
+        }
       });
 
       currentY = (doc as any).lastAutoTable.finalY + 20;
@@ -376,7 +381,7 @@ export default function Inventory() {
 
       doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
       doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-      doc.text('GASTOS ASOCIADOS A LA OPERACIÓN', pageWidth - margin, currentY, { align: 'right' });
+      doc.text('GASTOS ASOCIADOS A LA OPERACIÓN', margin, currentY);
 
       currentY += 10;
       autoTable(doc, {
@@ -390,17 +395,22 @@ export default function Inventory() {
           ['Tasación Oficial', 'Fijo Est.', formatLocalCurrency(tasacionAmount)],
         ],
         theme: 'striped',
-        styles: { fontSize: 10, cellPadding: 6, halign: 'right' },
-        headStyles: { fillColor: [15, 23, 42], textColor: 255, halign: 'right' },
-        columnStyles: { 2: { halign: 'right', fontStyle: 'bold' } }
+        styles: { fontSize: 10, cellPadding: 6 },
+        headStyles: { fillColor: [15, 23, 42], textColor: 255 },
+        columnStyles: { 2: { halign: 'right', fontStyle: 'bold' } },
+        didParseCell: (data) => {
+          if (data.section === 'head' && data.column.index === 2) {
+            data.cell.styles.halign = 'right';
+          }
+        }
       });
 
       currentY = (doc as any).lastAutoTable.finalY + 15;
       doc.setFillColor(slateDark[0], slateDark[1], slateDark[2]);
       doc.roundedRect(margin, currentY, contentWidth, 20, 3, 3, 'F');
       doc.setTextColor(255); doc.setFontSize(12);
-      doc.text('TOTAL GASTOS COMPRAVENTA (ESTIMADOS)', pageWidth - margin - 8, currentY + 12.5, { align: 'right' });
-      doc.setFontSize(14); doc.text(formatLocalCurrency(totalExpenses), margin + 8, currentY + 12.5, { align: 'left' });
+      doc.text('TOTAL GASTOS COMPRAVENTA (ESTIMADOS)', margin + 8, currentY + 12.5);
+      doc.setFontSize(14); doc.text(formatLocalCurrency(totalExpenses), margin + contentWidth - 8, currentY + 12.5, { align: 'right' });
 
       doc.setFontSize(8); doc.setTextColor(150);
       doc.text("Página 2 de 2 | FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, pageHeight - 10, { align: 'center' });
