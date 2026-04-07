@@ -361,13 +361,28 @@ export default function Inventory() {
       doc.setTextColor(255); doc.setFontSize(14); doc.text('CUOTA MENSUAL ESTIMADA', pageWidth / 2, currentY + 15, { align: 'center' });
       doc.setFontSize(36); doc.setFont('helvetica', 'bold'); doc.text(formatLocalCurrency(monthlyPayment), pageWidth / 2, currentY + 32, { align: 'center' });
 
+      const expensesNotary = property.precio * 0.004;
+      const expensesRegistry = property.precio * 0.0025;
+      const expensesGestoria = 450;
+      const totalExpenses = expensesNotary + expensesRegistry + expensesGestoria;
+
       currentY += 65;
-      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text('INFORMACIÓN DE INTERÉS', margin, currentY);
+      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+      doc.text('DESGLOSE DE CRÉDITO Y GASTOS', margin, currentY);
       currentY += 5;
       autoTable(doc, {
-        startY: currentY, head: [['Concepto', 'Total']],
-        body: [['Total Capital a devolver', formatLocalCurrency(principal)], ['Intereses Totales (aprox.)', formatLocalCurrency((monthlyPayment * numberOfPayments) - principal)]],
-        theme: 'striped', headStyles: { fillColor: slateDark, fontSize: 10 }
+        startY: currentY, head: [['Concepto', 'Estimado']],
+        body: [
+          ['Total Capital Préstamo', formatLocalCurrency(principal)],
+          ['Intereses Totales (aprox.)', formatLocalCurrency((monthlyPayment * numberOfPayments) - principal)],
+          ['Gastos Notaría (est.)', formatLocalCurrency(expensesNotary)],
+          ['Gastos Registro (est.)', formatLocalCurrency(expensesRegistry)],
+          ['Gastos Gestoría (est.)', formatLocalCurrency(expensesGestoria)],
+          ['TOTAL GASTOS COMPRAVENTA', formatLocalCurrency(totalExpenses)]
+        ],
+        theme: 'striped', headStyles: { fillColor: slateDark, fontSize: 10 },
+        styles: { fontSize: 9, cellPadding: 3 },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } }
       });
 
       doc.setFillColor(grayLight[0], grayLight[1], grayLight[2]); doc.rect(0, pageHeight - 30, pageWidth, 30, 'F');
@@ -525,6 +540,22 @@ export default function Inventory() {
                     const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
                     return formatCurrency(monthlyPayment || 0);
                   })()}
+                </div>
+                <div className="mt-6 p-4 bg-slate-50 rounded-2xl w-full space-y-2">
+                  <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <span>Capital a financiar:</span>
+                    <span className="text-slate-900">{formatCurrency(selectedPropertyForMortgage.precio * (1 - downPayment/100))}</span>
+                  </div>
+                  <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <span>Entrada ({downPayment}%):</span>
+                    <span className="text-slate-900">{formatCurrency(selectedPropertyForMortgage.precio * (downPayment/100))}</span>
+                  </div>
+                  <div className="pt-2 border-t border-slate-200 mt-2">
+                    <div className="flex justify-between text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                      <span>Notaría, Registro, Gestoría (est.):</span>
+                      <span>{formatCurrency((selectedPropertyForMortgage.precio * 0.0065) + 450)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <button onClick={() => handleExportMortgagePDF(selectedPropertyForMortgage, interestRate, years, downPayment)} className="w-full py-4 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 flex items-center justify-center gap-2"><FileText size={20} />Exportar PDF Profesional</button>
