@@ -603,40 +603,39 @@ export default function Inventory() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Vivienda</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Modelo</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-24">Viv.</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-32">Modelo</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-32">
                     <div className="flex flex-col items-center">
                       <span>Parcela</span>
                       <span className="text-[10px] text-slate-400 normal-case font-medium mt-0.5">m²</span>
                     </div>
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-32">
                     <div className="flex flex-col items-center">
                       <span>Útil</span>
                       <span className="text-[10px] text-slate-400 normal-case font-medium mt-0.5">m²</span>
                     </div>
                   </th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Hab / Baños</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Precio</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Estado</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Acciones</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-32">Precio</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-40">Estado</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-40">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredProperties.map((property) => (
                   <tr key={property.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-5">
-                      <div className="flex items-center justify-center gap-3">
+                      <div className="flex items-center justify-center">
                         <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
                           {property.numero_vivienda}
                         </div>
-                        <span className="font-bold text-slate-900">Urb. Mirapinos</span>
                       </div>
                     </td>
                     <td className="px-6 py-5 font-semibold text-slate-600 text-center">{property.modelo}</td>
-                    <td className="px-6 py-5 text-sm font-medium text-slate-500 text-center">{formatSurface(property.superficie_parcela)}</td>
-                    <td className="px-6 py-5 text-sm font-medium text-slate-500 text-center">{formatSurface(property.superficie_util)}</td>
+                    <td className="px-6 py-5 text-sm font-bold text-slate-800 text-center">{formatSurface(property.superficie_parcela)}</td>
+                    <td className="px-6 py-5 text-sm font-bold text-slate-800 text-center">{formatSurface(property.superficie_util)}</td>
                     <td className="px-6 py-5">
                       <div className="flex items-center justify-center gap-4 text-slate-500">
                         <div className="flex items-center gap-1.5">
