@@ -464,14 +464,14 @@ export default function Inventory() {
           doc.setFont('helvetica', 'bold');
           doc.text(formatCurrency(amount - (amount/1.1)), margin + 15 + colW, breakdownY + 6);
 
-          // Subtotal Phase
+          // Subtotal Phase (Alineado a la derecha totalmente)
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(120);
-          doc.text('TOTAL HITO', margin + 15 + (colW * 2), breakdownY);
+          doc.text('TOTAL', margin + contentWidth, breakdownY, { align: 'right' });
           doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
           doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
-          doc.text(formatCurrency(amount), margin + 15 + (colW * 2), breakdownY + 6);
+          doc.text(formatCurrency(amount), margin + contentWidth, breakdownY + 6, { align: 'right' });
         }
 
         // Línea divisoria si no es el último
