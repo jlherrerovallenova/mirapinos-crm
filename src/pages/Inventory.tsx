@@ -305,10 +305,7 @@ export default function Inventory() {
       const grayUltraLight = [248, 250, 252];
 
       const formatLocalCurrency = (num: number) => new Intl.NumberFormat('es-ES', { 
-        style: 'currency', 
-        currency: 'EUR',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+        style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2
       }).format(num || 0);
 
       const addHeaderStyle = (title: string, subtitle: string) => {
@@ -317,27 +314,27 @@ export default function Inventory() {
         doc.setTextColor(255);
         doc.setFontSize(22);
         doc.setFont('helvetica', 'bold');
-        doc.text(title, margin, 25);
+        doc.text(title, pageWidth - margin, 25, { align: 'right' });
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(160);
-        doc.text(subtitle, margin, 34);
+        doc.text(subtitle, pageWidth - margin, 34, { align: 'right' });
         doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-        doc.rect(margin, 38, 40, 1.5, 'F');
+        doc.rect(pageWidth - margin - 40, 38, 40, 1.5, 'F');
       };
-
-      // --- PÁGINA 1: HIPOTECA ---
-      addHeaderStyle('PLAN DE FINANCIACIÓN', `SIMULACIÓN HIPOTECARIA | Viv. No. ${property.numero_vivienda} | ${new Date().toLocaleDateString('es-ES')}`);
-      let currentY = 60;
 
       const principal = property.precio * (1 - downPaymentPct / 100);
       const monthlyRate = (rate / 100) / 12;
       const numberOfPayments = termYears * 12;
       const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
 
+      // --- PÁGINA 1: HIPOTECA ---
+      addHeaderStyle('PLAN DE FINANCIACIÓN', `SIMULACIÓN HIPOTECARIA | Viv. No. ${property.numero_vivienda} | ${new Date().toLocaleDateString('es-ES')}`);
+      let currentY = 60;
+
       doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
       doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-      doc.text('DATOS DE LA OPERACIÓN', margin, currentY);
+      doc.text('GASTOS ASOCIADOS A LA OPERACIÓN', pageWidth - margin, currentY, { align: 'right' });
       currentY += 10;
       autoTable(doc, {
         startY: currentY,
@@ -349,9 +346,9 @@ export default function Inventory() {
           ['Tipo Interés Aplicado', `${rate.toFixed(2)} %`],
           ['Plazo del Préstamo', `${termYears} años`],
         ],
-        theme: 'plain', styles: { fontSize: 10, cellPadding: 5 },
+        theme: 'plain', styles: { fontSize: 10, cellPadding: 5, halign: 'right' },
         columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-        headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42] }
+        headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], halign: 'right' }
       });
 
       currentY = (doc as any).lastAutoTable.finalY + 20;
@@ -363,62 +360,9 @@ export default function Inventory() {
       doc.setFontSize(28); doc.text(formatLocalCurrency(monthlyPayment), pageWidth / 2, currentY + 26, { align: 'center' });
 
       doc.setFontSize(8); doc.setTextColor(150);
-      doc.text("Página 1 de 3 | Documento de carácter informativo.", pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.text("Página 1 de 2 | Documento de carácter informativo.", pageWidth / 2, pageHeight - 10, { align: 'center' });
 
-      // --- PÁGINA 2: TABLA DE AMORTIZACIÓN ---
-      doc.addPage();
-      addHeaderStyle('TABLA DE AMORTIZACIÓN', 'Evolución detallada del capital e intereses a lo largo de la vida del préstamo.');
-      
-      currentY = 60;
-      const scheduleRows = [];
-      let remainingBalance = principal;
-      const midYear = Math.floor(termYears / 2);
-      
-      const yearsToShow = [1, 2, 3, 5, midYear, termYears - 2, termYears - 1, termYears];
-      const uniqueYears = [...new Set(yearsToShow)].filter(y => y > 0 && y <= termYears).sort((a,b)=>a-b);
-
-      let yearlyPrincipal = 0;
-      let yearlyInterest = 0;
-
-      for (let m = 1; m <= numberOfPayments; m++) {
-        const interestM = remainingBalance * monthlyRate;
-        const principalM = monthlyPayment - interestM;
-        remainingBalance -= principalM;
-        yearlyPrincipal += principalM;
-        yearlyInterest += interestM;
-
-        if (m % 12 === 0) {
-          const yearNum = m / 12;
-          if (uniqueYears.includes(yearNum)) {
-            scheduleRows.push([
-              `Año ${yearNum}`,
-              formatLocalCurrency(monthlyPayment * 12),
-              formatLocalCurrency(yearlyPrincipal),
-              formatLocalCurrency(yearlyInterest),
-              formatLocalCurrency(Math.max(0, remainingBalance))
-            ]);
-          }
-          yearlyPrincipal = 0;
-          yearlyInterest = 0;
-        }
-      }
-
-      autoTable(doc, {
-        startY: currentY,
-        head: [['Periodo', 'Pago Anual', 'Capital Pagado', 'Intereses Año', 'Pendiente']],
-        body: scheduleRows,
-        theme: 'striped',
-        styles: { fontSize: 9, cellPadding: 4 },
-        headStyles: { fillColor: [15, 23, 42], textColor: 255 },
-        columnStyles: { 
-          1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } 
-        }
-      });
-
-      doc.setFontSize(8); doc.setTextColor(150);
-      doc.text("Página 2 de 3 | Evolución estimada según sistema francés.", pageWidth / 2, pageHeight - 10, { align: 'center' });
-
-      // --- PÁGINA 3: GASTOS DE COMPRAVENTA ---
+      // --- PÁGINA 2: GASTOS DE COMPRAVENTA ---
       doc.addPage();
       addHeaderStyle('GASTOS DE COMPRAVENTA', 'Resumen de impuestos y gastos asociados a la adquisición.');
       
@@ -441,8 +385,8 @@ export default function Inventory() {
           ['Tasación Oficial', 'Fijo Est.', formatLocalCurrency(tasacionAmount)],
         ],
         theme: 'striped',
-        styles: { fontSize: 10, cellPadding: 6 },
-        headStyles: { fillColor: [15, 23, 42], textColor: 255 },
+        styles: { fontSize: 10, cellPadding: 6, halign: 'right' },
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, halign: 'right' },
         columnStyles: { 2: { halign: 'right', fontStyle: 'bold' } }
       });
 
@@ -450,11 +394,11 @@ export default function Inventory() {
       doc.setFillColor(slateDark[0], slateDark[1], slateDark[2]);
       doc.roundedRect(margin, currentY, contentWidth, 20, 3, 3, 'F');
       doc.setTextColor(255); doc.setFontSize(12);
-      doc.text('TOTAL GASTOS COMPRAVENTA (ESTIMADOS)', margin + 8, currentY + 12.5);
-      doc.setFontSize(14); doc.text(formatLocalCurrency(totalExpenses), margin + contentWidth - 8, currentY + 12.5, { align: 'right' });
+      doc.text('TOTAL GASTOS COMPRAVENTA (ESTIMADOS)', pageWidth - margin - 8, currentY + 12.5, { align: 'right' });
+      doc.setFontSize(14); doc.text(formatLocalCurrency(totalExpenses), margin + 8, currentY + 12.5, { align: 'left' });
 
       doc.setFontSize(8); doc.setTextColor(150);
-      doc.text("Página 3 de 3 | FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.text("Página 2 de 2 | FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, pageHeight - 10, { align: 'center' });
 
       window.open(doc.output('bloburl'), '_blank');
     } catch (e) { console.error(e); }
@@ -587,14 +531,14 @@ export default function Inventory() {
               <div><h3 className="text-xl font-bold">Simulador Hipotecario</h3><p className="text-emerald-50 text-xs">Viv. #{selectedPropertyForMortgage.numero_vivienda}</p></div>
               <button onClick={() => setIsMortgageModalOpen(false)}><X size={24} /></button>
             </div>
-            <div className="p-8 space-y-6">
+            <div className="p-8 space-y-6 text-right">
               <div className="grid grid-cols-2 gap-6">
-                <div><label className="text-[10px] font-black text-slate-400">PRECIO</label><div className="p-3 bg-slate-50 rounded-2xl font-bold">{formatCurrency(selectedPropertyForMortgage.precio)}</div></div>
-                <div><label className="text-[10px] font-black text-slate-400">ENTRADA (%)</label><input type="number" value={downPayment} onChange={(e) => setDownPayment(Number(e.target.value))} className="w-full p-3 border rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500/20" /></div>
+                <div><label className="text-[10px] font-black text-slate-400 block mb-1">PRECIO</label><div className="p-3 bg-slate-50 rounded-2xl font-bold text-slate-800">{formatCurrency(selectedPropertyForMortgage.precio)}</div></div>
+                <div><label className="text-[10px] font-black text-slate-400 block mb-1">ENTRADA (%)</label><input type="number" value={downPayment} onChange={(e) => setDownPayment(Number(e.target.value))} className="w-full p-3 border rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500/20 text-right outline-none" /></div>
               </div>
               <div className="grid grid-cols-2 gap-6">
-                <div><label className="text-[10px] font-black text-slate-400">INTERÉS (%)</label><input type="number" step="0.1" value={interestRate} onChange={(e) => setInterestRate(Number(e.target.value))} className="w-full p-3 border rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500/20" /></div>
-                <div><label className="text-[10px] font-black text-slate-400">PLAZO (AÑOS)</label><input type="number" value={years} onChange={(e) => setYears(Number(e.target.value))} className="w-full p-3 border rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500/20" /></div>
+                <div><label className="text-[10px] font-black text-slate-400 block mb-1">INTERÉS (%)</label><input type="number" step="0.1" value={interestRate} onChange={(e) => setInterestRate(Number(e.target.value))} className="w-full p-3 border rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500/20 text-right outline-none" /></div>
+                <div><label className="text-[10px] font-black text-slate-400 block mb-1">PLAZO (AÑOS)</label><input type="number" value={years} onChange={(e) => setYears(Number(e.target.value))} className="w-full p-3 border rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500/20 text-right outline-none" /></div>
               </div>
               <div className="pt-6 border-t flex flex-col items-center">
                 <p className="text-slate-500 text-sm mb-2">Cuota mensual estimada</p>
@@ -607,17 +551,17 @@ export default function Inventory() {
                     return formatCurrency(monthlyPayment || 0);
                   })()}
                 </div>
-                <div className="mt-6 p-4 bg-slate-50 rounded-2xl w-full space-y-2">
-                  <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <div className="mt-6 p-4 bg-slate-50 rounded-2xl w-full space-y-2 text-right">
+                  <div className="flex justify-between flex-row-reverse text-xs font-bold text-slate-500 uppercase tracking-wider">
                     <span>Capital a financiar:</span>
                     <span className="text-slate-900">{formatCurrency(selectedPropertyForMortgage.precio * (1 - downPayment/100))}</span>
                   </div>
-                  <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <div className="flex justify-between flex-row-reverse text-xs font-bold text-slate-500 uppercase tracking-wider">
                     <span>Entrada ({downPayment}%):</span>
                     <span className="text-slate-900">{formatCurrency(selectedPropertyForMortgage.precio * (downPayment/100))}</span>
                   </div>
                   <div className="pt-2 border-t border-slate-200 mt-2">
-                    <div className="flex justify-between text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                    <div className="flex justify-between flex-row-reverse text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
                       <span>Notaría, Registro, Gestoría (est.):</span>
                       <span>{formatCurrency((selectedPropertyForMortgage.precio * 0.0065) + 450)}</span>
                     </div>
