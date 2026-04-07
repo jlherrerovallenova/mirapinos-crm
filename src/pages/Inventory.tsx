@@ -519,7 +519,7 @@ export default function Inventory() {
       
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-      doc.text("MIRAPINOS CRM | GESTIÓN PROFESIONAL", pageWidth / 2, 285, { align: 'center' });
+      doc.text("FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, 285, { align: 'center' });
 
       const pdfUrl = doc.output('bloburl');
       window.open(pdfUrl, '_blank');
