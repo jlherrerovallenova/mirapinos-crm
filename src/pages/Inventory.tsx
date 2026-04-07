@@ -489,7 +489,7 @@ export default function Inventory() {
       const hito3 = (total * 0.1);
       const hito4 = (total * 0.8);
 
-      renderPhase('1', 'RESERVA DE VIVIENDA', hito1, 'Pago inicial para bloqueo de unidad en inventario.', false, true);
+      renderPhase('1', 'RESERVA DE VIVIENDA', hito1, 'Pago inicial para bloqueo de vivienda', false, true);
       renderPhase('2', 'FIRMA DE CONTRATO', hito2, 'A la firma del contrato privado de compraventa (10% - Reserva).');
       
       // Especial para cuotas
