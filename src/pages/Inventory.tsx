@@ -414,8 +414,8 @@ export default function Inventory() {
 
       // --- HITOS DE PAGO ---
       let currentY = 115;
-      const renderPhase = (num: string, title: string, amount: number, subtitle: string, isLast = false) => {
-        const cardHeight = 35;
+      const renderPhase = (num: string, title: string, amount: number, subtitle: string, isLast = false, hideBreakdown = false) => {
+        const cardHeight = hideBreakdown ? 25 : 35;
         
         // Círculo del número
         doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
@@ -425,47 +425,59 @@ export default function Inventory() {
         doc.setFont('helvetica', 'bold');
         doc.text(num, margin + 5, currentY + 6.5, { align: 'center' });
 
-        // Título y Subtítulo
+        // Título
         doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
         doc.setFontSize(14);
         doc.text(title, margin + 15, currentY + 6);
+
+        // Si ocultamos el desglose, ponemos el total en la misma línea que el título
+        if (hideBreakdown) {
+          doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`TOTAL ${formatCurrency(amount)}`, margin + contentWidth, currentY + 6, { align: 'right' });
+        }
+
+        // Subtítulo
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(120);
         doc.text(subtitle, margin + 15, currentY + 11);
 
-        // Desglose Base / IVA / Total
-        const breakdownY = currentY + 18;
-        const colW = (contentWidth - 15) / 3;
-        
-        // Base
-        doc.setFontSize(8);
-        doc.text('BASE', margin + 15, breakdownY);
-        doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
-        doc.setFont('helvetica', 'bold');
-        doc.text(formatCurrency(amount / 1.1), margin + 15, breakdownY + 6);
+        if (!hideBreakdown) {
+          // Desglose Base / IVA / Total
+          const breakdownY = currentY + 18;
+          const colW = (contentWidth - 15) / 3;
+          
+          // Base
+          doc.setFontSize(8);
+          doc.text('BASE', margin + 15, breakdownY);
+          doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
+          doc.setFont('helvetica', 'bold');
+          doc.text(formatCurrency(amount / 1.1), margin + 15, breakdownY + 6);
 
-        // IVA
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(120);
-        doc.text('IVA 10%', margin + 15 + colW, breakdownY);
-        doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
-        doc.setFont('helvetica', 'bold');
-        doc.text(formatCurrency(amount - (amount/1.1)), margin + 15 + colW, breakdownY + 6);
+          // IVA
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(120);
+          doc.text('IVA 10%', margin + 15 + colW, breakdownY);
+          doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
+          doc.setFont('helvetica', 'bold');
+          doc.text(formatCurrency(amount - (amount/1.1)), margin + 15 + colW, breakdownY + 6);
 
-        // Subtotal Phase
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(120);
-        doc.text('TOTAL HITO', margin + 15 + (colW * 2), breakdownY);
-        doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(formatCurrency(amount), margin + 15 + (colW * 2), breakdownY + 6);
+          // Subtotal Phase
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(120);
+          doc.text('TOTAL HITO', margin + 15 + (colW * 2), breakdownY);
+          doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text(formatCurrency(amount), margin + 15 + (colW * 2), breakdownY + 6);
+        }
 
         // Línea divisoria si no es el último
         if (!isLast) {
           doc.setDrawColor(230, 230, 230);
-          doc.line(margin + 5, currentY + 32, margin + contentWidth, currentY + 32);
+          doc.line(margin + 5, currentY + cardHeight - 3, margin + contentWidth, currentY + cardHeight - 3);
         }
         
         currentY += cardHeight + 5;
@@ -476,7 +488,7 @@ export default function Inventory() {
       const hito3 = (total * 0.1);
       const hito4 = (total * 0.8);
 
-      renderPhase('1', 'RESERVA DE VIVIENDA', hito1, 'Pago inicial para bloqueo de unidad en inventario.');
+      renderPhase('1', 'RESERVA DE VIVIENDA', hito1, 'Pago inicial para bloqueo de unidad en inventario.', false, true);
       renderPhase('2', 'FIRMA DE CONTRATO', hito2, 'A la firma del contrato privado de compraventa (10% - Reserva).');
       
       // Especial para cuotas
