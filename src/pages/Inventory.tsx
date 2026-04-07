@@ -63,6 +63,15 @@ export default function Inventory() {
     }).format(num || 0);
   };
 
+  const formatCurrency = (num: number) => {
+    return new Intl.NumberFormat('es-ES', { 
+      style: 'currency', 
+      currency: 'EUR', 
+      minimumFractionDigits: 0, 
+      maximumFractionDigits: 0 
+    }).format(num || 0);
+  };
+
   useEffect(() => {
     fetchProperties();
   }, []);
@@ -77,17 +86,11 @@ export default function Inventory() {
 
       if (error) throw error;
 
-      // Orden numérico manual para evitar el orden alfabético (1, 10, 2...)
+      // Orden numérico manual
       const sortedData = (data as Property[] || []).sort((a, b) => {
         const numA = parseInt(a.numero_vivienda);
         const numB = parseInt(b.numero_vivienda);
-        
-        // Si ambos son números, comparar numéricamente
-        if (!isNaN(numA) && !isNaN(numB)) {
-          return numA - numB;
-        }
-        
-        // Si no, usar comparación de strings (como respaldo para letras)
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
         return a.numero_vivienda.localeCompare(b.numero_vivienda, undefined, { numeric: true });
       });
 
@@ -101,16 +104,13 @@ export default function Inventory() {
 
   const confirmDelete = async () => {
     if (!propertyToDelete) return;
-
     try {
       setIsDeleting(true);
       const { error } = await supabase
         .from('inventory')
         .delete()
         .eq('id', propertyToDelete.id);
-
       if (error) throw error;
-
       setProperties(prev => prev.filter(p => p.id !== propertyToDelete.id));
       setPropertyToDelete(null);
     } catch (error) {
@@ -131,37 +131,22 @@ export default function Inventory() {
 
   const handleExportPDF = async () => {
     if (filteredProperties.length === 0) return;
-
     try {
       setIsExporting(true);
-      const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      // Función para cargar imagen de forma asíncrona y convertirla a base64 preservando calidad y fondo
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const getBase64Image = (url: string): Promise<{ data: string, width: number, height: number } | null> => {
         return new Promise((resolve) => {
           const img = new Image();
           img.crossOrigin = 'Anonymous';
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
+            canvas.width = img.width; canvas.height = img.height;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-              // 1. Rellenar con blanco (para PNGs transparentes)
-              ctx.fillStyle = '#FFFFFF';
-              ctx.fillRect(0, 0, canvas.width, canvas.height);
-              // 2. Dibujar imagen
+              ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, canvas.width, canvas.height);
               ctx.drawImage(img, 0, 0);
-              // 3. Exportar como JPEG (máxima compatibilidad)
-              const dataURL = canvas.toDataURL('image/jpeg', 0.95);
-              resolve({ data: dataURL, width: img.width, height: img.height });
-            } else {
-              resolve(null);
-            }
+              resolve({ data: canvas.toDataURL('image/jpeg', 0.95), width: img.width, height: img.height });
+            } else resolve(null);
           };
           img.onerror = () => resolve(null);
           img.src = url;
@@ -169,125 +154,38 @@ export default function Inventory() {
       };
 
       const logoInfo = await getBase64Image('/logo-mirapinos.png');
-      
-      // Función para añadir cabecera premium
       const addHeader = () => {
-        // Franja superior blanca para el logotipo
-        doc.setFillColor(255, 255, 255);
-        doc.rect(0, 0, 297, 20, 'F');
-        
-        // Líneas decorativas inferiores
-        doc.setFillColor(15, 23, 42); // Slate-900
-        doc.rect(0, 20, 297, 0.5, 'F');
-        
-        doc.setFillColor(16, 185, 129); // Emerald-500
-        doc.rect(0, 20.5, 297, 1.5, 'F');
-
-        // Logo si existe
+        doc.setFillColor(255, 255, 255); doc.rect(0, 0, 297, 20, 'F');
+        doc.setFillColor(15, 23, 42); doc.rect(0, 20, 297, 0.5, 'F');
+        doc.setFillColor(16, 185, 129); doc.rect(0, 20.5, 297, 1.5, 'F');
         if (logoInfo) {
-          const targetHeight = 10; // Altura fija deseada en mm
-          const aspectRatio = logoInfo.width / logoInfo.height;
+          const targetHeight = 10; const aspectRatio = logoInfo.width / logoInfo.height;
           const targetWidth = targetHeight * aspectRatio;
-          
-          // Centrado vertical en la franja de 20mm
           doc.addImage(logoInfo.data, 'JPEG', 14, (20 - targetHeight) / 2, targetWidth, targetHeight);
-        } else {
-          doc.setTextColor(15, 23, 42);
-          doc.setFontSize(10);
-          doc.text('MIRAPINOS', 14, 12);
         }
-
-        // Título y Subtítulo
-        doc.setTextColor(15, 23, 42);
-        doc.setFontSize(22);
-        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42); doc.setFontSize(22); doc.setFont('helvetica', 'bold');
         doc.text('CATÁLOGO DE VIVIENDAS', 14, 30);
-        
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100);
-        const statusText = stateFilter === '' ? 'TODOS LOS ESTADOS' : stateFilter.toUpperCase();
-        doc.text(`INVENTARIO ACTUAL - MODO: ${statusText}`, 14, 37);
-
-        // Fecha y página (derecha)
-        doc.setFontSize(9);
-        doc.text(`Generado: ${new Date().toLocaleString('es-ES')}`, 240, 30);
-        doc.text(`Total registros: ${filteredProperties.length}`, 240, 35);
+        doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(100);
+        doc.text(`INVENTARIO ACTUAL - MODO: ${stateFilter.toUpperCase() || 'TODOS'}`, 14, 37);
       };
-
       addHeader();
-
-    // Preparar datos
-    const tableColumn = ["№", "MODELO", "PARCELA (m²)", "ÚTIL (m²)", "HAB/BAÑOS", "PRECIO", "ESTADO"];
-    const tableRows = filteredProperties.map(p => [
-      p.numero_vivienda,
-      p.modelo,
-      formatSurface(p.superficie_parcela),
-      formatSurface(p.superficie_util),
-      `${p.habitaciones} / ${p.banos}`,
-      new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(p.precio),
-      (p.estado_vivienda || 'DISPONIBLE').toUpperCase()
-    ]);
-
-    // Generar tabla con estilo corporativo
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: 45,
-      theme: 'grid',
-      headStyles: { 
-        fillColor: [16, 185, 129], 
-        textColor: 255, 
-        fontSize: 11,
-        fontStyle: 'bold',
-        halign: 'center'
-      },
-      styles: { 
-        fontSize: 10,
-        cellPadding: 4,
-        valign: 'middle',
-        halign: 'center'
-      },
-      columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 15 },
-        1: { fontStyle: 'bold', cellWidth: 35 },
-        6: { fontStyle: 'bold', textColor: [15, 23, 42] }
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252]
-      },
-      didParseCell: (data) => {
-        // Colorear celda de estado
-        if (data.section === 'body' && data.column.index === 7) {
-          const status = data.cell.raw as string;
-          if (status === 'DISPONIBLE') data.cell.styles.textColor = [16, 185, 129];
-          if (status === 'RESERVADA') data.cell.styles.textColor = [245, 158, 11];
-          if (['BLOQUEADA', 'NO DISPONIBLE'].includes(status)) data.cell.styles.textColor = [239, 68, 68];
-        }
-      }
-    });
-
-    // Pie de página
-    const pageCount = (doc as any).internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text(`Página ${i} de ${pageCount}`, 270, 200);
-    }
-
-    // Generar el PDF y abrirlo en una nueva pestaña (más fiable para depuración y visualización)
-    const pdfOutput = doc.output('bloburl');
-    window.open(pdfOutput, '_blank');
-    
-    // También guardarlo por si el usuario lo prefiere
-    doc.save(`listado_viviendas_${stateFilter || 'todas'}_${new Date().toISOString().split('T')[0]}.pdf`);
+      const tableColumn = ["№", "MODELO", "PARCELA (m²)", "ÚTIL (m²)", "HAB/BAÑOS", "PRECIO", "ESTADO"];
+      const tableRows = filteredProperties.map(p => [
+        p.numero_vivienda, p.modelo, formatSurface(p.superficie_parcela), formatSurface(p.superficie_util),
+        `${p.habitaciones} / ${p.banos}`, formatCurrency(p.precio), (p.estado_vivienda || 'DISPONIBLE').toUpperCase()
+      ]);
+      autoTable(doc, {
+        head: [tableColumn], body: tableRows, startY: 45, theme: 'grid',
+        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontSize: 11, fontStyle: 'bold', halign: 'center' },
+        styles: { fontSize: 10, cellPadding: 4, valign: 'middle', halign: 'center' },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 15 }, 1: { fontStyle: 'bold', cellWidth: 35 } },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
+      });
+      const pdfOutput = doc.output('bloburl');
+      window.open(pdfOutput, '_blank');
     } catch (error) {
       console.error('Error generating PDF:', error);
-      await showAlert({ 
-        title: 'Error de Exportación', 
-        message: 'No se pudo generar el documento PDF correctamente.' 
-      });
+      await showAlert({ title: 'Error', message: 'No se pudo generar el documento PDF.' });
     } finally {
       setIsExporting(false);
     }
@@ -295,30 +193,19 @@ export default function Inventory() {
 
   const handleGeneratePaymentForm = async (property: Property) => {
     try {
-      const doc = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const getBase64Image = (url: string): Promise<{ data: string, width: number, height: number } | null> => {
         return new Promise((resolve) => {
           const img = new Image();
           img.crossOrigin = 'Anonymous';
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
+            canvas.width = img.width; canvas.height = img.height;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-              ctx.fillStyle = '#FFFFFF';
-              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, canvas.width, canvas.height);
               ctx.drawImage(img, 0, 0);
-              resolve({
-                data: canvas.toDataURL('image/jpeg', 0.95),
-                width: img.width,
-                height: img.height
-              });
+              resolve({ data: canvas.toDataURL('image/jpeg', 0.95), width: img.width, height: img.height });
             } else resolve(null);
           };
           img.onerror = () => resolve(null);
@@ -327,211 +214,173 @@ export default function Inventory() {
       };
 
       const logoMirapinos = await getBase64Image('/logo-mirapinos.png');
-
-      const margin = 15;
-      const pageWidth = 210;
-      const contentWidth = pageWidth - (margin * 2);
+      const margin = 15; const pageWidth = 210; const contentWidth = pageWidth - (margin * 2);
+      const emeraldPrimary = [5, 150, 105]; const slateDark = [15, 23, 42]; const grayLight = [241, 245, 249];
       
-      // Colores Premium
-      const emeraldPrimary = [5, 150, 105];   // Emerald-600
-      const slateDark = [15, 23, 42];         // Slate-900
-      const grayLight = [241, 245, 249];      // Slate-100
-      
-      const formatCurrency = (num: number) => {
+      const formatLocalCurrency = (num: number) => {
         const parts = num.toFixed(2).split('.');
         parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
         return parts.join(',') + ' \u20AC';
       };
 
-      // --- CABECERA LIMPIA (FONDO BLANCO) ---
-      
-      // Logo centrado y ampliado (110mm)
-      let logoYEnd = 45; // Valor por defecto si no hay logo
+      let logoYEnd = 45;
       if (logoMirapinos) {
-        const maxWidth = 110;
-        const ratio = logoMirapinos.height / logoMirapinos.width;
-        const finalHeight = maxWidth * ratio;
-        const logoY = 15; // Bajamos de 12 a 15
-        
+        const maxWidth = 110; const ratio = logoMirapinos.height / logoMirapinos.width;
+        const finalHeight = maxWidth * ratio; const logoY = 15;
         doc.addImage(logoMirapinos.data, 'JPEG', (pageWidth/2) - (maxWidth/2), logoY, maxWidth, finalHeight);
-        
-        // Línea verde centrada debajo del logo
         logoYEnd = logoY + finalHeight + 8;
         doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
         doc.rect((pageWidth/2) - (maxWidth/2), logoYEnd, maxWidth, 1.5, 'F');
       }
 
-      // --- TÍTULO PRINCIPAL (Bajamos para dejar espacio a la nueva línea) ---
       doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
-      doc.setFontSize(26);
-      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(26); doc.setFont('helvetica', 'bold');
       const titleY = logoYEnd + 15;
       doc.text('PLAN DE PAGOS', margin, titleY);
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100);
-        doc.text(`Vivienda No. ${property.numero_vivienda} | Modelo ${property.modelo} | ${new Date().toLocaleDateString('es-ES')}`, margin, titleY + 6);
+      doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(100);
+      doc.text(`Vivienda No. ${property.numero_vivienda} | Modelo ${property.modelo} | ${new Date().toLocaleDateString('es-ES')}`, margin, titleY + 6);
 
-      // --- RESUMEN DE IMPORTES (CARD) ---
       const summaryY = titleY + 15;
       doc.setFillColor(grayLight[0], grayLight[1], grayLight[2]);
       doc.roundedRect(margin, summaryY, contentWidth, 25, 3, 3, 'F');
 
-      const basePrice = property.precio;
-      const iva = basePrice * 0.1;
-      const ajd = basePrice * 0.015;
-      const total = basePrice + iva;
-
+      const basePrice = property.precio; const iva = basePrice * 0.1; const ajd = basePrice * 0.015; const total = basePrice + iva;
       const colWSummary = contentWidth / 3;
 
-      // Importe Base (Col 1)
-      doc.setFontSize(9);
-      doc.setTextColor(120);
-      doc.text('IMPORTE BASE', margin + 8, summaryY + 10);
-      doc.setFontSize(12);
-      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
-      doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(basePrice), margin + 8, summaryY + 17);
+      doc.setFontSize(9); doc.setTextColor(120); doc.text('IMPORTE BASE', margin + 8, summaryY + 10);
+      doc.setFontSize(12); doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFont('helvetica', 'bold');
+      doc.text(formatLocalCurrency(basePrice), margin + 8, summaryY + 17);
 
-      // IVA (Col 2)
-      doc.setFontSize(9);
-      doc.setTextColor(120);
-      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9); doc.setTextColor(120); doc.setFont('helvetica', 'normal');
       doc.text('IVA (10%)', margin + colWSummary + 8, summaryY + 10);
-      doc.setFontSize(12);
-      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
-      doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(iva), margin + colWSummary + 8, summaryY + 17);
+      doc.setFontSize(12); doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFont('helvetica', 'bold');
+      doc.text(formatLocalCurrency(iva), margin + colWSummary + 8, summaryY + 17);
 
-      // TOTAL DESTACADO (Col 3)
       doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
       doc.roundedRect(margin + (colWSummary * 2), summaryY, colWSummary, 25, 3, 3, 'F');
-      doc.setTextColor(255);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(255); doc.setFontSize(10); doc.setFont('helvetica', 'normal');
       doc.text('TOTAL VIVIENDA', margin + contentWidth - 10, summaryY + 10, { align: 'right' });
-      
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(total), margin + contentWidth - 10, summaryY + 18, { align: 'right' });
+      doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+      doc.text(formatLocalCurrency(total), margin + contentWidth - 10, summaryY + 18, { align: 'right' });
 
-      // AJD (Informativo debajo del cuadro)
-      doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.setFont('helvetica', 'italic');
-      doc.text(`* El impuesto de AJD (1,5% s/base) no está incluido en el cálculo del total superior: ${formatCurrency(ajd)}`, margin, summaryY + 30);
+      doc.setFontSize(8); doc.setTextColor(150); doc.setFont('helvetica', 'italic');
+      doc.text(`* El impuesto de AJD (1,5% s/base) no está incluido: ${formatLocalCurrency(ajd)}`, margin, summaryY + 30);
 
-      // --- HITOS DE PAGO ---
       let currentY = 115;
       const renderPhase = (num: string, title: string, amount: number, subtitle: string, isLast = false, hideBreakdown = false) => {
         const cardHeight = hideBreakdown ? 25 : 35;
-        
-        // Círculo del número
-        doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-        doc.circle(margin + 5, currentY + 5, 5, 'F');
-        doc.setTextColor(255);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
+        doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]); doc.circle(margin + 5, currentY + 5, 5, 'F');
+        doc.setTextColor(255); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
         doc.text(num, margin + 5, currentY + 6.5, { align: 'center' });
-
-        // Título
-        doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
-        doc.setFontSize(14);
-        doc.text(title, margin + 15, currentY + 6);
-
-        // Si ocultamos el desglose, ponemos el total en la misma línea que el título
+        doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFontSize(14); doc.text(title, margin + 15, currentY + 6);
         if (hideBreakdown) {
-          doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-          doc.setFontSize(14);
-          doc.setFont('helvetica', 'bold');
-          doc.text(`TOTAL ${formatCurrency(amount)}`, margin + contentWidth, currentY + 6, { align: 'right' });
+          doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+          doc.text(`TOTAL ${formatLocalCurrency(amount)}`, margin + contentWidth, currentY + 6, { align: 'right' });
         }
-
-        // Subtítulo
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(120);
-        doc.text(subtitle, margin + 15, currentY + 11);
-
+        doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(120); doc.text(subtitle, margin + 15, currentY + 11);
         if (!hideBreakdown) {
-          // Desglose Base / IVA / Total
-          const breakdownY = currentY + 18;
-          const colW = (contentWidth - 15) / 3;
-          
-          // Base
-          doc.setFontSize(8);
-          doc.text('BASE', margin + 15, breakdownY);
-          doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
-          doc.setFont('helvetica', 'bold');
-          doc.text(formatCurrency(amount / 1.1), margin + 15, breakdownY + 6);
-
-          // IVA
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(120);
-          doc.text('IVA 10%', margin + 15 + colW, breakdownY);
-          doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
-          doc.setFont('helvetica', 'bold');
-          doc.text(formatCurrency(amount - (amount/1.1)), margin + 15 + colW, breakdownY + 6);
-
-          // Subtotal Phase (Alineado a la derecha totalmente)
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(120);
-          doc.text('TOTAL', margin + contentWidth, breakdownY, { align: 'right' });
-          doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.text(formatCurrency(amount), margin + contentWidth, breakdownY + 6, { align: 'right' });
+          const breakdownY = currentY + 18; const colW = (contentWidth - 15) / 3;
+          doc.setFontSize(8); doc.text('BASE', margin + 15, breakdownY);
+          doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFont('helvetica', 'bold');
+          doc.text(formatLocalCurrency(amount / 1.1), margin + 15, breakdownY + 6);
+          doc.setFont('helvetica', 'normal'); doc.setTextColor(120); doc.text('IVA 10%', margin + 15 + colW, breakdownY);
+          doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFont('helvetica', 'bold');
+          doc.text(formatLocalCurrency(amount - (amount/1.1)), margin + 15 + colW, breakdownY + 6);
+          doc.setFont('helvetica', 'normal'); doc.setTextColor(120); doc.text('TOTAL', margin + contentWidth, breakdownY, { align: 'right' });
+          doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+          doc.text(formatLocalCurrency(amount), margin + contentWidth, breakdownY + 6, { align: 'right' });
         }
-
-        // Línea divisoria si no es el último
-        if (!isLast) {
-          doc.setDrawColor(230, 230, 230);
-          doc.line(margin + 5, currentY + cardHeight - 3, margin + contentWidth, currentY + cardHeight - 3);
-        }
-        
+        if (!isLast) { doc.setDrawColor(230, 230, 230); doc.line(margin + 5, currentY + cardHeight - 3, margin + contentWidth, currentY + cardHeight - 3); }
         currentY += cardHeight + 5;
       };
 
-      const hito1 = 6000;
-      const hito2 = (total * 0.1) - 6000;
-      const hito3 = (total * 0.1);
-      const hito4 = (total * 0.8);
-
+      const hito1 = 6000; const hito2 = (total * 0.1) - 6000; const hito3 = (total * 0.1); const hito4 = (total * 0.8);
       renderPhase('1', 'RESERVA DE VIVIENDA', hito1, 'Pago inicial para bloqueo de vivienda', false, true);
-      renderPhase('2', 'FIRMA DE CONTRATO', hito2, 'A la firma del contrato privado de compraventa (10% - Reserva).');
-      
-      // Especial para cuotas
-      const cuota = hito3 / 24;
-      renderPhase('3', 'PAGOS APLAZADOS', hito3, `24 Cuotas mensuales de ${formatCurrency(cuota)} cada una.`);
-      
-      renderPhase('4', 'ESCRITURA PÚBLICA', hito4, 'Entrega de llaves y firma ante notario (80% restante).', true);
+      renderPhase('2', 'FIRMA DE CONTRATO', hito2, 'A la firma del contrato privado (10% - Reserva).');
+      const cuota = hito3 / 24; renderPhase('3', 'PAGOS APLAZADOS', hito3, `24 Cuotas mensuales de ${formatLocalCurrency(cuota)} cada una.`);
+      renderPhase('4', 'ESCRITURA PÚBLICA', hito4, 'Entrega de llaves y firma ante notario (80%).', true);
 
-      // --- PIE DE PÁGINA ---
-      doc.setFillColor(grayLight[0], grayLight[1], grayLight[2]);
-      doc.rect(0, 265, pageWidth, 32, 'F');
-      
-      doc.setFontSize(8);
-      doc.setTextColor(120);
-      doc.setFont('helvetica', 'normal');
-      const footerMsg = "Este documento es meramente informativo y no constituye una oferta contractual oficial.\nTodos los importes incluyen IVA al 10% sujeto a variaciones legales.";
-      doc.text(footerMsg, pageWidth / 2, 275, { align: 'center' });
-      
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
+      doc.setFillColor(grayLight[0], grayLight[1], grayLight[2]); doc.rect(0, 265, pageWidth, 32, 'F');
+      doc.setFontSize(8); doc.setTextColor(120); doc.setFont('helvetica', 'normal');
+      doc.text("Este documento es informativo. Incluye IVA al 10%.", pageWidth / 2, 275, { align: 'center' });
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
       doc.text("FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, 285, { align: 'center' });
 
-      const pdfUrl = doc.output('bloburl');
-      window.open(pdfUrl, '_blank');
+      window.open(doc.output('bloburl'), '_blank');
     } catch (error) {
       console.error('Error generating payment form:', error);
       await showAlert({ title: 'Error', message: 'No se pudo generar la forma de pago.' });
     }
   };
 
+  const handleExportMortgagePDF = async (property: Property, rate: number, termYears: number, downPaymentPct: number) => {
+    try {
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth(); const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20; const contentWidth = pageWidth - (margin * 2);
+      const emeraldPrimary = [16, 185, 129]; const slateDark = [15, 23, 42]; const grayLight = [248, 250, 252];
+
+      doc.setFillColor(slateDark[0], slateDark[1], slateDark[2]); doc.rect(0, 0, pageWidth, 40, 'F');
+      doc.setTextColor(255); doc.setFontSize(24); doc.setFont('helvetica', 'bold');
+      doc.text('SIMULACIÓN HIPOTECARIA', margin, 25);
+      doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(180);
+      doc.text(`Urb. Mirapinos | Vivienda No. ${property.numero_vivienda} | ${new Date().toLocaleDateString('es-ES')}`, margin, 32);
+
+      let currentY = 55;
+      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+      doc.text('RESUMEN DE OPERACIÓN', margin, currentY);
+      currentY += 10; doc.setDrawColor(240, 240, 240); doc.line(margin, currentY, margin + contentWidth, currentY);
+      currentY += 15;
+
+      const principal = property.precio * (1 - downPaymentPct / 100);
+      const monthlyRate = (rate / 100) / 12;
+      const numberOfPayments = termYears * 12;
+      const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
+      
+      const formatLocalCurrency = (num: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(num);
+
+      const drawDataBox = (label: string, value: string, x: number, y: number, w: number) => {
+        doc.setFillColor(grayLight[0], grayLight[1], grayLight[2]); doc.roundedRect(x, y, w, 20, 3, 3, 'F');
+        doc.setTextColor(120); doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.text(label.toUpperCase(), x + 5, y + 7);
+        doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFontSize(12); doc.text(value, x + 5, y + 15);
+      };
+
+      const boxWidth = (contentWidth - 10) / 3;
+      drawDataBox('Precio Venta', formatLocalCurrency(property.precio), margin, currentY, boxWidth);
+      drawDataBox('Aportación Inicial', formatLocalCurrency(property.precio * (downPaymentPct / 100)), margin + boxWidth + 5, currentY, boxWidth);
+      drawDataBox('Capital Financiado', formatLocalCurrency(principal), margin + (boxWidth * 2) + 10, currentY, boxWidth);
+
+      currentY += 25;
+      drawDataBox('Tipo de Interés', `${rate}%`, margin, currentY, boxWidth);
+      drawDataBox('Plazo Amortización', `${termYears} años`, margin + boxWidth + 5, currentY, boxWidth);
+      drawDataBox('Cuotas Totales', `${numberOfPayments} meses`, margin + (boxWidth * 2) + 10, currentY, boxWidth);
+
+      currentY += 40;
+      doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
+      doc.roundedRect(margin, currentY, contentWidth, 45, 5, 5, 'F');
+      doc.setTextColor(255); doc.setFontSize(14); doc.text('CUOTA MENSUAL ESTIMADA', pageWidth / 2, currentY + 15, { align: 'center' });
+      doc.setFontSize(36); doc.setFont('helvetica', 'bold'); doc.text(formatLocalCurrency(monthlyPayment), pageWidth / 2, currentY + 32, { align: 'center' });
+
+      currentY += 65;
+      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text('INFORMACIÓN DE INTERÉS', margin, currentY);
+      currentY += 5;
+      autoTable(doc, {
+        startY: currentY, head: [['Concepto', 'Total']],
+        body: [['Total Capital a devolver', formatLocalCurrency(principal)], ['Intereses Totales (aprox.)', formatLocalCurrency((monthlyPayment * numberOfPayments) - principal)]],
+        theme: 'striped', headStyles: { fillColor: slateDark, fontSize: 10 }
+      });
+
+      doc.setFillColor(grayLight[0], grayLight[1], grayLight[2]); doc.rect(0, pageHeight - 30, pageWidth, 30, 'F');
+      doc.setFontSize(8); doc.setTextColor(150); doc.text("Esta simulación es informativa y no contractual.", pageWidth / 2, pageHeight - 15, { align: 'center' });
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
+      doc.text("FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, pageHeight - 8, { align: 'center' });
+
+      window.open(doc.output('bloburl'), '_blank');
+    } catch (e) { console.error(e); }
+  };
+
   return (
     <div className="p-6 md:p-8 space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventario de Viviendas</h1>
@@ -542,43 +391,36 @@ export default function Inventory() {
             onClick={handleExportPDF}
             disabled={loading || isExporting || filteredProperties.length === 0}
             className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-5 py-3 rounded-2xl font-bold shadow-sm transition-all active:scale-95 disabled:opacity-50 min-w-[150px]"
-            title="Descargar Listado PDF"
           >
             {isExporting ? <Loader2 className="animate-spin text-emerald-600" size={20} /> : <FileText size={20} className="text-red-500" />}
             {isExporting ? 'Generando...' : 'Exportar PDF'}
           </button>
           <button
-            onClick={() => {
-              setEditingProperty(null);
-              setIsModalOpen(true);
-            }}
+            onClick={() => { setEditingProperty(null); setIsModalOpen(true); }}
             className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all active:scale-95"
           >
-            <Plus size={20} />
-            Añadir Propiedad
+            <Plus size={20} /> Añadir Propiedad
           </button>
         </div>
       </div>
 
-      {/* Buscador y Filtros */}
       <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
         <div className="relative flex-1 w-full group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
           <input
             type="text"
             placeholder="Buscar por modelo o número de vivienda..."
-            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all font-medium text-slate-700"
+            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none transition-all font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500/20"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-
         <div className="relative w-full md:w-64">
           <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <select
             value={stateFilter}
             onChange={(e) => setStateFilter(e.target.value)}
-            className="w-full pl-12 pr-8 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none appearance-none cursor-pointer text-slate-700 font-medium font-bold"
+            className="w-full pl-12 pr-8 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none appearance-none cursor-pointer text-slate-700 font-bold"
           >
             <option value="">Cualquier Estado</option>
             <option value="DISPONIBLE">DISPONIBLE</option>
@@ -591,7 +433,6 @@ export default function Inventory() {
         </div>
       </div>
 
-      {/* Tabla */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -605,18 +446,7 @@ export default function Inventory() {
                 <tr className="bg-slate-50/50 border-b border-slate-100">
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-24">Viv.</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-32">Modelo</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-32">
-                    <div className="flex flex-col items-center">
-                      <span>Parcela</span>
-                      <span className="text-[10px] text-slate-400 normal-case font-medium mt-0.5">m²</span>
-                    </div>
-                  </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-32">
-                    <div className="flex flex-col items-center">
-                      <span>Útil</span>
-                      <span className="text-[10px] text-slate-400 normal-case font-medium mt-0.5">m²</span>
-                    </div>
-                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Parcela / Útil</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Hab / Baños</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-32">Precio</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-40">Estado</th>
@@ -626,74 +456,29 @@ export default function Inventory() {
               <tbody className="divide-y divide-slate-50">
                 {filteredProperties.map((property) => (
                   <tr key={property.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-6 py-5">
-                      <div className="flex items-center justify-center">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                          {property.numero_vivienda}
-                        </div>
-                      </div>
-                    </td>
+                    <td className="px-6 py-5 text-center font-bold text-slate-700">{property.numero_vivienda}</td>
                     <td className="px-6 py-5 font-semibold text-slate-600 text-center">{property.modelo}</td>
-                    <td className="px-6 py-5 text-sm font-bold text-slate-800 text-center">{formatSurface(property.superficie_parcela)}</td>
-                    <td className="px-6 py-5 text-sm font-bold text-slate-800 text-center">{formatSurface(property.superficie_util)}</td>
+                    <td className="px-6 py-5 text-center text-sm font-bold text-slate-800">
+                      {formatSurface(property.superficie_parcela)} / {formatSurface(property.superficie_util)} <span className="text-[10px] normal-case text-slate-400">m²</span>
+                    </td>
                     <td className="px-6 py-5">
                       <div className="flex items-center justify-center gap-4 text-slate-500">
-                        <div className="flex items-center gap-1.5">
-                          <BedDouble size={16} />
-                          <span className="font-bold">{property.habitaciones}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Bath size={16} />
-                          <span className="font-bold">{property.banos}</span>
-                        </div>
+                        <div className="flex items-center gap-1.5"><BedDouble size={16} /><span className="font-bold">{property.habitaciones}</span></div>
+                        <div className="flex items-center gap-1.5"><Bath size={16} /><span className="font-bold">{property.banos}</span></div>
                       </div>
                     </td>
+                    <td className="px-6 py-5 text-center"><span className="inline-flex px-3 py-1 rounded-lg bg-slate-900 text-white font-bold text-sm">{formatCurrency(property.precio)}</span></td>
                     <td className="px-6 py-5 text-center">
-                      <span className="inline-flex px-3 py-1 rounded-lg bg-slate-900 text-white font-bold text-sm">
-                        {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(property.precio)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5 text-center">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wide ${
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
                         property.estado_vivienda === 'DISPONIBLE' ? 'bg-emerald-100 text-emerald-700' :
-                        property.estado_vivienda === 'RESERVADA' ? 'bg-amber-100 text-amber-700' :
-                        property.estado_vivienda === 'BLOQUEADA' || property.estado_vivienda === 'NO DISPONIBLE' ? 'bg-red-100 text-red-700' :
-                        property.estado_vivienda === 'CONTRATO CV' ? 'bg-blue-100 text-blue-700' :
-                        property.estado_vivienda === 'ESCRITURADA' ? 'bg-slate-100 text-slate-700' :
-                        'bg-slate-100 text-slate-600'
-                      }`}>
-                        {property.estado_vivienda || 'DISPONIBLE'}
-                      </span>
+                        property.estado_vivienda === 'RESERVADA' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'
+                      }`}>{property.estado_vivienda || 'DISPONIBLE'}</span>
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex justify-center gap-2">
-                        <button
-                          onClick={() => handleGeneratePaymentForm(property)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                          title="Generar Forma de Pago"
-                        >
-                          <CreditCard size={18} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedPropertyForMortgage(property);
-                            setIsMortgageModalOpen(true);
-                          }}
-                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                          title="Simulador de Hipoteca"
-                        >
-                          <Calculator size={18} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingProperty(property);
-                            setIsModalOpen(true);
-                          }}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                          title="Editar"
-                        >
-                          <Edit2 size={18} />
-                        </button>
+                        <button onClick={() => handleGeneratePaymentForm(property)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg" title="Forma de Pago"><CreditCard size={18} /></button>
+                        <button onClick={() => { setSelectedPropertyForMortgage(property); setIsMortgageModalOpen(true); }} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg" title="Simulator"><Calculator size={18} /></button>
+                        <button onClick={() => { setEditingProperty(property); setIsModalOpen(true); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Editar"><Edit2 size={18} /></button>
                       </div>
                     </td>
                   </tr>
@@ -702,157 +487,48 @@ export default function Inventory() {
             </table>
           </div>
         ) : (
-          <div className="py-20 text-center flex flex-col items-center">
-            <Home size={40} className="text-slate-200 mb-4" />
-            <p className="text-slate-500 font-bold">No se encontraron propiedades</p>
-          </div>
+          <div className="py-20 text-center flex flex-col items-center"><Home size={40} className="text-slate-200 mb-4" /><p className="text-slate-500 font-bold">No se encontraron propiedades</p></div>
         )}
       </div>
 
-      {/* Modal de Confirmación de Borrado Profesional */}
-      {propertyToDelete && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 text-center">
-              <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <AlertTriangle size={40} />
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">¿Eliminar vivienda?</h3>
-              <p className="text-slate-500 font-medium mb-8">
-                Estás a punto de borrar la vivienda <span className="text-slate-900 font-bold">{propertyToDelete.numero_vivienda}</span> (Modelo {propertyToDelete.modelo}). Esta acción no se puede deshacer.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setPropertyToDelete(null)}
-                  disabled={isDeleting}
-                  className="flex-1 px-4 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  disabled={isDeleting}
-                  className="flex-1 px-4 py-4 bg-red-600 text-white font-bold rounded-2xl shadow-lg shadow-red-100 hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  {isDeleting ? <Loader2 className="animate-spin" size={20} /> : 'Sí, eliminar'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {isModalOpen && (
         <CreatePropertyModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setEditingProperty(null);
-          }}
-          onSuccess={() => {
-            fetchProperties();
-            setIsModalOpen(false);
-          }}
+          isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingProperty(null); }}
+          onSuccess={() => { fetchProperties(); setIsModalOpen(false); }}
           initialData={editingProperty}
         />
       )}
 
-      {/* Modal Simulador de Hipoteca */}
       {isMortgageModalOpen && selectedPropertyForMortgage && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="bg-emerald-600 p-6 flex justify-between items-center">
-              <div>
-                <h3 className="text-xl font-bold text-white mb-1">Simulador Hipotecario</h3>
-                <p className="text-emerald-50 text-xs">Vivienda No. {selectedPropertyForMortgage.numero_vivienda} - Modelo {selectedPropertyForMortgage.modelo}</p>
-              </div>
-              <button 
-                onClick={() => setIsMortgageModalOpen(false)}
-                className="text-white/80 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <X size={24} />
-              </button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden">
+            <div className="bg-emerald-600 p-6 flex justify-between items-center text-white">
+              <div><h3 className="text-xl font-bold">Simulador Hipotecario</h3><p className="text-emerald-50 text-xs">Viv. #{selectedPropertyForMortgage.numero_vivienda}</p></div>
+              <button onClick={() => setIsMortgageModalOpen(false)}><X size={24} /></button>
             </div>
-            
             <div className="p-8 space-y-6">
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio Vivienda</label>
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700">
-                    {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(selectedPropertyForMortgage.precio)}
-                  </div>
-                </div>
-                
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Entrada (%)</label>
-                  <input
-                    type="number"
-                    value={downPayment}
-                    onChange={(e) => setDownPayment(Number(e.target.value))}
-                    className="w-full p-3 bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-none"
-                  />
-                </div>
+                <div><label className="text-[10px] font-black text-slate-400">PRECIO</label><div className="p-3 bg-slate-50 rounded-2xl font-bold">{formatCurrency(selectedPropertyForMortgage.precio)}</div></div>
+                <div><label className="text-[10px] font-black text-slate-400">ENTRADA (%)</label><input type="number" value={downPayment} onChange={(e) => setDownPayment(Number(e.target.value))} className="w-full p-3 border rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500/20" /></div>
               </div>
-
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Interés Anual (%)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={interestRate}
-                    onChange={(e) => setInterestRate(Number(e.target.value))}
-                    className="w-full p-3 bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-none"
-                  />
-                </div>
-                
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Plazo (Años)</label>
-                  <input
-                    type="number"
-                    value={years}
-                    onChange={(e) => setYears(Number(e.target.value))}
-                    className="w-full p-3 bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-none"
-                  />
+                <div><label className="text-[10px] font-black text-slate-400">INTERÉS (%)</label><input type="number" step="0.1" value={interestRate} onChange={(e) => setInterestRate(Number(e.target.value))} className="w-full p-3 border rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500/20" /></div>
+                <div><label className="text-[10px] font-black text-slate-400">PLAZO (AÑOS)</label><input type="number" value={years} onChange={(e) => setYears(Number(e.target.value))} className="w-full p-3 border rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500/20" /></div>
+              </div>
+              <div className="pt-6 border-t flex flex-col items-center">
+                <p className="text-slate-500 text-sm mb-2">Cuota mensual estimada</p>
+                <div className="bg-emerald-50 px-8 py-4 rounded-3xl text-4xl font-black text-emerald-700">
+                  {(() => {
+                    const principal = selectedPropertyForMortgage.precio * (1 - downPayment / 100);
+                    const monthlyRate = (interestRate / 100) / 12;
+                    const numberOfPayments = years * 12;
+                    const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
+                    return formatCurrency(monthlyPayment || 0);
+                  })()}
                 </div>
               </div>
-
-              {/* Cálculo en tiempo real */}
-              <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col items-center">
-                <p className="text-slate-500 text-sm font-medium mb-2">Cuota mensual estimada</p>
-                <div className="bg-emerald-50 px-8 py-4 rounded-3xl border border-emerald-100 shadow-sm text-center">
-                  <span className="text-4xl font-black text-emerald-700">
-                    {(() => {
-                      const principal = selectedPropertyForMortgage.precio * (1 - downPayment / 100);
-                      const monthlyRate = (interestRate / 100) / 12;
-                      const numberOfPayments = years * 12;
-                      
-                      const monthlyPayment = principal * 
-                        (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / 
-                        (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
-                        
-                      return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(monthlyPayment || 0);
-                    })()}
-                  </span>
-                </div>
-                <div className="mt-6 p-4 bg-slate-50 rounded-2xl w-full">
-                  <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    <span>Capital a financiar:</span>
-                    <span className="text-slate-900">{new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(selectedPropertyForMortgage.precio * (1 - downPayment/100))}</span>
-                  </div>
-                  <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    <span>Entrada inicial ({downPayment}%):</span>
-                    <span className="text-slate-900">{new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(selectedPropertyForMortgage.precio * (downPayment/100))}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <button
-                onClick={() => setIsMortgageModalOpen(false)}
-                className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all active:scale-95"
-              >
-                Cerrar Simulador
-              </button>
+              <button onClick={() => handleExportMortgagePDF(selectedPropertyForMortgage, interestRate, years, downPayment)} className="w-full py-4 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 flex items-center justify-center gap-2"><FileText size={20} />Exportar PDF Profesional</button>
+              <button onClick={() => setIsMortgageModalOpen(false)} className="w-full py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl">Cerrar</button>
             </div>
           </div>
         </div>
