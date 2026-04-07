@@ -348,7 +348,12 @@ export default function Inventory() {
         ],
         theme: 'plain', styles: { fontSize: 10, cellPadding: 5 },
         columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-        headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42] }
+        headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42] },
+        didParseCell: (data) => {
+          if (data.section === 'head' && data.column.index === 1) {
+            data.cell.styles.halign = 'right';
+          }
+        }
       });
 
       currentY = (doc as any).lastAutoTable.finalY + 20;
@@ -387,7 +392,12 @@ export default function Inventory() {
         theme: 'striped',
         styles: { fontSize: 10, cellPadding: 6 },
         headStyles: { fillColor: [15, 23, 42], textColor: 255 },
-        columnStyles: { 2: { halign: 'right', fontStyle: 'bold' } }
+        columnStyles: { 2: { halign: 'right', fontStyle: 'bold' } },
+        didParseCell: (data) => {
+          if (data.section === 'head' && data.column.index === 2) {
+            data.cell.styles.halign = 'right';
+          }
+        }
       });
 
       currentY = (doc as any).lastAutoTable.finalY + 15;
