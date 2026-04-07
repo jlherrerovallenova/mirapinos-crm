@@ -415,7 +415,8 @@ export default function Inventory() {
       doc.setFontSize(8); doc.setTextColor(150);
       doc.text("Página 2 de 2 | FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, pageHeight - 10, { align: 'center' });
 
-      window.open(doc.output('bloburl'), '_blank');
+      const fileName = `Simulacion_hipotecaria_Mirapinos_Chalet_n_${property.numero_vivienda}.pdf`;
+      doc.save(fileName);
     } catch (e) { console.error(e); }
   };
 
