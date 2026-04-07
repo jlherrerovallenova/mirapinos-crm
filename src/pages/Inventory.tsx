@@ -284,7 +284,8 @@ export default function Inventory() {
       doc.setFont('helvetica', 'bold'); doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
       doc.text("FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, 285, { align: 'center' });
 
-      window.open(doc.output('bloburl'), '_blank');
+      const fileName = `Forma_Pago_Mirapinos_Chalet_n_${property.numero_vivienda}.pdf`;
+      doc.save(fileName);
     } catch (error) {
       console.error('Error generating payment form:', error);
       await showAlert({ title: 'Error', message: 'No se pudo generar la forma de pago.' });
