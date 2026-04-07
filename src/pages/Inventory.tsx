@@ -327,29 +327,27 @@ export default function Inventory() {
       };
 
       // --- PÁGINA 1: HIPOTECA ---
-      addHeaderStyle('SIMULACIÓN HIPOTECARIA', `Viv. No. ${property.numero_vivienda} | Modelo ${property.modelo} | ${new Date().toLocaleDateString('es-ES')}`);
-
+      addHeaderStyle('PLAN DE FINANCIACIÓN', `SIMULACIÓN HIPOTECARIA | Viv. No. ${property.numero_vivienda} | ${new Date().toLocaleDateString('es-ES')}`);
       let currentY = 60;
+
       const principal = property.precio * (1 - downPaymentPct / 100);
       const monthlyRate = (rate / 100) / 12;
       const numberOfPayments = termYears * 12;
       const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
-      const totalInterest = (monthlyPayment * numberOfPayments) - principal;
 
       doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
       doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-      doc.text('RESUMEN DE FINANCIACIÓN', margin, currentY);
-      
+      doc.text('DATOS DE LA OPERACIÓN', margin, currentY);
       currentY += 10;
       autoTable(doc, {
         startY: currentY,
-        head: [['Concepto', 'Detalle']],
+        head: [['Parámetro', 'Valor']],
         body: [
           ['Precio Venta', formatLocalCurrency(property.precio)],
-          ['Aportación Inicial', formatLocalCurrency(property.precio * (downPaymentPct / 100))],
-          ['Capital Hipotecado', formatLocalCurrency(principal)],
-          ['Tipo Interés Anual', `${rate.toFixed(2)} %`],
-          ['Plazo Amortización', `${termYears} años (${numberOfPayments} meses)`],
+          ['Entrada Solicitada', formatLocalCurrency(property.precio * (downPaymentPct / 100))],
+          ['Capital a Financiar', formatLocalCurrency(principal)],
+          ['Tipo Interés Aplicado', `${rate.toFixed(2)} %`],
+          ['Plazo del Préstamo', `${termYears} años`],
         ],
         theme: 'plain', styles: { fontSize: 10, cellPadding: 5 },
         columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
@@ -358,25 +356,72 @@ export default function Inventory() {
 
       currentY = (doc as any).lastAutoTable.finalY + 20;
       doc.setFillColor(grayUltraLight[0], grayUltraLight[1], grayUltraLight[2]);
-      doc.setDrawColor(226, 232, 240);
       doc.roundedRect(margin, currentY, contentWidth, 35, 4, 4, 'FD');
       doc.setTextColor(slateLight[0], slateLight[1], slateLight[2]);
-      doc.setFontSize(10); doc.text('CUOTA MENSUAL ESTIMADA', pageWidth / 2, currentY + 12, { align: 'center' });
+      doc.setFontSize(10); doc.text('MENSUALIDAD ESTIMADA', pageWidth / 2, currentY + 12, { align: 'center' });
       doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
       doc.setFontSize(28); doc.text(formatLocalCurrency(monthlyPayment), pageWidth / 2, currentY + 26, { align: 'center' });
 
-      currentY += 50;
-      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFontSize(12);
-      doc.text('TOTAL INTERESES ESTIMADOS', margin, currentY);
-      doc.setFont('helvetica', 'normal'); doc.text(formatLocalCurrency(totalInterest), margin + contentWidth, currentY, { align: 'right' });
+      doc.setFontSize(8); doc.setTextColor(150);
+      doc.text("Página 1 de 3 | Documento de carácter informativo.", pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      // --- PÁGINA 2: TABLA DE AMORTIZACIÓN ---
+      doc.addPage();
+      addHeaderStyle('TABLA DE AMORTIZACIÓN', 'Evolución detallada del capital e intereses a lo largo de la vida del préstamo.');
+      
+      currentY = 60;
+      const scheduleRows = [];
+      let remainingBalance = principal;
+      const midYear = Math.floor(termYears / 2);
+      
+      const yearsToShow = [1, 2, 3, 5, midYear, termYears - 2, termYears - 1, termYears];
+      const uniqueYears = [...new Set(yearsToShow)].filter(y => y > 0 && y <= termYears).sort((a,b)=>a-b);
+
+      let yearlyPrincipal = 0;
+      let yearlyInterest = 0;
+
+      for (let m = 1; m <= numberOfPayments; m++) {
+        const interestM = remainingBalance * monthlyRate;
+        const principalM = monthlyPayment - interestM;
+        remainingBalance -= principalM;
+        yearlyPrincipal += principalM;
+        yearlyInterest += interestM;
+
+        if (m % 12 === 0) {
+          const yearNum = m / 12;
+          if (uniqueYears.includes(yearNum)) {
+            scheduleRows.push([
+              `Año ${yearNum}`,
+              formatLocalCurrency(monthlyPayment * 12),
+              formatLocalCurrency(yearlyPrincipal),
+              formatLocalCurrency(yearlyInterest),
+              formatLocalCurrency(Math.max(0, remainingBalance))
+            ]);
+          }
+          yearlyPrincipal = 0;
+          yearlyInterest = 0;
+        }
+      }
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Periodo', 'Pago Anual', 'Capital Pagado', 'Intereses Año', 'Pendiente']],
+        body: scheduleRows,
+        theme: 'striped',
+        styles: { fontSize: 9, cellPadding: 4 },
+        headStyles: { fillColor: [15, 23, 42], textColor: 255 },
+        columnStyles: { 
+          1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } 
+        }
+      });
 
       doc.setFontSize(8); doc.setTextColor(150);
-      doc.text("Página 1 de 2 | Simulación meramente informativa.", pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.text("Página 2 de 3 | Evolución estimada según sistema francés.", pageWidth / 2, pageHeight - 10, { align: 'center' });
 
-      // --- PÁGINA 2: GASTOS ---
+      // --- PÁGINA 3: GASTOS DE COMPRAVENTA ---
       doc.addPage();
-      addHeaderStyle('GASTOS DE COMPRAVENTA', `Desglose detallado de tributos y gastos asociados para Viv. No. ${property.numero_vivienda}`);
-
+      addHeaderStyle('GASTOS DE COMPRAVENTA', 'Resumen de impuestos y gastos asociados a la adquisición.');
+      
       currentY = 60;
       const ajdAmount = property.precio * 0.015;
       const notaryAmount = property.precio * 0.005;
@@ -385,43 +430,31 @@ export default function Inventory() {
       const tasacionAmount = 400;
       const totalExpenses = ajdAmount + notaryAmount + registryAmount + gestoriaAmount + tasacionAmount;
 
-      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
-      doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-      doc.text('GASTOS ASOCIADOS A LA OPERACIÓN', margin, currentY);
-
-      currentY += 10;
       autoTable(doc, {
         startY: currentY,
-        head: [['Concepto', 'Importe Estimado']],
+        head: [['Concepto', 'Base / Tipo', 'Importe']],
         body: [
-          ['I.T.P / A.J.D (1,5%)', formatLocalCurrency(ajdAmount)],
-          ['Notaría (Escritura Compraventa)', formatLocalCurrency(notaryAmount)],
-          ['Registro de la Propiedad', formatLocalCurrency(registryAmount)],
-          ['Gestoría (Tramitación)', formatLocalCurrency(gestoriaAmount)],
-          ['Tasación Hipotecaria (aprox.)', formatLocalCurrency(tasacionAmount)],
+          ['I.T.P / A.J.D', '1.50 %', formatLocalCurrency(ajdAmount)],
+          ['Notaría (Estimado)', 'Aranceles', formatLocalCurrency(notaryAmount)],
+          ['Registro de la Propiedad', 'Aranceles', formatLocalCurrency(registryAmount)],
+          ['Gestoría Técnica', 'Fijo', formatLocalCurrency(gestoriaAmount)],
+          ['Tasación Oficial', 'Fijo Est.', formatLocalCurrency(tasacionAmount)],
         ],
-        theme: 'striped', styles: { fontSize: 10, cellPadding: 6 },
+        theme: 'striped',
+        styles: { fontSize: 10, cellPadding: 6 },
         headStyles: { fillColor: [15, 23, 42], textColor: 255 },
-        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } }
+        columnStyles: { 2: { halign: 'right', fontStyle: 'bold' } }
       });
 
       currentY = (doc as any).lastAutoTable.finalY + 15;
       doc.setFillColor(slateDark[0], slateDark[1], slateDark[2]);
       doc.roundedRect(margin, currentY, contentWidth, 20, 3, 3, 'F');
-      doc.setTextColor(255); doc.setFontSize(12); doc.text('TOTAL GASTOS COMPRAVENTA (ESTIMADOS)', margin + 8, currentY + 12.5);
+      doc.setTextColor(255); doc.setFontSize(12);
+      doc.text('TOTAL GASTOS COMPRAVENTA (ESTIMADOS)', margin + 8, currentY + 12.5);
       doc.setFontSize(14); doc.text(formatLocalCurrency(totalExpenses), margin + contentWidth - 8, currentY + 12.5, { align: 'right' });
 
-      currentY += 40;
-      doc.setFillColor(255, 251, 235); doc.setDrawColor(245, 158, 11);
-      doc.roundedRect(margin, currentY, contentWidth, 25, 2, 2, 'FD');
-      doc.setTextColor(146, 64, 14); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-      doc.text('INFORMACIÓN ADICIONAL:', margin + 5, currentY + 7);
-      doc.setFont('helvetica', 'normal');
-      const infoText = "Estos importes son estimaciones basadas en tipos impositivos y aranceles estándar. No incluyen el IVA de la vivienda (10%) que se liquida con el pago del precio.";
-      doc.text(doc.splitTextToSize(infoText, contentWidth - 10), margin + 5, currentY + 13);
-
       doc.setFontSize(8); doc.setTextColor(150);
-      doc.text("Página 2 de 2 | FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.text("Página 3 de 3 | FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, pageHeight - 10, { align: 'center' });
 
       window.open(doc.output('bloburl'), '_blank');
     } catch (e) { console.error(e); }
