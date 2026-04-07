@@ -12,7 +12,9 @@ import {
   FileText,
   CreditCard,
   Calculator,
-  X
+  X,
+  Copy,
+  Trash2
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -169,8 +171,9 @@ export default function Inventory() {
     }
   };
 
-  const handleGeneratePaymentForm = async (property: Property) => {
+  const handleGeneratePaymentPlan = async (property: Property) => {
     try {
+      setIsExporting(true);
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const getBase64Image = (url: string): Promise<{ data: string, width: number, height: number } | null> => {
         return new Promise((resolve) => {
@@ -287,8 +290,10 @@ export default function Inventory() {
       const fileName = `Forma_Pago_Mirapinos_Chalet_n_${property.numero_vivienda}.pdf`;
       doc.save(fileName);
     } catch (error) {
-      console.error('Error generating payment form:', error);
+      console.error('Error generating payment plan:', error);
       await showAlert({ title: 'Error', message: 'No se pudo generar la forma de pago.' });
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -421,12 +426,48 @@ export default function Inventory() {
     } catch (e) { console.error(e); }
   };
 
+  const handleClone = async (property: Property) => {
+    try {
+      const { id, created_at, ...cloneData } = property;
+      const { error } = await supabase
+        .from('inventory')
+        .insert([{
+          ...cloneData,
+          numero_vivienda: `${property.numero_vivienda} (Copia)`,
+          estado_vivienda: 'DISPONIBLE'
+        }] as any);
+
+      if (error) throw error;
+      fetchProperties();
+    } catch (error) {
+      console.error('Error cloning property:', error);
+    }
+  };
+
+  const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
+
+  const confirmDelete = async () => {
+    if (!propertyToDelete) return;
+    try {
+      const { error } = await supabase
+        .from('inventory')
+        .delete()
+        .eq('id', propertyToDelete.id);
+
+      if (error) throw error;
+      fetchProperties();
+      setPropertyToDelete(null);
+    } catch (error) {
+      console.error('Error deleting property:', error);
+    }
+  };
+
   return (
     <div className="p-6 md:p-8 space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventario de Viviendas</h1>
-          <p className="text-slate-500 mt-1 font-medium">Gestión profesional del catálogo de activos.</p>
+          <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Inventario de Viviendas</h1>
+          <p className="text-slate-500 text-sm mt-1">Gestión profesional del catálogo de activos.</p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto">
           <button
@@ -492,35 +533,80 @@ export default function Inventory() {
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Hab / Baños</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-32">Precio</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-40">Estado</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-40">Acciones</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-right w-48">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredProperties.map((property) => (
                   <tr key={property.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-6 py-5 text-center font-bold text-slate-700">{property.numero_vivienda}</td>
+                    <td className="px-6 py-5">
+                      <div className="flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                          {property.numero_vivienda}
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-6 py-5 font-semibold text-slate-600 text-center">{property.modelo}</td>
                     <td className="px-6 py-5 text-center text-sm font-bold text-slate-800">
                       {formatSurface(property.superficie_parcela)} / {formatSurface(property.superficie_util)} <span className="text-[10px] normal-case text-slate-400">m²</span>
                     </td>
-                    <td className="px-6 py-5">
+                    <td className="px-6 py-5 text-center">
                       <div className="flex items-center justify-center gap-4 text-slate-500">
                         <div className="flex items-center gap-1.5"><BedDouble size={16} /><span className="font-bold">{property.habitaciones}</span></div>
                         <div className="flex items-center gap-1.5"><Bath size={16} /><span className="font-bold">{property.banos}</span></div>
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-center"><span className="inline-flex px-3 py-1 rounded-lg bg-slate-900 text-white font-bold text-sm">{formatCurrency(property.precio)}</span></td>
+                    <td className="px-6 py-5 text-center">
+                      <span className="inline-flex px-3 py-1 rounded-lg bg-slate-900 text-white font-bold text-sm">
+                        {formatCurrency(property.precio)}
+                      </span>
+                    </td>
                     <td className="px-6 py-5 text-center">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
                         property.estado_vivienda === 'DISPONIBLE' ? 'bg-emerald-100 text-emerald-700' :
-                        property.estado_vivienda === 'RESERVADA' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'
+                        property.estado_vivienda === 'RESERVADA' ? 'bg-amber-100 text-amber-700' : 
+                        property.estado_vivienda === 'CONTRATO CV' ? 'bg-blue-100 text-blue-700' :
+                        property.estado_vivienda === 'ESCRITURADA' ? 'bg-purple-100 text-purple-700' :
+                        'bg-slate-100 text-slate-700'
                       }`}>{property.estado_vivienda || 'DISPONIBLE'}</span>
                     </td>
                     <td className="px-6 py-5">
-                      <div className="flex justify-center gap-2">
-                        <button onClick={() => handleGeneratePaymentForm(property)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg" title="Forma de Pago"><CreditCard size={18} /></button>
-                        <button onClick={() => { setSelectedPropertyForMortgage(property); setIsMortgageModalOpen(true); }} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg" title="Simulator"><Calculator size={18} /></button>
-                        <button onClick={() => { setEditingProperty(property); setIsModalOpen(true); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Editar"><Edit2 size={18} /></button>
+                      <div className="flex justify-end gap-1 px-1">
+                        <button 
+                          onClick={() => handleGeneratePaymentPlan(property)} 
+                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" 
+                          title="Forma de Pago"
+                        >
+                          <CreditCard size={18} />
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedPropertyForMortgage(property); setIsMortgageModalOpen(true); }} 
+                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" 
+                          title="Simulador Hipotecario"
+                        >
+                          <Calculator size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleClone(property)} 
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" 
+                          title="Clonar"
+                        >
+                          <Copy size={18} />
+                        </button>
+                        <button 
+                          onClick={() => { setEditingProperty(property); setIsModalOpen(true); }} 
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" 
+                          title="Editar"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button 
+                          onClick={() => setPropertyToDelete(property)} 
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" 
+                          title="Borrar"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -587,6 +673,22 @@ export default function Inventory() {
               </div>
               <button onClick={() => handleExportMortgagePDF(selectedPropertyForMortgage, interestRate, years, downPayment)} className="w-full py-4 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 flex items-center justify-center gap-2"><FileText size={20} />Generar PDF</button>
               <button onClick={() => setIsMortgageModalOpen(false)} className="w-full py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {propertyToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white max-w-sm w-full rounded-3xl p-8 shadow-2xl text-center">
+            <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Trash2 size={40} />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 mb-2">¿Confirmar borrado?</h3>
+            <p className="text-slate-500 mb-8 font-medium">Estás a punto de eliminar la vivienda <b>#{propertyToDelete.numero_vivienda}</b>. Esta acción no se puede deshacer.</p>
+            <div className="flex flex-col gap-3">
+              <button onClick={confirmDelete} className="w-full py-4 bg-red-600 text-white font-bold rounded-2xl hover:bg-red-700 transition-all active:scale-95">Sí, Eliminar</button>
+              <button onClick={() => setPropertyToDelete(null)} className="w-full py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all active:scale-95">Cancelar</button>
             </div>
           </div>
         </div>

@@ -106,7 +106,8 @@ export default function Newsletters() {
 
     return (
         <div className="animate-in fade-in duration-500">
-            <div className="flex justify-between items-end mb-8">
+            {/* CABECERA UNIFICADA */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
                     <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Campañas de Email</h1>
                     <p className="text-slate-500 text-sm mt-1">Crea y envía newsletters a tus clientes suscritos.</p>

@@ -129,22 +129,22 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
 
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+        {/* Cabecera Estandarizada */}
+        <div className="px-6 py-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-600 text-white rounded-lg flex items-center justify-center shadow-md">
               <Home size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-800">{initialData ? 'Editar Propiedad' : 'Nueva Propiedad'}</h3>
-              <p className="text-xs text-slate-500">Datos técnicos del activo en Mirapinos</p>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">{initialData ? 'Editar Propiedad' : 'Nueva Propiedad'}</h2>
+              <p className="text-sm text-slate-500 mt-1">Datos técnicos del activo en Mirapinos</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-lg hover:bg-slate-200"
+            className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-400"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 

@@ -18,7 +18,10 @@ import {
   Upload,
   ArrowUp,
   ArrowDown,
-  ArrowUpDown
+  ArrowUpDown,
+  Globe,
+  Smartphone,
+  Users
 } from 'lucide-react';
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
@@ -200,11 +203,11 @@ export default function Leads() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
 
-      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Clientes</h1>
-            <p className="text-slate-500 text-xs font-medium">
+      {/* CABECERA UNIFICADA */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Clientes</h1>
+          <p className="text-slate-500 text-sm mt-1">
               {totalLeads} prospectos {hasActiveFilters && `(filtrados)`}
             </p>
           </div>
@@ -235,8 +238,9 @@ export default function Leads() {
               <UserPlus size={18} /> <span className="inline">Nuevo Cliente</span>
             </button>
           </div>
-        </div>
+      </div>
 
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
         <div className="flex flex-col lg:flex-row gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
           <div className="relative flex-1 w-full group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={18} />
@@ -380,10 +384,24 @@ export default function Leads() {
                     </div>
                   </div>
 
-                  <div className="md:col-span-1">
-                    <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 rounded-full px-2.5 py-1 truncate block text-center">
-                      {lead.source || 'Directo'}
-                    </span>
+                  <div className="md:col-span-1 flex justify-center">
+                    {(() => {
+                      const src = (lead.source || 'Directo').toLowerCase();
+                      if (src.includes('idealista')) return (
+                        <div className="flex items-center gap-1 bg-white border border-[#E1FF01]/30 p-1 rounded-md shadow-sm" title="Idealista">
+                          <img src="/idealista.png" className="w-5 h-5 rounded-sm object-contain" alt="Idealista" />
+                        </div>
+                      );
+                      if (src.includes('web') || src.includes('google')) return <div title={lead.source || 'Web'} className="p-1.5 bg-blue-50 rounded-lg text-blue-600"><Globe size={14} /></div>;
+                      if (src.includes('insta') || src.includes('facebook') || src.includes('redes')) return <div title={lead.source || 'Social'} className="p-1.5 bg-purple-50 rounded-lg text-purple-600"><Smartphone size={14} /></div>;
+                      if (src.includes('referido') || src.includes('amigo')) return <div title={lead.source || 'Referido'} className="p-1.5 bg-emerald-50 rounded-lg text-emerald-600"><Users size={14} /></div>;
+                      if (src.includes('llamada')) return <div title="Llamada" className="p-1.5 bg-amber-50 rounded-lg text-amber-600"><Phone size={14} /></div>;
+                      return (
+                        <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 rounded-full px-2.5 py-1 truncate block text-center min-w-[70px]">
+                          {lead.source || 'Directo'}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   <div className="md:col-span-2 text-right md:text-left">

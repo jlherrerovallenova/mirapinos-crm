@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Mail, Phone, Save, Trash2, Loader2, Send,
   Clock, Compass, MessageCircle, Calendar as CalendarIcon,
-  CheckCircle2, Circle, Plus, Pencil, RotateCcw, Smartphone, Users
+  CheckCircle2, Circle, Plus, Pencil, RotateCcw, Smartphone, Users, Globe
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -399,8 +399,18 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Origen</label>
-                        <div className="relative">
-                          <Compass className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <div className="relative group/source">
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                            {(() => {
+                              const src = (formData.source || '').toLowerCase();
+                              if (src.includes('idealista')) return <img src="/idealista.png" className="w-4 h-4 object-contain rounded-sm" alt="" />;
+                              if (src.includes('web') || src.includes('google')) return <Globe className="text-blue-500" size={16} />;
+                              if (src.includes('social') || src.includes('redes') || src.includes('insta')) return <Smartphone className="text-purple-500" size={16} />;
+                              if (src.includes('referido')) return <Users className="text-emerald-500" size={16} />;
+                              if (src.includes('llamada')) return <Phone className="text-amber-500" size={16} />;
+                              return <Compass className="text-slate-400" size={16} />;
+                            })()}
+                          </div>
                           <select
                             name="source"
                             value={formData.source}
@@ -409,11 +419,15 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                           >
                             <option value="Idealista">Idealista</option>
                             <option value="Web">Web</option>
+                            <option value="Google">Google</option>
                             <option value="Redes Sociales">Redes Sociales</option>
                             <option value="Referido">Referido</option>
                             <option value="Llamada">Llamada</option>
                             <option value="Otro">Otro</option>
                           </select>
+                          <div className="absolute right-3 top-1/2 -translate-y-0.5 pointer-events-none">
+                            <Compass size={12} className="text-slate-300" />
+                          </div>
                         </div>
                       </div>
                       <div>

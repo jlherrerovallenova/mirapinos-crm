@@ -15,7 +15,8 @@ import {
   Circle,
   AlertCircle,
   Search,
-  Plus
+  Plus,
+  Phone
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
@@ -209,9 +210,11 @@ export default function Dashboard() {
   // --- HELPERS DE UI ---
   const getSourceIcon = (sourceName: string) => {
     const lower = sourceName.toLowerCase();
+    if (lower.includes('idealista')) return <img src="/idealista.png" alt="Idealista" className="w-4 h-4 object-contain rounded" />;
     if (lower.includes('web') || lower.includes('google')) return <Globe className="text-blue-600" size={16} />;
     if (lower.includes('insta') || lower.includes('facebook') || lower.includes('redes')) return <Smartphone className="text-purple-600" size={16} />;
     if (lower.includes('referido') || lower.includes('amigo')) return <Users className="text-emerald-600" size={16} />;
+    if (lower.includes('llamada')) return <Phone className="text-amber-600" size={16} />;
     return <HelpCircle className="text-slate-400" size={16} />;
   };
 
@@ -226,11 +229,11 @@ export default function Dashboard() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
 
-      {/* CABECERA CON CTAs RÁPIDOS */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* CABECERA UNIFICADA */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Panel de Control</h1>
-          <p className="text-slate-500">Hola {session?.user.email?.split('@')[0]}, resumen de actividad.</p>
+          <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Panel de Control</h1>
+          <p className="text-slate-500 text-sm mt-1">Hola {session?.user.email?.split('@')[0]}, resumen de actividad.</p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
           <button

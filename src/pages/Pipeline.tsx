@@ -102,7 +102,8 @@ export default function Pipeline() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500 overflow-hidden">
-      <div className="flex justify-between items-end mb-6 shrink-0">
+      {/* CABECERA UNIFICADA */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
         <div>
           <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Fases de Venta</h1>
           <p className="text-slate-500 text-sm mt-1">Arrastra las tarjetas para avanzar de fase.</p>
