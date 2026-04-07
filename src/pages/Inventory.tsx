@@ -4,16 +4,16 @@ import {
   Plus,
   Search,
   Edit2,
-  Trash2,
   Loader2,
   Home,
   BedDouble,
   Bath,
   AlertTriangle,
   Filter,
-  Copy,
   FileText,
-  CreditCard
+  CreditCard,
+  Calculator,
+  X
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -48,6 +48,13 @@ export default function Inventory() {
   const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isMortgageModalOpen, setIsMortgageModalOpen] = useState(false);
+  const [selectedPropertyForMortgage, setSelectedPropertyForMortgage] = useState<Property | null>(null);
+
+  // Estados para el Simulador
+  const [interestRate, setInterestRate] = useState(3.5);
+  const [years, setYears] = useState(30);
+  const [downPayment, setDownPayment] = useState(20); // Porcentaje
 
   const formatSurface = (num: number) => {
     return new Intl.NumberFormat('es-ES', { 
@@ -112,13 +119,6 @@ export default function Inventory() {
     } finally {
       setIsDeleting(false);
     }
-  };
-
-  const handleClone = (property: Property) => {
-    // Para clonar, pasamos los datos pero SIN el ID
-    const { id, created_at, ...cloneData } = property;
-    setEditingProperty(cloneData as any);
-    setIsModalOpen(true);
   };
 
   const filteredProperties = properties.filter(p => {
@@ -675,11 +675,14 @@ export default function Inventory() {
                           <CreditCard size={18} />
                         </button>
                         <button
-                          onClick={() => handleClone(property)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                          title="Clonar Vivienda"
+                          onClick={() => {
+                            setSelectedPropertyForMortgage(property);
+                            setIsMortgageModalOpen(true);
+                          }}
+                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                          title="Simulador de Hipoteca"
                         >
-                          <Copy size={18} />
+                          <Calculator size={18} />
                         </button>
                         <button
                           onClick={() => {
@@ -690,13 +693,6 @@ export default function Inventory() {
                           title="Editar"
                         >
                           <Edit2 size={18} />
-                        </button>
-                        <button
-                          onClick={() => setPropertyToDelete(property)}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                          title="Borrar"
-                        >
-                          <Trash2 size={18} />
                         </button>
                       </div>
                     </td>
@@ -759,6 +755,107 @@ export default function Inventory() {
           }}
           initialData={editingProperty}
         />
+      )}
+
+      {/* Modal Simulador de Hipoteca */}
+      {isMortgageModalOpen && selectedPropertyForMortgage && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-emerald-600 p-6 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-white mb-1">Simulador Hipotecario</h3>
+                <p className="text-emerald-50 text-xs">Vivienda No. {selectedPropertyForMortgage.numero_vivienda} - Modelo {selectedPropertyForMortgage.modelo}</p>
+              </div>
+              <button 
+                onClick={() => setIsMortgageModalOpen(false)}
+                className="text-white/80 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Precio Vivienda</label>
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700">
+                    {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(selectedPropertyForMortgage.precio)}
+                  </div>
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Entrada (%)</label>
+                  <input
+                    type="number"
+                    value={downPayment}
+                    onChange={(e) => setDownPayment(Number(e.target.value))}
+                    className="w-full p-3 bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Interés Anual (%)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={interestRate}
+                    onChange={(e) => setInterestRate(Number(e.target.value))}
+                    className="w-full p-3 bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                  />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Plazo (Años)</label>
+                  <input
+                    type="number"
+                    value={years}
+                    onChange={(e) => setYears(Number(e.target.value))}
+                    className="w-full p-3 bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Cálculo en tiempo real */}
+              <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col items-center">
+                <p className="text-slate-500 text-sm font-medium mb-2">Cuota mensual estimada</p>
+                <div className="bg-emerald-50 px-8 py-4 rounded-3xl border border-emerald-100 shadow-sm text-center">
+                  <span className="text-4xl font-black text-emerald-700">
+                    {(() => {
+                      const principal = selectedPropertyForMortgage.precio * (1 - downPayment / 100);
+                      const monthlyRate = (interestRate / 100) / 12;
+                      const numberOfPayments = years * 12;
+                      
+                      const monthlyPayment = principal * 
+                        (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / 
+                        (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
+                        
+                      return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(monthlyPayment || 0);
+                    })()}
+                  </span>
+                </div>
+                <div className="mt-6 p-4 bg-slate-50 rounded-2xl w-full">
+                  <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    <span>Capital a financiar:</span>
+                    <span className="text-slate-900">{new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(selectedPropertyForMortgage.precio * (1 - downPayment/100))}</span>
+                  </div>
+                  <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <span>Entrada inicial ({downPayment}%):</span>
+                    <span className="text-slate-900">{new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(selectedPropertyForMortgage.precio * (downPayment/100))}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <button
+                onClick={() => setIsMortgageModalOpen(false)}
+                className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all active:scale-95"
+              >
+                Cerrar Simulador
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
