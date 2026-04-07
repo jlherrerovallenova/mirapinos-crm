@@ -371,7 +371,7 @@ export default function Inventory() {
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100);
-      doc.text(`Vivienda No. ${property.numero_vivienda} | Modelo ${property.modelo} | ${new Date().toLocaleDateString('es-ES')}`, margin, titleY + 6);
+        doc.text(`Vivienda No. ${property.numero_vivienda} | Modelo ${property.modelo} | ${new Date().toLocaleDateString('es-ES')}`, margin, titleY + 6);
 
       // --- RESUMEN DE IMPORTES (CARD) ---
       const summaryY = titleY + 15;
@@ -380,38 +380,51 @@ export default function Inventory() {
 
       const basePrice = property.precio;
       const iva = basePrice * 0.1;
-      const total = basePrice + iva;
+      const ajd = basePrice * 0.015;
+      const total = basePrice + iva + ajd;
 
-      // Importe Base
+      const colWSummary = contentWidth / 4;
+
+      // Importe Base (Col 1)
       doc.setFontSize(9);
       doc.setTextColor(120);
-      doc.text('IMPORTE BASE', margin + 10, summaryY + 10);
+      doc.text('IMPORTE BASE', margin + 5, summaryY + 10);
       doc.setFontSize(12);
       doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
       doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(basePrice), margin + 10, summaryY + 17);
+      doc.text(formatCurrency(basePrice), margin + 5, summaryY + 17);
 
-      // IVA
+      // IVA (Col 2)
       doc.setFontSize(9);
       doc.setTextColor(120);
       doc.setFont('helvetica', 'normal');
-      doc.text('IVA (10%)', margin + (contentWidth/3) + 10, summaryY + 10);
+      doc.text('IVA (10%)', margin + colWSummary + 5, summaryY + 10);
       doc.setFontSize(12);
       doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
       doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(iva), margin + (contentWidth/3) + 10, summaryY + 17);
+      doc.text(formatCurrency(iva), margin + colWSummary + 5, summaryY + 17);
 
-      // TOTAL DESTACADO
+      // AJD (Col 3)
+      doc.setFontSize(9);
+      doc.setTextColor(120);
+      doc.setFont('helvetica', 'normal');
+      doc.text('AJD (1,5%)', margin + (colWSummary * 2) + 5, summaryY + 10);
+      doc.setFontSize(12);
+      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatCurrency(ajd), margin + (colWSummary * 2) + 5, summaryY + 17);
+
+      // TOTAL DESTACADO (Col 4)
       doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-      doc.roundedRect(margin + (contentWidth * 2/3), summaryY, (contentWidth/3), 25, 3, 3, 'F');
+      doc.roundedRect(margin + (colWSummary * 3), summaryY, colWSummary, 25, 3, 3, 'F');
       doc.setTextColor(255);
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text('TOTAL VIVIENDA', margin + contentWidth - 10, summaryY + 10, { align: 'right' });
+      doc.text('TOTAL VIVIENDA', margin + contentWidth - 5, summaryY + 10, { align: 'right' });
       
-      doc.setFontSize(18);
+      doc.setFontSize(15);
       doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(total), margin + contentWidth - 10, summaryY + 18, { align: 'right' });
+      doc.text(formatCurrency(total), margin + contentWidth - 5, summaryY + 17, { align: 'right' });
 
       // --- HITOS DE PAGO ---
       let currentY = 115;
