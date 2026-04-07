@@ -8,7 +8,6 @@ import {
   Home,
   BedDouble,
   Bath,
-  AlertTriangle,
   Filter,
   FileText,
   CreditCard,
@@ -44,9 +43,6 @@ export default function Inventory() {
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const { showAlert } = useDialog();
 
-  // Estados para el nuevo modal de confirmación de borrado
-  const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isMortgageModalOpen, setIsMortgageModalOpen] = useState(false);
   const [selectedPropertyForMortgage, setSelectedPropertyForMortgage] = useState<Property | null>(null);
@@ -102,24 +98,6 @@ export default function Inventory() {
     }
   };
 
-  const confirmDelete = async () => {
-    if (!propertyToDelete) return;
-    try {
-      setIsDeleting(true);
-      const { error } = await supabase
-        .from('inventory')
-        .delete()
-        .eq('id', propertyToDelete.id);
-      if (error) throw error;
-      setProperties(prev => prev.filter(p => p.id !== propertyToDelete.id));
-      setPropertyToDelete(null);
-    } catch (error) {
-      console.error('Error deleting property:', error);
-      await showAlert({ title: 'Error', message: 'Error al intentar eliminar el registro.' });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const filteredProperties = properties.filter(p => {
     const modelMatch = (p.modelo || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -316,79 +294,134 @@ export default function Inventory() {
   const handleExportMortgagePDF = async (property: Property, rate: number, termYears: number, downPaymentPct: number) => {
     try {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth(); const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 20; const contentWidth = pageWidth - (margin * 2);
-      const emeraldPrimary = [16, 185, 129]; const slateDark = [15, 23, 42]; const grayLight = [248, 250, 252];
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      
+      const emeraldPrimary = [5, 150, 105];
+      const slateDark = [15, 23, 42];
+      const slateLight = [100, 116, 139];
+      const grayUltraLight = [248, 250, 252];
 
-      doc.setFillColor(slateDark[0], slateDark[1], slateDark[2]); doc.rect(0, 0, pageWidth, 40, 'F');
-      doc.setTextColor(255); doc.setFontSize(24); doc.setFont('helvetica', 'bold');
-      doc.text('SIMULACIÓN HIPOTECARIA', margin, 25);
-      doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(180);
-      doc.text(`Urb. Mirapinos | Vivienda No. ${property.numero_vivienda} | ${new Date().toLocaleDateString('es-ES')}`, margin, 32);
+      const formatLocalCurrency = (num: number) => new Intl.NumberFormat('es-ES', { 
+        style: 'currency', 
+        currency: 'EUR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(num || 0);
 
-      let currentY = 55;
-      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-      doc.text('RESUMEN DE OPERACIÓN', margin, currentY);
-      currentY += 10; doc.setDrawColor(240, 240, 240); doc.line(margin, currentY, margin + contentWidth, currentY);
-      currentY += 15;
+      const addHeaderStyle = (title: string, subtitle: string) => {
+        doc.setFillColor(slateDark[0], slateDark[1], slateDark[2]);
+        doc.rect(0, 0, pageWidth, 45, 'F');
+        doc.setTextColor(255);
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title, margin, 25);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(160);
+        doc.text(subtitle, margin, 34);
+        doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
+        doc.rect(margin, 38, 40, 1.5, 'F');
+      };
 
+      // --- PÁGINA 1: HIPOTECA ---
+      addHeaderStyle('SIMULACIÓN HIPOTECARIA', `Viv. No. ${property.numero_vivienda} | Modelo ${property.modelo} | ${new Date().toLocaleDateString('es-ES')}`);
+
+      let currentY = 60;
       const principal = property.precio * (1 - downPaymentPct / 100);
       const monthlyRate = (rate / 100) / 12;
       const numberOfPayments = termYears * 12;
       const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
+      const totalInterest = (monthlyPayment * numberOfPayments) - principal;
+
+      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
+      doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+      doc.text('RESUMEN DE FINANCIACIÓN', margin, currentY);
       
-      const formatLocalCurrency = (num: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(num);
-
-      const drawDataBox = (label: string, value: string, x: number, y: number, w: number) => {
-        doc.setFillColor(grayLight[0], grayLight[1], grayLight[2]); doc.roundedRect(x, y, w, 20, 3, 3, 'F');
-        doc.setTextColor(120); doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.text(label.toUpperCase(), x + 5, y + 7);
-        doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFontSize(12); doc.text(value, x + 5, y + 15);
-      };
-
-      const boxWidth = (contentWidth - 10) / 3;
-      drawDataBox('Precio Venta', formatLocalCurrency(property.precio), margin, currentY, boxWidth);
-      drawDataBox('Aportación Inicial', formatLocalCurrency(property.precio * (downPaymentPct / 100)), margin + boxWidth + 5, currentY, boxWidth);
-      drawDataBox('Capital Financiado', formatLocalCurrency(principal), margin + (boxWidth * 2) + 10, currentY, boxWidth);
-
-      currentY += 25;
-      drawDataBox('Tipo de Interés', `${rate}%`, margin, currentY, boxWidth);
-      drawDataBox('Plazo Amortización', `${termYears} años`, margin + boxWidth + 5, currentY, boxWidth);
-      drawDataBox('Cuotas Totales', `${numberOfPayments} meses`, margin + (boxWidth * 2) + 10, currentY, boxWidth);
-
-      currentY += 40;
-      doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-      doc.roundedRect(margin, currentY, contentWidth, 45, 5, 5, 'F');
-      doc.setTextColor(255); doc.setFontSize(14); doc.text('CUOTA MENSUAL ESTIMADA', pageWidth / 2, currentY + 15, { align: 'center' });
-      doc.setFontSize(36); doc.setFont('helvetica', 'bold'); doc.text(formatLocalCurrency(monthlyPayment), pageWidth / 2, currentY + 32, { align: 'center' });
-
-      const expensesNotary = property.precio * 0.004;
-      const expensesRegistry = property.precio * 0.0025;
-      const expensesGestoria = 450;
-      const totalExpenses = expensesNotary + expensesRegistry + expensesGestoria;
-
-      currentY += 65;
-      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-      doc.text('DESGLOSE DE CRÉDITO Y GASTOS', margin, currentY);
-      currentY += 5;
+      currentY += 10;
       autoTable(doc, {
-        startY: currentY, head: [['Concepto', 'Estimado']],
+        startY: currentY,
+        head: [['Concepto', 'Detalle']],
         body: [
-          ['Total Capital Préstamo', formatLocalCurrency(principal)],
-          ['Intereses Totales (aprox.)', formatLocalCurrency((monthlyPayment * numberOfPayments) - principal)],
-          ['Gastos Notaría (est.)', formatLocalCurrency(expensesNotary)],
-          ['Gastos Registro (est.)', formatLocalCurrency(expensesRegistry)],
-          ['Gastos Gestoría (est.)', formatLocalCurrency(expensesGestoria)],
-          ['TOTAL GASTOS COMPRAVENTA', formatLocalCurrency(totalExpenses)]
+          ['Precio Venta', formatLocalCurrency(property.precio)],
+          ['Aportación Inicial', formatLocalCurrency(property.precio * (downPaymentPct / 100))],
+          ['Capital Hipotecado', formatLocalCurrency(principal)],
+          ['Tipo Interés Anual', `${rate.toFixed(2)} %`],
+          ['Plazo Amortización', `${termYears} años (${numberOfPayments} meses)`],
         ],
-        theme: 'striped', headStyles: { fillColor: slateDark, fontSize: 10 },
-        styles: { fontSize: 9, cellPadding: 3 },
+        theme: 'plain', styles: { fontSize: 10, cellPadding: 5 },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+        headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42] }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 20;
+      doc.setFillColor(grayUltraLight[0], grayUltraLight[1], grayUltraLight[2]);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(margin, currentY, contentWidth, 35, 4, 4, 'FD');
+      doc.setTextColor(slateLight[0], slateLight[1], slateLight[2]);
+      doc.setFontSize(10); doc.text('CUOTA MENSUAL ESTIMADA', pageWidth / 2, currentY + 12, { align: 'center' });
+      doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
+      doc.setFontSize(28); doc.text(formatLocalCurrency(monthlyPayment), pageWidth / 2, currentY + 26, { align: 'center' });
+
+      currentY += 50;
+      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]); doc.setFontSize(12);
+      doc.text('TOTAL INTERESES ESTIMADOS', margin, currentY);
+      doc.setFont('helvetica', 'normal'); doc.text(formatLocalCurrency(totalInterest), margin + contentWidth, currentY, { align: 'right' });
+
+      doc.setFontSize(8); doc.setTextColor(150);
+      doc.text("Página 1 de 2 | Simulación meramente informativa.", pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      // --- PÁGINA 2: GASTOS ---
+      doc.addPage();
+      addHeaderStyle('GASTOS DE COMPRAVENTA', `Desglose detallado de tributos y gastos asociados para Viv. No. ${property.numero_vivienda}`);
+
+      currentY = 60;
+      const ajdAmount = property.precio * 0.015;
+      const notaryAmount = property.precio * 0.005;
+      const registryAmount = property.precio * 0.003;
+      const gestoriaAmount = 450;
+      const tasacionAmount = 400;
+      const totalExpenses = ajdAmount + notaryAmount + registryAmount + gestoriaAmount + tasacionAmount;
+
+      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
+      doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+      doc.text('GASTOS ASOCIADOS A LA OPERACIÓN', margin, currentY);
+
+      currentY += 10;
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Concepto', 'Importe Estimado']],
+        body: [
+          ['I.T.P / A.J.D (1,5%)', formatLocalCurrency(ajdAmount)],
+          ['Notaría (Escritura Compraventa)', formatLocalCurrency(notaryAmount)],
+          ['Registro de la Propiedad', formatLocalCurrency(registryAmount)],
+          ['Gestoría (Tramitación)', formatLocalCurrency(gestoriaAmount)],
+          ['Tasación Hipotecaria (aprox.)', formatLocalCurrency(tasacionAmount)],
+        ],
+        theme: 'striped', styles: { fontSize: 10, cellPadding: 6 },
+        headStyles: { fillColor: [15, 23, 42], textColor: 255 },
         columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } }
       });
 
-      doc.setFillColor(grayLight[0], grayLight[1], grayLight[2]); doc.rect(0, pageHeight - 30, pageWidth, 30, 'F');
-      doc.setFontSize(8); doc.setTextColor(150); doc.text("Esta simulación es informativa y no contractual.", pageWidth / 2, pageHeight - 15, { align: 'center' });
-      doc.setFont('helvetica', 'bold'); doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-      doc.text("FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, pageHeight - 8, { align: 'center' });
+      currentY = (doc as any).lastAutoTable.finalY + 15;
+      doc.setFillColor(slateDark[0], slateDark[1], slateDark[2]);
+      doc.roundedRect(margin, currentY, contentWidth, 20, 3, 3, 'F');
+      doc.setTextColor(255); doc.setFontSize(12); doc.text('TOTAL GASTOS COMPRAVENTA (ESTIMADOS)', margin + 8, currentY + 12.5);
+      doc.setFontSize(14); doc.text(formatLocalCurrency(totalExpenses), margin + contentWidth - 8, currentY + 12.5, { align: 'right' });
+
+      currentY += 40;
+      doc.setFillColor(255, 251, 235); doc.setDrawColor(245, 158, 11);
+      doc.roundedRect(margin, currentY, contentWidth, 25, 2, 2, 'FD');
+      doc.setTextColor(146, 64, 14); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+      doc.text('INFORMACIÓN ADICIONAL:', margin + 5, currentY + 7);
+      doc.setFont('helvetica', 'normal');
+      const infoText = "Estos importes son estimaciones basadas en tipos impositivos y aranceles estándar. No incluyen el IVA de la vivienda (10%) que se liquida con el pago del precio.";
+      doc.text(doc.splitTextToSize(infoText, contentWidth - 10), margin + 5, currentY + 13);
+
+      doc.setFontSize(8); doc.setTextColor(150);
+      doc.text("Página 2 de 2 | FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, pageHeight - 10, { align: 'center' });
 
       window.open(doc.output('bloburl'), '_blank');
     } catch (e) { console.error(e); }
