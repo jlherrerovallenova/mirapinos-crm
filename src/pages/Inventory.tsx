@@ -471,19 +471,17 @@ export default function Inventory() {
         currentY += cardHeight + 5;
       };
 
-      const hito1 = 6000;
-      const hito2 = (total * 0.1) - 6000;
-      const hito3 = (total * 0.1);
-      const hito4 = (total * 0.8);
+      const hito1 = (total * 0.1);
+      const hito2 = (total * 0.1);
+      const hito3 = (total * 0.8);
 
-      renderPhase('1', 'RESERVA DE VIVIENDA', hito1, 'Pago inicial para bloqueo de unidad en inventario.');
-      renderPhase('2', 'FIRMA DE CONTRATO', hito2, 'A la firma del contrato privado de compraventa (10% - Reserva).');
+      renderPhase('1', 'FIRMA DE CONTRATO', hito1, 'A la firma del contrato privado de compraventa (10% del total).');
       
       // Especial para cuotas
-      const cuota = hito3 / 24;
-      renderPhase('3', 'PAGOS APLAZADOS', hito3, `24 Cuotas mensuales de ${formatCurrency(cuota)} cada una.`);
+      const cuota = hito2 / 24;
+      renderPhase('2', 'PAGOS APLAZADOS', hito2, `24 Cuotas mensuales de ${formatCurrency(cuota)} cada una.`);
       
-      renderPhase('4', 'ESCRITURA PÚBLICA', hito4, 'Entrega de llaves y firma ante notario (80% restante).', true);
+      renderPhase('3', 'ESCRITURA PÚBLICA', hito3, 'Entrega de llaves y firma ante notario (80% restante).', true);
 
       // --- PIE DE PÁGINA ---
       doc.setFillColor(grayLight[0], grayLight[1], grayLight[2]);
