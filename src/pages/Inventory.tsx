@@ -405,12 +405,13 @@ export default function Inventory() {
       doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
       doc.roundedRect(margin + (contentWidth * 2/3), summaryY, (contentWidth/3), 25, 3, 3, 'F');
       doc.setTextColor(255);
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text('TOTAL VIVIENDA', margin + (contentWidth * 2/3) + 8, summaryY + 10);
-      doc.setFontSize(14);
+      doc.text('TOTAL VIVIENDA', margin + contentWidth - 10, summaryY + 10, { align: 'right' });
+      
+      doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(total), margin + (contentWidth * 2/3) + 8, summaryY + 17);
+      doc.text(formatCurrency(total), margin + contentWidth - 10, summaryY + 18, { align: 'right' });
 
       // --- HITOS DE PAGO ---
       let currentY = 115;
