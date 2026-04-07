@@ -381,50 +381,46 @@ export default function Inventory() {
       const basePrice = property.precio;
       const iva = basePrice * 0.1;
       const ajd = basePrice * 0.015;
-      const total = basePrice + iva + ajd;
+      const total = basePrice + iva;
 
-      const colWSummary = contentWidth / 4;
+      const colWSummary = contentWidth / 3;
 
       // Importe Base (Col 1)
       doc.setFontSize(9);
       doc.setTextColor(120);
-      doc.text('IMPORTE BASE', margin + 5, summaryY + 10);
+      doc.text('IMPORTE BASE', margin + 8, summaryY + 10);
       doc.setFontSize(12);
       doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
       doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(basePrice), margin + 5, summaryY + 17);
+      doc.text(formatCurrency(basePrice), margin + 8, summaryY + 17);
 
       // IVA (Col 2)
       doc.setFontSize(9);
       doc.setTextColor(120);
       doc.setFont('helvetica', 'normal');
-      doc.text('IVA (10%)', margin + colWSummary + 5, summaryY + 10);
+      doc.text('IVA (10%)', margin + colWSummary + 8, summaryY + 10);
       doc.setFontSize(12);
       doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
       doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(iva), margin + colWSummary + 5, summaryY + 17);
+      doc.text(formatCurrency(iva), margin + colWSummary + 8, summaryY + 17);
 
-      // AJD (Col 3)
-      doc.setFontSize(9);
-      doc.setTextColor(120);
-      doc.setFont('helvetica', 'normal');
-      doc.text('AJD (1,5%)', margin + (colWSummary * 2) + 5, summaryY + 10);
-      doc.setFontSize(12);
-      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
-      doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(ajd), margin + (colWSummary * 2) + 5, summaryY + 17);
-
-      // TOTAL DESTACADO (Col 4)
+      // TOTAL DESTACADO (Col 3)
       doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-      doc.roundedRect(margin + (colWSummary * 3), summaryY, colWSummary, 25, 3, 3, 'F');
+      doc.roundedRect(margin + (colWSummary * 2), summaryY, colWSummary, 25, 3, 3, 'F');
       doc.setTextColor(255);
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text('TOTAL VIVIENDA', margin + contentWidth - 5, summaryY + 10, { align: 'right' });
+      doc.text('TOTAL VIVIENDA', margin + contentWidth - 10, summaryY + 10, { align: 'right' });
       
-      doc.setFontSize(15);
+      doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(total), margin + contentWidth - 5, summaryY + 17, { align: 'right' });
+      doc.text(formatCurrency(total), margin + contentWidth - 10, summaryY + 18, { align: 'right' });
+
+      // AJD (Informativo debajo del cuadro)
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.setFont('helvetica', 'italic');
+      doc.text(`* El impuesto de AJD (1,5% s/base) no está incluido en el cálculo del total superior: ${formatCurrency(ajd)}`, margin, summaryY + 30);
 
       // --- HITOS DE PAGO ---
       let currentY = 115;
