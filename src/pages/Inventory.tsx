@@ -53,7 +53,7 @@ export default function Inventory() {
     return new Intl.NumberFormat('es-ES', { 
       minimumFractionDigits: 2, 
       maximumFractionDigits: 2 
-    }).format(num || 0) + ' m²';
+    }).format(num || 0);
   };
 
   useEffect(() => {
@@ -218,7 +218,7 @@ export default function Inventory() {
       addHeader();
 
     // Preparar datos
-    const tableColumn = ["№", "MODELO", "PARCELA", "ÚTIL", "HAB/BAÑOS", "PRECIO", "ESTADO"];
+    const tableColumn = ["№", "MODELO", "PARCELA (m²)", "ÚTIL (m²)", "HAB/BAÑOS", "PRECIO", "ESTADO"];
     const tableRows = filteredProperties.map(p => [
       p.numero_vivienda,
       p.modelo,
@@ -605,8 +605,18 @@ export default function Inventory() {
                 <tr className="bg-slate-50/50 border-b border-slate-100">
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Vivienda</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Modelo</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Parcela</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Útil</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
+                    <div className="flex flex-col items-center">
+                      <span>Parcela</span>
+                      <span className="text-[10px] text-slate-400 normal-case font-medium mt-0.5">m²</span>
+                    </div>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
+                    <div className="flex flex-col items-center">
+                      <span>Útil</span>
+                      <span className="text-[10px] text-slate-400 normal-case font-medium mt-0.5">m²</span>
+                    </div>
+                  </th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Hab / Baños</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Precio</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Estado</th>
