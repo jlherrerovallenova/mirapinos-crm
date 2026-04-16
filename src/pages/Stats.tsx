@@ -213,7 +213,6 @@ export default function Stats() {
       }
     });
 
-    // Guardar PDF
     doc.save(`informe_clientes_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 

@@ -125,9 +125,10 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-          <h2 className="text-lg font-bold text-slate-800">Nueva Tarea en Agenda</h2>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
+        {/* Cabecera Estandarizada */}
+        <div className="px-6 py-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Nueva Tarea en Agenda</h2>
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-400">
             <X size={20} />
           </button>
         </div>

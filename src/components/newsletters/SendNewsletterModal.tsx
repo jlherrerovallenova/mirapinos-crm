@@ -82,18 +82,18 @@ export function SendNewsletterModal({ isOpen, onClose, onSend, isSending }: Send
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
-                {/* Header */}
-                <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+                {/* Cabecera Estandarizada */}
+                <div className="px-6 py-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
                     <div>
-                        <h3 className="text-xl font-bold text-slate-800">Enviar Campaña</h3>
+                        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Enviar Campaña</h2>
                         <p className="text-sm text-slate-500 mt-1">Elige los destinatarios para este envío.</p>
                     </div>
                     <button
                         onClick={onClose}
                         disabled={isSending}
-                        className="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-lg hover:bg-slate-200"
+                        className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-400"
                     >
-                        <X size={24} />
+                        <X size={20} />
                     </button>
                 </div>
 
