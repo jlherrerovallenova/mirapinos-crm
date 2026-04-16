@@ -106,18 +106,20 @@ export default function Newsletters() {
 
     return (
         <div className="animate-in fade-in duration-500">
-            <div className="flex justify-between items-end mb-8">
-                <div>
-                    <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Campañas de Email</h1>
-                    <p className="text-slate-500 text-sm mt-1">Crea y envía newsletters a tus clientes suscritos.</p>
+            <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30 mb-8">
+                <div className="flex justify-between items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Campañas de Email</h1>
+                        <p className="text-slate-500 text-xs font-medium">Crea y envía newsletters a tus clientes suscritos.</p>
+                    </div>
+                    <button
+                        onClick={handleCreate}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs shadow-lg shadow-emerald-500/10 transition-all flex items-center gap-2 active:scale-95"
+                    >
+                        <Plus size={18} />
+                        <span>Nueva Campaña</span>
+                    </button>
                 </div>
-                <button
-                    onClick={handleCreate}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm shadow-emerald-900/20 transition-all flex items-center gap-2"
-                >
-                    <Plus size={18} />
-                    <span>Nueva Campaña</span>
-                </button>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">

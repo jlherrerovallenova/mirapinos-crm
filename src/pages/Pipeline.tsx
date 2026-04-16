@@ -102,13 +102,15 @@ export default function Pipeline() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500 overflow-hidden">
-      <div className="flex justify-between items-end mb-6 shrink-0">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Fases de Venta</h1>
-          <p className="text-slate-500 text-sm mt-1">Arrastra las tarjetas para avanzar de fase.</p>
-        </div>
-        <div className="text-sm font-bold text-slate-500 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
-          Total Activos: <span className="text-slate-900">{leads.length}</span>
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30 mb-8">
+        <div className="flex justify-between md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Fases de Venta</h1>
+            <p className="text-slate-500 text-xs font-medium">Arrastra las tarjetas para avanzar de fase.</p>
+          </div>
+          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-3 py-2 rounded-lg border border-slate-100 hidden sm:block">
+            Pipeline Activo: <span className="text-slate-900 ml-1">{leads.length}</span>
+          </div>
         </div>
       </div>
 

@@ -173,7 +173,7 @@ export default function MainLayout() {
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm z-40 relative flex-shrink-0">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shadow-sm z-40 relative flex-shrink-0">
           {/* IZQUIERDA: Menú móvil */}
           <div className="flex items-center w-1/3">
             <button
@@ -280,7 +280,7 @@ export default function MainLayout() {
         </header>
 
         <div className="flex-1 overflow-auto bg-slate-100/50 relative">
-          <div className="max-w-7xl mx-auto p-4 md:p-8 pb-10">
+          <div className="p-4 md:pt-8 md:px-6 pb-10">
             {/* Pasamos el término de búsqueda a las rutas hijas si fuera necesario */}
             <Outlet context={{ searchTerm }} />
           </div>

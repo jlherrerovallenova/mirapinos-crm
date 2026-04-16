@@ -126,41 +126,43 @@ export default function Agenda() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
       {/* Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <p className="text-emerald-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">Organización</p>
-          <h1 className="text-3xl font-display font-bold text-slate-900">Agenda Global</h1>
-        </div>
-        <div className="flex gap-3">
-          <div className="flex bg-white rounded-xl border border-slate-200 overflow-hidden p-1">
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30 mb-0">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Agenda Global</h1>
+            <p className="text-slate-500 text-xs font-medium">Organización y seguimiento de tareas diarias.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <div className="flex bg-slate-50 rounded-xl border border-slate-200 overflow-hidden p-1 shadow-inner">
+              <button
+                onClick={() => { setFilterStatus('pending'); setPage(1); }}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${filterStatus === 'pending' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Pendientes
+              </button>
+              <button
+                onClick={() => { setFilterStatus('completed'); setPage(1); }}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${filterStatus === 'completed' ? 'bg-white text-emerald-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Completadas
+              </button>
+              <button
+                onClick={() => { setFilterStatus('all'); setPage(1); }}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${filterStatus === 'all' ? 'bg-white text-slate-700 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Todas
+              </button>
+            </div>
+
             <button
-              onClick={() => { setFilterStatus('pending'); setPage(1); }}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${filterStatus === 'pending' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+              onClick={() => setIsCreateModalOpen(true)}
+              className="px-5 py-2.5 bg-slate-900 text-white font-bold rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 text-xs"
             >
-              Pendientes
-            </button>
-            <button
-              onClick={() => { setFilterStatus('completed'); setPage(1); }}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${filterStatus === 'completed' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              Completadas
-            </button>
-            <button
-              onClick={() => { setFilterStatus('all'); setPage(1); }}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${filterStatus === 'all' ? 'bg-slate-100 text-slate-700' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              Todas
+              <Plus size={18} /> Nueva Tarea
             </button>
           </div>
-
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="px-6 py-3 bg-slate-900 text-white font-bold rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95"
-          >
-            <Plus size={20} /> <span className="hidden sm:inline">Nueva Tarea</span>
-          </button>
         </div>
-      </header>
+      </div>
 
       {/* Lista */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[400px]">

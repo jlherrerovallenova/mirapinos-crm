@@ -423,55 +423,57 @@ export default function Inventory() {
 
   return (
     <div className="p-6 md:p-8 space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventario de Viviendas</h1>
-          <p className="text-slate-500 mt-1 font-medium">Gestión profesional del catálogo de activos.</p>
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Inventario de Viviendas</h1>
+            <p className="text-slate-500 text-xs font-medium">Gestión profesional del catálogo de activos.</p>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto">
+            <button
+              onClick={handleExportPDF}
+              disabled={loading || isExporting || filteredProperties.length === 0}
+              className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 disabled:opacity-50"
+            >
+              {isExporting ? <Loader2 className="animate-spin text-emerald-600" size={16} /> : <FileText size={16} className="text-red-500" />}
+              {isExporting ? 'Generando...' : 'Exportar PDF'}
+            </button>
+            <button
+              onClick={() => { setEditingProperty(null); setIsModalOpen(true); }}
+              className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-lg transition-all active:scale-95 shadow-emerald-500/20"
+            >
+              <Plus size={16} /> Añadir Propiedad
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto">
-          <button
-            onClick={handleExportPDF}
-            disabled={loading || isExporting || filteredProperties.length === 0}
-            className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-5 py-3 rounded-2xl font-bold shadow-sm transition-all active:scale-95 disabled:opacity-50 min-w-[150px]"
-          >
-            {isExporting ? <Loader2 className="animate-spin text-emerald-600" size={20} /> : <FileText size={20} className="text-red-500" />}
-            {isExporting ? 'Generando...' : 'Exportar PDF'}
-          </button>
-          <button
-            onClick={() => { setEditingProperty(null); setIsModalOpen(true); }}
-            className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all active:scale-95"
-          >
-            <Plus size={20} /> Añadir Propiedad
-          </button>
-        </div>
-      </div>
 
-      <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
-        <div className="relative flex-1 w-full group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
-          <input
-            type="text"
-            placeholder="Buscar por modelo o número de vivienda..."
-            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none transition-all font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500/20"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="relative w-full md:w-64">
-          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <select
-            value={stateFilter}
-            onChange={(e) => setStateFilter(e.target.value)}
-            className="w-full pl-12 pr-8 py-3 bg-slate-50 border border-slate-100 rounded-2xl outline-none appearance-none cursor-pointer text-slate-700 font-bold"
-          >
-            <option value="">Cualquier Estado</option>
-            <option value="DISPONIBLE">DISPONIBLE</option>
-            <option value="NO DISPONIBLE">NO DISPONIBLE</option>
-            <option value="BLOQUEADA">BLOQUEADA</option>
-            <option value="RESERVADA">RESERVADA</option>
-            <option value="CONTRATO CV">CONTRATO CV</option>
-            <option value="ESCRITURADA">ESCRITURADA</option>
-          </select>
+        <div className="flex flex-col md:flex-row gap-4 items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+          <div className="relative flex-1 w-full group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={18} />
+            <input
+              type="text"
+              placeholder="Buscar por modelo o número de vivienda..."
+              className="w-full pl-12 pr-4 py-2 bg-white border border-slate-200 rounded-lg outline-none transition-all text-sm font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500/20 shadow-sm"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="relative w-full md:w-64">
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <select
+              value={stateFilter}
+              onChange={(e) => setStateFilter(e.target.value)}
+              className="w-full pl-12 pr-8 py-2 bg-white border border-slate-200 rounded-lg outline-none appearance-none cursor-pointer text-sm font-bold text-slate-700 shadow-sm"
+            >
+              <option value="">Cualquier Estado</option>
+              <option value="DISPONIBLE">DISPONIBLE</option>
+              <option value="NO DISPONIBLE">NO DISPONIBLE</option>
+              <option value="BLOQUEADA">BLOQUEADA</option>
+              <option value="RESERVADA">RESERVADA</option>
+              <option value="CONTRATO CV">CONTRATO CV</option>
+              <option value="ESCRITURADA">ESCRITURADA</option>
+            </select>
+          </div>
         </div>
       </div>
 

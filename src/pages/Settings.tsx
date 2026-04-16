@@ -299,10 +299,16 @@ const Settings: React.FC = () => {
 
   return (
     <div className="p-4 max-w-6xl mx-auto">
-      {/* Encabezado Principal */}
-      <div className="flex items-center gap-2 mb-6">
-        <SettingsIcon className="text-emerald-600" size={24} />
-        <h1 className="text-xl font-bold text-slate-800">Configuración del Sistema</h1>
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 border border-emerald-100">
+            <SettingsIcon size={20} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Configuración del Sistema</h1>
+            <p className="text-slate-500 text-xs font-medium">Gestiona tu perfil, documentos e integraciones de terceros.</p>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-6">

@@ -219,40 +219,42 @@ export default function Stats() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Estadísticas y Análisis</h1>
-          <p className="text-slate-500 text-sm font-medium">Análisis de rendimiento y adquisición de clientes.</p>
-        </div>
-        
-        <div className="flex gap-2">
-          <select 
-            value={timeRange} 
-            onChange={(e) => setTimeRange(e.target.value as any)}
-            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-          >
-            <option value="6m">Últimos 6 meses</option>
-            <option value="12m">Últimos 12 meses</option>
-            <option value="all">Histórico total</option>
-          </select>
-          <button 
-            onClick={handleDownloadPDF}
-            disabled={loading || rawLeads.length === 0}
-            className="bg-white border border-slate-200 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-bold"
-            title="Descargar Informe PDF (Horizontal)"
-          >
-            <FileText size={18} className="text-red-500" />
-            PDF
-          </button>
-          <button 
-            onClick={handleDownload}
-            disabled={loading || rawLeads.length === 0}
-            className="bg-white border border-slate-200 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-bold"
-            title="Descargar CSV"
-          >
-            <Download size={18} className="text-emerald-500" />
-            CSV
-          </button>
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Estadísticas y Análisis</h1>
+            <p className="text-slate-500 text-xs font-medium">Análisis de rendimiento y adquisición de clientes.</p>
+          </div>
+          
+          <div className="flex gap-2">
+            <select 
+              value={timeRange} 
+              onChange={(e) => setTimeRange(e.target.value as any)}
+              className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-sm"
+            >
+              <option value="6m">Últimos 6 meses</option>
+              <option value="12m">Últimos 12 meses</option>
+              <option value="all">Histórico total</option>
+            </select>
+            <button 
+              onClick={handleDownloadPDF}
+              disabled={loading || rawLeads.length === 0}
+              className="bg-white border border-slate-200 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-bold shadow-sm"
+              title="Descargar Informe PDF (Horizontal)"
+            >
+              <FileText size={18} className="text-red-500" />
+              PDF
+            </button>
+            <button 
+              onClick={handleDownload}
+              disabled={loading || rawLeads.length === 0}
+              className="bg-white border border-slate-200 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-bold shadow-sm"
+              title="Descargar CSV"
+            >
+              <Download size={18} className="text-emerald-500" />
+              CSV
+            </button>
+          </div>
         </div>
       </div>
 
