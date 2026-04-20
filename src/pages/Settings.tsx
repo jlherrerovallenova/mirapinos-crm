@@ -201,6 +201,13 @@ const Settings: React.FC = () => {
     }
   };
 
+  const sanitizeFileName = (fileName: string) => {
+    return fileName
+      .normalize('NFD')                     // Descompone caracteres con acento (ej: Ó -> O + ´)
+      .replace(/[\u0300-\u036f]/g, '')       // Elimina los acentos
+      .replace(/[^a-zA-Z0-9.-]/g, '_');      // Reemplaza espacios y caracteres especiales por guiones bajos
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -208,37 +215,52 @@ const Settings: React.FC = () => {
     setIsUploading(true);
     try {
       const duplicateFiles: string[] = [];
+      const errorFiles: { name: string; error: string }[] = [];
 
       const uploadPromises = Array.from(files).map(async (file) => {
-        const fullPath = `${uploadCategory}/${file.name}`;
-        const { error } = await supabase.storage.from('documents').upload(fullPath, file);
+        const cleanName = sanitizeFileName(file.name);
+        const fullPath = `${uploadCategory}/${cleanName}`;
+        
+        // Usamos upsert: true para permitir sobrescribir si el usuario lo desea
+        const { error } = await supabase.storage.from('documents').upload(fullPath, file, {
+          upsert: true
+        });
 
         if (error) {
-          if (error.message.includes('already exists') || error.message.includes('Duplicate')) {
+          // @ts-ignore
+          if (error.message?.includes('already exists') || error.message?.includes('Duplicate')) {
             duplicateFiles.push(file.name);
           } else {
-            console.error(`Error al subir ${file.name}:`, error);
+            console.error(`Error al subir ${file.name} como ${cleanName}:`, error);
+            errorFiles.push({ name: file.name, error: error.message });
           }
         }
       });
 
-      // Ejecutar todas las subidas en paralelo
       await Promise.all(uploadPromises);
 
-      if (duplicateFiles.length > 0) {
+      if (errorFiles.length > 0) {
+        const errorList = errorFiles.map(f => `- ${f.name}: ${f.error}`).join('\n');
         await showAlert({
-          title: 'Atención',
-          message: `Se subieron los archivos, pero los siguientes ya existían y se omitieron:\n\n${duplicateFiles.join(', ')}`
+          title: 'Error en la Subida',
+          message: `Hubo problemas con algunos archivos:\n\n${errorList}\n\nRevisa si existe el bucket "documents" en Supabase.`
         });
+      } else if (duplicateFiles.length > 0) {
+        await showAlert({
+          title: 'Archivos Omitidos',
+          message: `Los siguientes archivos ya existían y se omitieron:\n\n${duplicateFiles.join(', ')}`
+        });
+      } else {
+        await showAlert({ title: 'Éxito', message: 'Archivos subidos correctamente' });
       }
 
       queryClient.invalidateQueries({ queryKey: ['system_documents'] });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error general de subida:', error);
-      await showAlert({ title: 'Error', message: 'Hubo un error de red al procesar los archivos.' });
+      await showAlert({ title: 'Error Crítico', message: 'Error de red o configuración: ' + (error.message || 'Desconocido') });
     } finally {
       setIsUploading(false);
-      event.target.value = ''; // Limpiar el input para permitir subir los mismos archivos tras borrarlos
+      event.target.value = '';
     }
   };
 

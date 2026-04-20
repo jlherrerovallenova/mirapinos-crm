@@ -426,23 +426,6 @@ export default function Inventory() {
     } catch (e) { console.error(e); }
   };
 
-  const handleClone = async (property: Property) => {
-    try {
-      const { id, created_at, ...cloneData } = property;
-      const { error } = await supabase
-        .from('inventory')
-        .insert([{
-          ...cloneData,
-          numero_vivienda: `${property.numero_vivienda} (Copia)`,
-          estado_vivienda: 'DISPONIBLE'
-        }] as any);
-
-      if (error) throw error;
-      fetchProperties();
-    } catch (error) {
-      console.error('Error cloning property:', error);
-    }
-  };
 
   const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
 
@@ -587,13 +570,6 @@ export default function Inventory() {
                           title="Simulador Hipotecario"
                         >
                           <Calculator size={18} />
-                        </button>
-                        <button 
-                          onClick={() => handleClone(property)} 
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" 
-                          title="Clonar"
-                        >
-                          <Copy size={18} />
                         </button>
                         <button 
                           onClick={() => { setEditingProperty(property); setIsModalOpen(true); }} 
