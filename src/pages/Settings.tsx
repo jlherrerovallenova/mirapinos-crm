@@ -320,8 +320,8 @@ const Settings: React.FC = () => {
   );
 
   return (
-    <div className="p-4 max-w-6xl mx-auto">
-      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30 mb-8">
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 border border-emerald-100">
             <SettingsIcon size={20} />

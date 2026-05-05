@@ -446,7 +446,7 @@ export default function Inventory() {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>

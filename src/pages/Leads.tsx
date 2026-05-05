@@ -201,13 +201,16 @@ export default function Leads() {
   const totalPages = Math.ceil(totalLeads / ITEMS_PER_PAGE);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
+    <div className="space-y-6 animate-in fade-in duration-500">
 
-      {/* CABECERA UNIFICADA */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Clientes</h1>
-          <p className="text-slate-500 text-sm mt-1">
+      {/* CABECERA UNIFICADA Y STICKY */}
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
+        
+        {/* Título y Acciones */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Clientes</h1>
+            <p className="text-slate-500 text-sm mt-1">
               {totalLeads} prospectos {hasActiveFilters && `(filtrados)`}
             </p>
           </div>
@@ -238,9 +241,9 @@ export default function Leads() {
               <UserPlus size={18} /> <span className="inline">Nuevo Cliente</span>
             </button>
           </div>
-      </div>
+        </div>
 
-      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
+        {/* Filtros y Buscador */}
         <div className="flex flex-col lg:flex-row gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
           <div className="relative flex-1 w-full group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={18} />

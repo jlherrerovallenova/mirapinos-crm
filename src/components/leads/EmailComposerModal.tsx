@@ -171,7 +171,22 @@ export default function EmailComposerModal({
           ).join('<br>')
           : '';
 
-        // Construimos el cuerpo HTML incluyendo la firma al final
+        // Insertamos en email_tracking para obtener el tracking_id
+        const { data: trackingRecord, error: trackingError } = await supabase
+          .from('email_tracking')
+          .insert([{ lead_id: leadId, subject: subject }])
+          .select()
+          .single();
+
+        if (trackingError) {
+          console.error("No se pudo registrar el tracking", trackingError);
+        }
+        
+        const trackingId = trackingRecord?.id;
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const pixelHtml = trackingId ? `<img src="${supabaseUrl}/functions/v1/track-pixel?tracking_id=${trackingId}" width="1" height="1" alt="" style="display:none;" />` : '';
+
+        // Construimos el cuerpo HTML incluyendo la firma al final y el píxel invisible
         const htmlFullMessage = `
           <div style="font-family: sans-serif; line-height: 1.5; color: #334155;">
             ${message.replace(/\n/g, '<br>')}
@@ -180,6 +195,7 @@ export default function EmailComposerModal({
             <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
               ${signatureHtml}
             </div>
+            ${pixelHtml}
           </div>
         `;
 

@@ -24,6 +24,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { useAgendaAlerts } from '../hooks/useAgendaAlerts';
+import { useEmailTrackingNotifications } from '../hooks/useEmailTrackingNotifications';
 
 
 export default function MainLayout() {
@@ -43,6 +44,12 @@ export default function MainLayout() {
   const [showBellPopover, setShowBellPopover] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const { todayCount, overdueCount, total: alertTotal } = useAgendaAlerts();
+
+  // Escuchar aperturas de email en tiempo real
+  useEmailTrackingNotifications((data) => {
+    setNotificationData(data);
+    setShowNotification(true);
+  });
 
   // Cierra el popover al hacer clic fuera
   useEffect(() => {

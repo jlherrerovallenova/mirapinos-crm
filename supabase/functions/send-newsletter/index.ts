@@ -71,13 +71,32 @@ serve(async (req) => {
                 break;
             }
 
-            // Enviar este lote de la DB a Resend (en sub-lotes de 100)
-            const resendBatch = leads.map(lead => ({
-                from: 'Mirapinos CRM <info@terravallpromociones.com>',
-                to: [lead.email],
-                subject: newsletter.subject,
-                html: newsletter.html_content.replace('{{name}}', lead.name || 'Cliente'),
+            // Primero creamos el tracking para todos ellos en bloque
+            const trackingInserts = leads.map(lead => ({
+                lead_id: lead.id,
+                subject: newsletter.subject
             }));
+
+            const { data: trackingRecords, error: trkErr } = await supabaseClient
+                .from('email_tracking')
+                .insert(trackingInserts)
+                .select('id, lead_id');
+                
+            if (trkErr) console.error("Error creando tracking para newsletter", trkErr);
+
+            // Enviar este lote de la DB a Resend (en sub-lotes de 100)
+            const resendBatch = leads.map(lead => {
+                const trk = trackingRecords?.find(t => t.lead_id === lead.id);
+                const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+                const pixelHtml = trk ? `<img src="${supabaseUrl}/functions/v1/track-pixel?tracking_id=${trk.id}" width="1" height="1" alt="" style="display:none;" />` : '';
+
+                return {
+                    from: 'Mirapinos CRM <info@terravallpromociones.com>',
+                    to: [lead.email],
+                    subject: newsletter.subject,
+                    html: newsletter.html_content.replace('{{name}}', lead.name || 'Cliente') + '<br>' + pixelHtml,
+                };
+            });
 
             const RESEND_CHUNK_SIZE = 100;
             for (let i = 0; i < resendBatch.length; i += RESEND_CHUNK_SIZE) {
