@@ -278,7 +278,7 @@ export default function Inventory() {
       const hito1 = 6000; const hito2 = (total * 0.1) - 6000; const hito3 = (total * 0.1); const hito4 = (total * 0.8);
       renderPhase('1', 'RESERVA DE VIVIENDA', hito1, 'Pago inicial para bloqueo de vivienda', false, true);
       renderPhase('2', 'FIRMA DE CONTRATO', hito2, 'A la firma del contrato privado (10% - Reserva).');
-      const cuota = hito3 / 24; renderPhase('3', 'PAGOS APLAZADOS', hito3, `24 Cuotas mensuales de ${formatLocalCurrency(cuota)} cada una.`);
+      const cuota = hito3 / 18; renderPhase('3', 'PAGOS APLAZADOS', hito3, `18 Cuotas mensuales de ${formatLocalCurrency(cuota)} (18 meses).`);
       renderPhase('4', 'ESCRITURA PÚBLICA', hito4, 'Entrega de llaves y firma ante notario (80%).', true);
 
       doc.setFillColor(grayLight[0], grayLight[1], grayLight[2]); doc.rect(0, 265, pageWidth, 32, 'F');

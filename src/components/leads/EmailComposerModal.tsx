@@ -7,7 +7,9 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  Upload
+  Upload,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useDialog } from '../../context/DialogContext';
@@ -46,6 +48,7 @@ export default function EmailComposerModal({
   const { showAlert } = useDialog();
   const [method, setMethod] = useState<'email' | 'whatsapp'>('email');
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   
   const createAgendaMutation = useCreateAgendaItem();
 
@@ -320,41 +323,53 @@ export default function EmailComposerModal({
 
                   return (
                     <div key={cat} className="border border-slate-200 rounded-lg overflow-hidden">
-                      <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
-                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{cat}</h4>
+                      <div 
+                        className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition-colors"
+                        onClick={() => setExpandedCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])}
+                      >
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{cat}</h4>
+                          {expandedCategories.includes(cat) ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+                        </div>
                         {cat === 'Archivo Externo' && (
-                          <label className="cursor-pointer flex items-center gap-1.5 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px] font-bold hover:bg-emerald-200 transition-colors">
+                          <label 
+                            className="cursor-pointer flex items-center gap-1.5 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px] font-bold hover:bg-emerald-200 transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Upload size={10} /> Adjuntar nuevo
                             <input type="file" className="hidden" onChange={handleFileUpload} />
                           </label>
                         )}
                       </div>
-                      <div className="grid grid-cols-2 gap-px bg-slate-100">
-                        {catDocs.length === 0 && cat === 'Archivo Externo' ? (
-                          <div className="col-span-2 bg-white px-4 py-3 text-center">
-                            <p className="text-[10px] text-slate-400 italic">No hay archivos externos adjuntos para este envío.</p>
-                          </div>
-                        ) : (
-                          catDocs.map((doc, idx) => {
-                            const isSelected = selectedDocs.find(d => d.url === doc.url);
-                            return (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => toggleDoc(doc)}
-                                className={`flex items-center gap-2.5 px-4 py-3 text-left transition-all ${
-                                  isSelected
-                                    ? 'bg-emerald-50 text-emerald-700'
-                                    : 'bg-white text-slate-600 hover:bg-slate-50'
-                                }`}
-                              >
-                                <Paperclip size={13} className={isSelected ? 'text-emerald-500 shrink-0' : 'text-slate-300 shrink-0'} />
-                                <span className="text-xs font-semibold truncate" title={doc.name}>{doc.name}</span>
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
+                      
+                      {expandedCategories.includes(cat) && (
+                        <div className="grid grid-cols-2 gap-px bg-slate-100">
+                          {catDocs.length === 0 && cat === 'Archivo Externo' ? (
+                            <div className="col-span-2 bg-white px-4 py-3 text-center">
+                              <p className="text-[10px] text-slate-400 italic">No hay archivos externos adjuntos para este envío.</p>
+                            </div>
+                          ) : (
+                            catDocs.map((doc, idx) => {
+                              const isSelected = selectedDocs.find(d => d.url === doc.url);
+                              return (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => toggleDoc(doc)}
+                                  className={`flex items-center gap-2.5 px-4 py-3 text-left transition-all ${
+                                    isSelected
+                                      ? 'bg-emerald-50 text-emerald-700'
+                                      : 'bg-white text-slate-600 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <Paperclip size={13} className={isSelected ? 'text-emerald-500 shrink-0' : 'text-slate-300 shrink-0'} />
+                                  <span className="text-xs font-semibold truncate" title={doc.name}>{doc.name}</span>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

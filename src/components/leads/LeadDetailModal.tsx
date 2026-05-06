@@ -42,7 +42,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const { data: rawDocs = [] } = useDocuments();
   const availableDocs = rawDocs.filter(d => d.url).map(d => ({ name: d.name, url: d.url!, category: d.category }));
-  const [sentHistory, setSentHistory] = useState<any[]>([]);
 
   // Mutations
   const updateMutation = useUpdateLead();
@@ -107,14 +106,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const INTERESTED_OPTIONS = ["Chalet Olivo", "Chalet Arce", "Parcelas"];
 
   useEffect(() => {
-    fetchHistory();
     fetchTasks();
   }, [lead.id]);
-
-  async function fetchHistory() {
-    const { data } = await supabase.from('sent_documents').select('*').eq('lead_id', lead.id).order('sent_at', { ascending: false });
-    if (data) setSentHistory(data);
-  }
 
   // Cargar tareas de la tabla agenda filtrando por ID del cliente
   async function fetchTasks() {
@@ -323,9 +316,20 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     });
   };
 
-  // URLs rápidas
-  const cleanPhone = formData.phone.replace(/\D/g, '');
-  const whatsappUrl = cleanPhone ? `https://wa.me/${cleanPhone}` : '#';
+  // WhatsApp URL con mensaje predefinido
+  const getWhatsAppUrl = () => {
+    const cleanPhone = formData.phone.replace(/\D/g, '');
+    if (!cleanPhone) return '#';
+    
+    const hour = new Date().getHours();
+    const greeting = hour < 14 ? 'Buenos días' : 'Buenas tardes';
+    const firstName = formData.name.split(' ')[0];
+    const message = `${greeting}, ${firstName}. Soy Juan Herrero de Terravall inmobiliaria. Nos ha solicitado información de la promoción inmobiliaria FINCA MIRAPINOS. ¿En qué puedo ayudarle?.`;
+    
+    return `https://wa.me/${cleanPhone.startsWith('34') ? cleanPhone : '34' + cleanPhone}?text=${encodeURIComponent(message)}`;
+  };
+
+  const whatsappUrl = getWhatsAppUrl();
   const mailtoUrl = formData.email ? `mailto:${formData.email}?subject=Información%20Finca%20Mirapinos` : '#';
 
   const statusCfg = STATUS_CONFIG[formData.status || 'new'] || STATUS_CONFIG['new'];
@@ -489,9 +493,22 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input name="phone" value={formData.phone} onChange={handleChange} placeholder="600..." className="w-full mt-1 pl-9 pr-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" />
+                        <div className="flex gap-2 mt-1">
+                          <div className="relative flex-1">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input name="phone" value={formData.phone} onChange={handleChange} placeholder="600..." className="w-full pl-9 pr-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" />
+                          </div>
+                          {formData.phone && (
+                            <a 
+                              href={whatsappUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="p-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 shadow-md flex items-center justify-center shrink-0 group/wa"
+                              title="Contactar por WhatsApp"
+                            >
+                              <MessageCircle size={18} className="group-hover/wa:scale-110 transition-transform" />
+                            </a>
+                          )}
                         </div>
                       </div>
                       <div>
@@ -514,26 +531,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     <textarea name="notes" rows={2} value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 resize-none border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" placeholder="Escribe detalles importantes..." />
                   </div>
 
-                  {/* Historial de Documentos */}
-                  <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
-                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                      <Clock size={12} /> Documentación Enviada
-                    </h3>
-                    <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
-                      {sentHistory.length === 0 ? (
-                        <p className="text-[11px] text-slate-400 italic">No hay envíos registrados.</p>
-                      ) : (
-                        sentHistory.map((item) => (
-                          <div key={item.id} className="bg-white p-2.5 rounded-lg border border-slate-100 flex items-center justify-between shadow-sm">
-                            <span className="text-xs font-bold text-slate-700 truncate max-w-[180px]">{item.doc_name}</span>
-                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase ${item.method === 'whatsapp' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
-                              {item.method}
-                            </span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
+
 
                   <div className="flex items-center justify-between pt-2">
                     <button type="button" onClick={handleDelete} className="text-red-500 font-medium text-xs flex items-center gap-1.5 px-3 py-2 hover:bg-red-50 rounded-lg transition-colors">
@@ -737,7 +735,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           leadEmail={formData.email}
           leadPhone={formData.phone}
           availableDocs={availableDocs}
-          onSentSuccess={fetchHistory}
         />
       )}
     </>
