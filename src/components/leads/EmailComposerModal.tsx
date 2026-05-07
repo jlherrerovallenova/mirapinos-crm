@@ -43,10 +43,12 @@ export default function EmailComposerModal({
   availableDocs,
   onSentSuccess
 }: Props) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const { showAlert } = useDialog();
-  const [method, setMethod] = useState<'email' | 'whatsapp'>('email');
+  const [method, setMethod] = useState<'email' | 'whatsapp'>(
+    leadEmail ? 'email' : 'whatsapp'
+  );
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   
@@ -61,12 +63,27 @@ export default function EmailComposerModal({
 
   if (!isOpen) return null;
 
-  // Función para convertir la firma a Base64 para que sea visible en el email
-  // Eliminada para no saturar EmailJS (Error 422 por payload demasiado grande)
-    const getSignatureHtml = (): string => {
+  // Genera la firma dinámica con los datos del comercial que envía
+  const getSignatureHtml = (): string => {
+    const agentName = profile?.full_name || user?.email || 'Equipo Mirapinos';
+    const agentEmail = profile?.email || user?.email || '';
+    const agentPhone = profile?.phone || '';
+
     return `
-      <div style="margin-top: 20px;">
-        <img src="data:image/png;base64,${TERRAVALL_LOGO_B64}" alt="Terravall" style="max-width: 250px; height: auto; outline: none; text-decoration: none; display: block;" />
+      <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+        <table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif;">
+          <tr>
+            <td style="padding-right: 16px; border-right: 3px solid #1a5c38; vertical-align: middle;">
+              <div style="font-size: 15px; font-weight: 700; color: #1e293b; white-space: nowrap;">${agentName}</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Asesora Inmobiliaria</div>
+              <div style="font-size: 13px; font-weight: 700; color: #1a5c38; margin-top: 4px; letter-spacing: 0.05em;">MIRAPINOS</div>
+            </td>
+            <td style="padding-left: 16px; vertical-align: middle;">
+              ${agentPhone ? `<div style="font-size: 12px; color: #475569; margin-bottom: 4px;">&#128222; ${agentPhone}</div>` : ''}
+              ${agentEmail ? `<div style="font-size: 12px; color: #475569;">&#9993; ${agentEmail}</div>` : ''}
+            </td>
+          </tr>
+        </table>
       </div>
     `;
   };
@@ -164,14 +181,14 @@ export default function EmailComposerModal({
           return;
         }
 
-        // Obtenemos la firma en HTML ligero en lugar de Base64
-        const signatureHtml = getSignatureHtml();
-
         const htmlDocs = selectedDocs.length > 0
-          ? `<br><br><strong>Documentos adjuntos:</strong><br>` +
-          selectedDocs.map(d =>
-            `<a href="${d.url}" style="color: #10b981; font-weight: bold; text-decoration: underline;">${d.name}</a>`
-          ).join('<br>')
+          ? `
+            <div style="margin: 28px 0; background: #f8fafb; border-left: 4px solid #1a5c38; border-radius: 0 8px 8px 0; padding: 16px 20px;">
+              <div style="font-size: 11px; font-weight: 700; color: #1a5c38; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;">📎 Documentos adjuntos</div>
+              ${selectedDocs.map(d =>
+                `<div style="margin-bottom: 6px;"><a href="${d.url}" style="color: #1a5c38; font-size: 13px; font-weight: 600; text-decoration: underline;">${d.name}</a></div>`
+              ).join('')}
+            </div>`
           : '';
 
         // Insertamos en email_tracking para obtener el tracking_id
@@ -184,22 +201,51 @@ export default function EmailComposerModal({
         if (trackingError) {
           console.error("No se pudo registrar el tracking", trackingError);
         }
-        
+
         const trackingId = trackingRecord?.id;
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const pixelHtml = trackingId ? `<img src="${supabaseUrl}/functions/v1/track-pixel?tracking_id=${trackingId}" width="1" height="1" alt="" style="display:none;" />` : '';
 
-        // Construimos el cuerpo HTML incluyendo la firma al final y el píxel invisible
+        // Construimos el cuerpo HTML con el nuevo diseño profesional Mirapinos
         const htmlFullMessage = `
-          <div style="font-family: sans-serif; line-height: 1.5; color: #334155;">
-            ${message.replace(/\n/g, '<br>')}
-            ${htmlDocs}
-            <br><br>
-            <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
-              ${signatureHtml}
-            </div>
+          <!DOCTYPE html>
+          <html>
+          <body style="margin:0; padding:0; background-color:#f0f4f0;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f0;">
+              <tr>
+                <td align="center" style="padding: 32px 16px;">
+                  <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+                    <!-- ENCABEZADO MIRAPINOS -->
+                    <tr>
+                      <td style="background-color:#1a5c38; padding: 28px 40px; text-align:center;">
+                        <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 30px; font-weight: 700; color: #ffffff; letter-spacing: 0.12em; text-transform: uppercase;">MIRAPINOS</div>
+                      </td>
+                    </tr>
+
+                    <!-- CUERPO -->
+                    <tr>
+                      <td style="padding: 36px 40px; font-family: Arial, sans-serif; font-size: 15px; line-height: 1.7; color: #334155;">
+                        ${message.replace(/\n/g, '<br>')}
+                        ${htmlDocs}
+                        ${getSignatureHtml()}
+                      </td>
+                    </tr>
+
+                    <!-- PIE -->
+                    <tr>
+                      <td style="background-color:#1a5c38; padding: 10px 40px;">
+                        <div style="height:4px;"></div>
+                      </td>
+                    </tr>
+
+                  </table>
+                </td>
+              </tr>
+            </table>
             ${pixelHtml}
-          </div>
+          </body>
+          </html>
         `;
 
         const { data, error } = await supabase.functions.invoke('send-email', {
@@ -268,15 +314,31 @@ export default function EmailComposerModal({
           <div className="flex items-center gap-1 bg-emerald-700/60 p-1 rounded-lg">
             <button
               type="button"
-              onClick={() => setMethod('email')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${method === 'email' ? 'bg-white text-emerald-700 shadow-sm' : 'text-emerald-100 hover:text-white'}`}
+              onClick={() => leadEmail && setMethod('email')}
+              disabled={!leadEmail}
+              title={!leadEmail ? 'El cliente no tiene email registrado' : undefined}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                !leadEmail
+                  ? 'opacity-40 cursor-not-allowed text-emerald-300'
+                  : method === 'email'
+                  ? 'bg-white text-emerald-700 shadow-sm'
+                  : 'text-emerald-100 hover:text-white'
+              }`}
             >
               <Mail size={13} /> Email
             </button>
             <button
               type="button"
-              onClick={() => setMethod('whatsapp')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${method === 'whatsapp' ? 'bg-white text-emerald-700 shadow-sm' : 'text-emerald-100 hover:text-white'}`}
+              onClick={() => leadPhone && setMethod('whatsapp')}
+              disabled={!leadPhone}
+              title={!leadPhone ? 'El cliente no tiene teléfono registrado' : undefined}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                !leadPhone
+                  ? 'opacity-40 cursor-not-allowed text-emerald-300'
+                  : method === 'whatsapp'
+                  ? 'bg-white text-emerald-700 shadow-sm'
+                  : 'text-emerald-100 hover:text-white'
+              }`}
             >
               <MessageCircle size={13} /> WhatsApp
             </button>

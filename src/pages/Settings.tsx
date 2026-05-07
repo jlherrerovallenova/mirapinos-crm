@@ -63,11 +63,14 @@ const Settings: React.FC = () => {
 
   // Estados de Formulario de Perfil
   const [fullName, setFullName] = useState(profile?.full_name || '');
+  const [profilePhone, setProfilePhone] = useState(profile?.phone || '');
 
-  // Sincronizar nombre de perfil cuando cargue el contexto
   useEffect(() => {
     if (profile?.full_name) {
       setFullName(profile.full_name);
+    }
+    if (profile?.phone !== undefined) {
+      setProfilePhone(profile.phone || '');
     }
     fetchIntegrations();
     fetchProperties();
@@ -146,7 +149,6 @@ const Settings: React.FC = () => {
     }
   };
 
-  // --- Lógica de Perfil ---
   const handleUpdateProfile = async () => {
     if (!profile?.id) return;
     setIsSavingProfile(true);
@@ -154,7 +156,7 @@ const Settings: React.FC = () => {
       const { error } = await supabase
         .from('profiles')
         // @ts-expect-error
-        .update({ full_name: fullName })
+        .update({ full_name: fullName, phone: profilePhone || null })
         .eq('id', profile.id);
 
       if (error) throw error;
@@ -408,6 +410,22 @@ const Settings: React.FC = () => {
                   <label className="text-xs font-bold text-slate-700 uppercase">Rol Asignado</label>
                   <div className="p-2.5 text-sm bg-slate-50 border rounded-lg text-slate-500 italic">
                     {profile?.role || 'Cargando...'}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 uppercase">Teléfono de Contacto</label>
+                  <input
+                    type="tel"
+                    value={profilePhone}
+                    onChange={(e) => setProfilePhone(e.target.value)}
+                    className="w-full p-2.5 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                    placeholder="Ej: +34 600 123 456"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 uppercase">Email (Cuenta)</label>
+                  <div className="p-2.5 text-sm bg-slate-50 border rounded-lg text-slate-400 italic truncate">
+                    {profile?.email || 'Sin email registrado'}
                   </div>
                 </div>
               </div>

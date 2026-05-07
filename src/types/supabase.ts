@@ -18,6 +18,7 @@ export interface Database {
           full_name: string | null
           avatar_url: string | null
           role: 'admin' | 'agent' | 'viewer'
+          phone: string | null
           created_at: string
         }
         Insert: {
@@ -26,6 +27,7 @@ export interface Database {
           full_name?: string | null
           avatar_url?: string | null
           role?: 'admin' | 'agent' | 'viewer'
+          phone?: string | null
           created_at?: string
         }
         Update: {
@@ -34,6 +36,7 @@ export interface Database {
           full_name?: string | null
           avatar_url?: string | null
           role?: 'admin' | 'agent' | 'viewer'
+          phone?: string | null
           created_at?: string
         }
       }
