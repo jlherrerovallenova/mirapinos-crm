@@ -192,7 +192,7 @@ export default function EmailComposerModal({
           : '';
 
         // Insertamos en email_tracking para obtener el tracking_id
-        const { data: trackingRecord, error: trackingError } = await supabase
+        const { data: trackingRecord, error: trackingError } = await (supabase as any)
           .from('email_tracking')
           .insert([{ lead_id: leadId, subject: subject }])
           .select()

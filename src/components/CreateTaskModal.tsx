@@ -70,7 +70,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
       const parsedDate = new Date(`${formData.date}T${formData.time}:00`);
       const dateTime = parsedDate.toISOString();
 
-      const { error } = await supabase.from('agenda').insert([
+      const { error } = await (supabase as any).from('agenda').insert([
         {
           title: formData.title,
           type: formData.type,

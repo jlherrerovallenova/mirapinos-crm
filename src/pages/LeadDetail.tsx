@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useDialog } from '../context/DialogContext';
 import type { Database } from '../types/supabase';
+import SaleTab from '../components/leads/SaleTab';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 type AgendaItem = Database['public']['Tables']['agenda']['Row'];
@@ -39,6 +40,7 @@ export default function LeadDetail() {
   const [lead, setLead] = useState<Lead | null>(null);
   const [tasks, setTasks] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'info' | 'sale'>('info');
   const { showAlert } = useDialog();
 
   // Estados para la edición de la ficha
@@ -193,8 +195,26 @@ export default function LeadDetail() {
         <ArrowLeft size={16} /> Volver a Leads
       </button>
 
-      {/* CABECERA Y DATOS PRINCIPALES */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* TABS */}
+      <div className="flex border-b border-slate-200 mb-4 px-2">
+        <button
+          onClick={() => setActiveTab('info')}
+          className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'info' ? 'text-emerald-600 border-emerald-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`}
+        >
+          Información y Agenda
+        </button>
+        <button
+          onClick={() => setActiveTab('sale')}
+          className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'sale' ? 'text-emerald-600 border-emerald-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`}
+        >
+          Expediente de Venta
+        </button>
+      </div>
+
+      {activeTab === 'info' ? (
+        <>
+          {/* CABECERA Y DATOS PRINCIPALES */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-6 sm:p-8 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
           <div className="flex items-center gap-5 w-full md:w-auto">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 border border-emerald-300 flex items-center justify-center text-emerald-700 font-bold text-2xl shrink-0 shadow-sm">
@@ -427,6 +447,12 @@ export default function LeadDetail() {
           )}
         </div>
       </div>
+        </>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden p-6">
+          <SaleTab lead={lead as any} onLeadUpdate={async () => {}} />
+        </div>
+      )}
     </div>
   );
 }

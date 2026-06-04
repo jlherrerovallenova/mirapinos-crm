@@ -6,8 +6,7 @@ import {
   Globe,
   Smartphone,
   Users,
-  HelpCircle,
-  MoreHorizontal
+  HelpCircle
 } from 'lucide-react';
 import { useLeads, useUpdateLead } from '../hooks/useLeads';
 import type { Database } from '../types/supabase';

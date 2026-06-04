@@ -55,6 +55,19 @@ export interface Database {
           value: number | null
           is_subscribed?: boolean
           interested_in: string | null
+          dni: string | null
+          civil_status: string | null
+          address: string | null
+          postal_code: string | null
+          city: string | null
+          nationality: string | null
+          occupation: string | null
+          joint_buyer_name: string | null
+          joint_buyer_dni: string | null
+          joint_buyer_email: string | null
+          joint_buyer_phone: string | null
+          property_id: string | null
+          sale_status: string | null
         }
         Insert: {
           id?: string
@@ -70,6 +83,19 @@ export interface Database {
           value?: number | null
           is_subscribed?: boolean
           interested_in?: string | null
+          dni?: string | null
+          civil_status?: string | null
+          address?: string | null
+          postal_code?: string | null
+          city?: string | null
+          nationality?: string | null
+          occupation?: string | null
+          joint_buyer_name?: string | null
+          joint_buyer_dni?: string | null
+          joint_buyer_email?: string | null
+          joint_buyer_phone?: string | null
+          property_id?: string | null
+          sale_status?: string | null
         }
         Update: {
           id?: string
@@ -85,6 +111,20 @@ export interface Database {
           value?: number | null
           is_subscribed?: boolean
           interested_in?: string | null
+          dni?: string | null
+          civil_status?: string | null
+          address?: string | null
+          postal_code?: string | null
+          city?: string | null
+          province?: string | null
+          nationality?: string | null
+          occupation?: string | null
+          joint_buyer_name?: string | null
+          joint_buyer_dni?: string | null
+          joint_buyer_email?: string | null
+          joint_buyer_phone?: string | null
+          property_id?: string | null
+          sale_status?: string | null
         }
       }
       inventory: {
@@ -187,6 +227,114 @@ export interface Database {
           html_content?: string | null
           status?: 'draft' | 'sent'
           sent_at?: string | null
+        }
+      }
+      sales: {
+        Row: {
+          id: string
+          created_at: string
+          lead_id: string
+          property_id: string
+          sale_status: 'reserva' | 'contrato' | 'mensualidades' | 'escrituracion' | 'completada'
+          sale_price: number
+          iva_percentage: number
+          reservation_amount: number
+          reservation_date: string | null
+          contract_date: string | null
+          escritura_date: string | null
+          notes: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          lead_id: string
+          property_id: string
+          sale_status?: 'reserva' | 'contrato' | 'mensualidades' | 'escrituracion' | 'completada'
+          sale_price: number
+          iva_percentage?: number
+          reservation_amount?: number
+          reservation_date?: string | null
+          contract_date?: string | null
+          escritura_date?: string | null
+          notes?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          lead_id?: string
+          property_id?: string
+          sale_status?: 'reserva' | 'contrato' | 'mensualidades' | 'escrituracion' | 'completada'
+          sale_price?: number
+          iva_percentage?: number
+          reservation_amount?: number
+          reservation_date?: string | null
+          contract_date?: string | null
+          escritura_date?: string | null
+          notes?: string | null
+        }
+      }
+      installments: {
+        Row: {
+          id: string
+          created_at: string
+          sale_id: string
+          installment_number: number
+          due_date: string
+          amount: number
+          paid: boolean
+          paid_date: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          sale_id: string
+          installment_number: number
+          due_date: string
+          amount: number
+          paid?: boolean
+          paid_date?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          sale_id?: string
+          installment_number?: number
+          due_date?: string
+          amount?: number
+          paid?: boolean
+          paid_date?: string | null
+        }
+      }
+      sale_documents: {
+        Row: {
+          id: string
+          created_at: string
+          sale_id: string
+          name: string
+          file_path: string
+          document_type: 'reserva' | 'contrato' | 'banco' | 'dni_comprador' | 'dni_cotitular' | 'otros'
+          file_size: number | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          sale_id: string
+          name: string
+          file_path: string
+          document_type: 'reserva' | 'contrato' | 'banco' | 'dni_comprador' | 'dni_cotitular' | 'otros'
+          file_size?: number | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          sale_id?: string
+          name?: string
+          file_path?: string
+          document_type?: 'reserva' | 'contrato' | 'banco' | 'dni_comprador' | 'dni_cotitular' | 'otros'
+          file_size?: number | null
+          uploaded_by?: string | null
         }
       }
     }

@@ -39,11 +39,11 @@ export function useEmailTrackingNotifications(
             // Solo notificar si el lead es "caliente" o siempre. 
             // Mostramos siempre para depurar, pero con mensaje especial si es "caliente"
             const hotStatuses = ['qualified', 'proposal', 'negotiation'];
-            const isHot = lead && hotStatuses.includes(lead.status);
+            const isHot = lead && hotStatuses.includes((lead as any).status);
 
             showNotification({
               title: isHot ? "🔥 ¡Email Abierto (Lead Caliente)!" : "📧 Email Abierto",
-              message: `El cliente ${lead?.name || 'Desconocido'} ha abierto tu correo "${newRecord.subject}". Aperturas totales: ${newRecord.opens_count}`,
+              message: `El cliente ${(lead as any)?.name || 'Desconocido'} ha abierto tu correo "${newRecord.subject}". Aperturas totales: ${newRecord.opens_count}`,
               type: "success"
             });
           }

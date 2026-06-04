@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   X, Mail, Phone, Save, Trash2, Loader2, Send,
-  Clock, Compass, MessageCircle, Calendar as CalendarIcon,
+  Compass, MessageCircle, Calendar as CalendarIcon,
   CheckCircle2, Circle, Plus, Pencil, RotateCcw, Smartphone, Users, Globe
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -11,6 +11,7 @@ import { useDialog } from '../../context/DialogContext';
 import EmailComposerModal from './EmailComposerModal';
 import { useDocuments } from '../../hooks/useDocuments';
 import type { Database } from '../../types/supabase';
+import SaleTab from './SaleTab';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 type AgendaItem = Database['public']['Tables']['agenda']['Row'];
@@ -40,6 +41,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const { session } = useAuth();
   const { showAlert, showConfirm } = useDialog();
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'info' | 'sale'>('info');
   const { data: rawDocs = [] } = useDocuments();
   const availableDocs = rawDocs.filter(d => d.url).map(d => ({ name: d.name, url: d.url!, category: d.category }));
 
@@ -376,9 +378,20 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
             </button>
           </div>
 
+          {/* TABS */}
+          <div className="flex px-8 bg-slate-900 border-t border-slate-800">
+            <button onClick={() => setActiveTab('info')} className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'info' ? 'text-emerald-400 border-emerald-400' : 'text-slate-400 border-transparent hover:text-slate-200'}`}>
+              Información y Agenda
+            </button>
+            <button onClick={() => setActiveTab('sale')} className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'sale' ? 'text-emerald-400 border-emerald-400' : 'text-slate-400 border-transparent hover:text-slate-200'}`}>
+              Expediente de Venta
+            </button>
+          </div>
+
           {/* CONTENIDO PRINCIPAL */}
-          <div className="flex-1 overflow-y-auto p-6 bg-white">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+          <div className="flex-1 overflow-y-auto bg-white">
+            {activeTab === 'info' ? (
+              <div className="p-6 h-full grid grid-cols-1 lg:grid-cols-2 gap-6">
 
               {/* COLUMNA IZQUIERDA: FORMULARIO */}
               <div className="space-y-4 flex flex-col h-full">
@@ -722,6 +735,11 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
               </div>
 
             </div>
+            ) : (
+              <div className="p-6">
+                <SaleTab lead={lead as any} onLeadUpdate={async () => {}} />
+              </div>
+            )}
           </div>
         </div>
       </div>

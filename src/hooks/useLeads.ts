@@ -65,9 +65,9 @@ export function useUpdateLead() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: LeadUpdate }) => {
-      const { data, error } = await supabase
-        .from('leads' as any)
-        .update(updates as any)
+      const { data, error } = await (supabase as any)
+        .from('leads')
+        .update(updates)
         .eq('id', id)
         .select()
         .single();
