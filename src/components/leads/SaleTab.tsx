@@ -288,21 +288,30 @@ export default function SaleTab({ lead, onLeadUpdate }: Props) {
   async function formalizarReserva() {
     if (!personalForm.property_id || !precio) return;
     setLoading(true);
-    const { data, error } = await (supabase as any).from('sales').insert([{
-      lead_id: lead.id,
-      property_id: personalForm.property_id,
-      sale_status: 'reserva',
-      sale_price: precio,
-      iva_percentage: 10,
-      reservation_amount: reservation,
-      reservation_date: new Date().toISOString().slice(0, 10),
-    }]).select().single();
-    if (!error && data) {
-      setSale(data);
-      await onLeadUpdate({ sale_status: 'reserva', property_id: personalForm.property_id });
-      setShowDocModal(true); // Mostrar modal para descargar documentos
+    try {
+      const { data, error } = await (supabase as any).from('sales').insert([{
+        lead_id: lead.id,
+        property_id: personalForm.property_id,
+        sale_status: 'reserva',
+        sale_price: precio,
+        iva_percentage: 10,
+        reservation_amount: reservation,
+        reservation_date: new Date().toISOString().slice(0, 10),
+      }]).select().single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setSale(data);
+        await onLeadUpdate({ sale_status: 'reserva', property_id: personalForm.property_id });
+        setShowDocModal(true); // Mostrar modal para descargar documentos
+      }
+    } catch (error: any) {
+      console.error("Error al formalizar reserva:", error);
+      alert("Error al formalizar reserva: " + (error.message || JSON.stringify(error)));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function advanceSaleStatus(newStatus: Sale['sale_status']) {

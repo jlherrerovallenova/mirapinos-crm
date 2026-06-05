@@ -8,13 +8,14 @@ ALTER TABLE leads
   ADD COLUMN IF NOT EXISTS address TEXT,
   ADD COLUMN IF NOT EXISTS postal_code TEXT,
   ADD COLUMN IF NOT EXISTS city TEXT,
+  ADD COLUMN IF NOT EXISTS province TEXT,
   ADD COLUMN IF NOT EXISTS nationality TEXT DEFAULT 'Española',
   ADD COLUMN IF NOT EXISTS occupation TEXT,
   ADD COLUMN IF NOT EXISTS joint_buyer_name TEXT,
   ADD COLUMN IF NOT EXISTS joint_buyer_dni TEXT,
   ADD COLUMN IF NOT EXISTS joint_buyer_email TEXT,
   ADD COLUMN IF NOT EXISTS joint_buyer_phone TEXT,
-  ADD COLUMN IF NOT EXISTS property_id UUID REFERENCES inventory(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS property_id INTEGER REFERENCES inventory(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS sale_status TEXT DEFAULT NULL;
 
 -- 2. Tabla de ventas (expediente por operación)
@@ -22,7 +23,7 @@ CREATE TABLE IF NOT EXISTS sales (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
-  property_id UUID NOT NULL REFERENCES inventory(id) ON DELETE RESTRICT,
+  property_id INTEGER NOT NULL REFERENCES inventory(id) ON DELETE RESTRICT,
   sale_status TEXT NOT NULL DEFAULT 'reserva'
     CHECK (sale_status IN ('reserva','contrato','mensualidades','escrituracion','completada')),
   sale_price NUMERIC(12,2) NOT NULL,

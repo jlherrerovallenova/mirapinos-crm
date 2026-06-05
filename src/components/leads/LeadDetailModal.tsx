@@ -737,7 +737,15 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
             </div>
             ) : (
               <div className="p-6">
-                <SaleTab lead={lead as any} onLeadUpdate={async () => {}} />
+                <SaleTab lead={lead as any} onLeadUpdate={async (updates) => {
+                  try {
+                    await updateMutation.mutateAsync({ id: lead.id, updates });
+                    onUpdate();
+                  } catch (err) {
+                    console.error("Error updating lead from SaleTab:", err);
+                    showAlert({ title: 'Error', message: 'No se pudieron guardar los datos.' });
+                  }
+                }} />
               </div>
             )}
           </div>

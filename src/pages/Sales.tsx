@@ -2,6 +2,17 @@ import React, { useState } from 'react';
 import { BadgeDollarSign, Loader2, Calendar, FileText, CheckCircle2, User, Home, Search, AlertCircle } from 'lucide-react';
 import { useSales } from '../hooks/useSales';
 import { useNavigate } from 'react-router-dom';
+import SaleDocumentsModal from '../components/sales/SaleDocumentsModal';
+import type { Database } from '../types/supabase';
+
+type SaleBase = Database['public']['Tables']['sales']['Row'];
+type LeadBase = Database['public']['Tables']['leads']['Row'];
+type PropertyBase = Database['public']['Tables']['inventory']['Row'];
+
+type Sale = SaleBase & {
+  lead: LeadBase;
+  property: PropertyBase;
+};
 
 const STATUS_CONFIG: Record<string, { label: string, color: string, icon: React.ReactNode }> = {
   reserva: { label: 'Reserva', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: <Calendar size={14} /> },
@@ -15,7 +26,8 @@ export default function Sales() {
   const { data: sales, isLoading } = useSales();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('completada');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedSaleForDocs, setSelectedSaleForDocs] = useState<Sale | null>(null);
 
   const formatCurrency = (val: number | null) => {
     if (val === null || isNaN(val)) return '-';
@@ -168,7 +180,7 @@ export default function Sales() {
                       <td className="px-6 py-4 text-right">
                         <button 
                           className="text-xs font-bold text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded transition-colors"
-                          onClick={() => navigate(`/leads?search=${encodeURIComponent(sale.lead.name)}`)}
+                          onClick={() => setSelectedSaleForDocs(sale as any)}
                         >
                           Ver Detalles
                         </button>
@@ -181,6 +193,13 @@ export default function Sales() {
           </table>
         </div>
       </div>
+
+      {selectedSaleForDocs && (
+        <SaleDocumentsModal
+          sale={selectedSaleForDocs}
+          onClose={() => setSelectedSaleForDocs(null)}
+        />
+      )}
     </div>
   );
 }

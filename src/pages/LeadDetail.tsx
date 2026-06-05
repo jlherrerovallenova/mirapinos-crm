@@ -450,7 +450,20 @@ export default function LeadDetail() {
         </>
       ) : (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden p-6">
-          <SaleTab lead={lead as any} onLeadUpdate={async () => {}} />
+          <SaleTab lead={lead as any} onLeadUpdate={async (updates) => {
+            try {
+              const { error } = await (supabase as any)
+                .from('leads')
+                .update(updates)
+                .eq('id', lead.id);
+              if (error) throw error;
+              setLead(prev => prev ? { ...prev, ...updates } as any : null);
+              showAlert({ title: 'Éxito', message: 'Datos guardados correctamente.' });
+            } catch (err) {
+              console.error("Error updating lead from SaleTab:", err);
+              showAlert({ title: 'Error', message: 'No se pudieron guardar los datos.' });
+            }
+          }} />
         </div>
       )}
     </div>
