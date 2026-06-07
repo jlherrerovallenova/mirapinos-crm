@@ -17,7 +17,7 @@ export interface Database {
           email: string | null
           full_name: string | null
           avatar_url: string | null
-          role: 'admin' | 'agent' | 'viewer'
+          role: 'admin' | 'agent' | 'viewer' | 'client'
           phone: string | null
           created_at: string
         }
@@ -26,7 +26,7 @@ export interface Database {
           email?: string | null
           full_name?: string | null
           avatar_url?: string | null
-          role?: 'admin' | 'agent' | 'viewer'
+          role?: 'admin' | 'agent' | 'viewer' | 'client'
           phone?: string | null
           created_at?: string
         }
@@ -35,7 +35,7 @@ export interface Database {
           email?: string | null
           full_name?: string | null
           avatar_url?: string | null
-          role?: 'admin' | 'agent' | 'viewer'
+          role?: 'admin' | 'agent' | 'viewer' | 'client'
           phone?: string | null
           created_at?: string
         }
@@ -68,6 +68,7 @@ export interface Database {
           joint_buyer_phone: string | null
           property_id: string | null
           sale_status: string | null
+          auth_user_id: string | null
         }
         Insert: {
           id?: string
@@ -96,6 +97,7 @@ export interface Database {
           joint_buyer_phone?: string | null
           property_id?: string | null
           sale_status?: string | null
+          auth_user_id?: string | null
         }
         Update: {
           id?: string
@@ -125,6 +127,7 @@ export interface Database {
           joint_buyer_phone?: string | null
           property_id?: string | null
           sale_status?: string | null
+          auth_user_id?: string | null
         }
       }
       inventory: {

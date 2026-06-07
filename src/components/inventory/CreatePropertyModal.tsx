@@ -166,13 +166,14 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                   >
                     <option value="OLIVO">OLIVO</option>
                     <option value="ARCE">ARCE</option>
+                    <option value="PARCELA">PARCELA</option>
                   </select>
                 </div>
               </div>
 
-              {/* 2. Nº DE VIVIENDA */}
+              {/* 2. Nº DE VIVIENDA / PARCELA */}
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nº de Vivienda</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nº DE VIVIENDA / PARCELA</label>
                 <div className="relative mt-1.5">
                   <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
@@ -211,11 +212,12 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                   <input
                     name="superficie_util"
                     type="number"
-                    required
+                    required={formData.modelo !== 'PARCELA'}
+                    disabled={formData.modelo === 'PARCELA'}
                     value={formData.superficie_util}
                     onChange={handleChange}
                     placeholder="0"
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -228,11 +230,12 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                   <input
                     name="superficie_construida"
                     type="number"
-                    required
+                    required={formData.modelo !== 'PARCELA'}
+                    disabled={formData.modelo === 'PARCELA'}
                     value={formData.superficie_construida}
                     onChange={handleChange}
                     placeholder="0"
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -245,11 +248,12 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                   <input
                     name="habitaciones"
                     type="number"
-                    required
+                    required={formData.modelo !== 'PARCELA'}
+                    disabled={formData.modelo === 'PARCELA'}
                     value={formData.habitaciones}
                     onChange={handleChange}
                     placeholder="0"
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -262,11 +266,12 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                   <input
                     name="banos"
                     type="number"
-                    required
+                    required={formData.modelo !== 'PARCELA'}
+                    disabled={formData.modelo === 'PARCELA'}
                     value={formData.banos}
                     onChange={handleChange}
                     placeholder="0"
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 transition-all disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -288,9 +293,9 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                 </div>
               </div>
 
-              {/* 9. ESTADO VIVIENDA */}
+              {/* 9. ESTADO VIVIENDA / PARCELA */}
               <div className="md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Estado de la Vivienda</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ESTADO DE LA VIVIENDA / PARCELA</label>
                 <div className="relative mt-2">
                   <Home className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <select

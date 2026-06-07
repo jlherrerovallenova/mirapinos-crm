@@ -55,6 +55,7 @@ export default function LeadDetail() {
 
   const [savingStatus, setSavingStatus] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<string>('');
+  const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -139,7 +140,41 @@ export default function LeadDetail() {
     }
   };
 
-  // 4. ACTUALIZACIÓN DE TAREAS VINCULADAS
+  // 4. INVITACIÓN DE CLIENTE AL PORTAL
+  const handleInviteClient = async () => {
+    if (!lead || !lead.email) return;
+    setInviting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-client-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          email: lead.email,
+          fullName: lead.name,
+          leadId: lead.id
+        })
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) throw new Error(result.error || 'Error al invitar al cliente');
+      
+      await showAlert({ title: 'Éxito', message: 'Se ha enviado un email al cliente con el acceso.' });
+      fetchLeadData(); // Refrescar para ver el auth_user_id
+    } catch (error: any) {
+      console.error('Error:', error);
+      await showAlert({ title: 'Error', message: error.message });
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  // 5. ACTUALIZACIÓN DE TAREAS VINCULADAS
   const toggleTaskStatus = async (task: AgendaItem) => {
     const newStatus = !task.completed;
     // Actualización optimista en UI
@@ -281,6 +316,17 @@ export default function LeadDetail() {
                   <a href={`mailto:${lead.email}`} className="flex-1 md:flex-none p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-sm">
                     <Mail size={16} /> Email
                   </a>
+                )}
+                {lead.email && lead.sale_status && !lead.auth_user_id && (
+                  <button onClick={handleInviteClient} disabled={inviting} className="flex-1 md:flex-none p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-sm disabled:opacity-50">
+                    {inviting ? <Loader2 size={16} className="animate-spin" /> : <User size={16} />}
+                    Dar acceso
+                  </button>
+                )}
+                {lead.auth_user_id && (
+                  <div className="flex-1 md:flex-none p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl shadow-sm flex items-center justify-center gap-2 font-bold text-sm cursor-default" title="Este cliente ya tiene acceso al portal privado">
+                    <CheckCircle2 size={16} /> Cliente Vinculado
+                  </div>
                 )}
               </>
             )}

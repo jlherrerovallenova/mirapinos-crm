@@ -49,8 +49,7 @@ export default function Sales() {
     return matchesSearch && matchesStatus;
   });
 
-  const totalClosedValue = (sales || [])
-    .filter(s => s.sale_status === 'completada')
+  const totalSalesValue = (sales || [])
     .reduce((acc, curr) => acc + (curr.sale_price || 0), 0);
 
   if (isLoading) {
@@ -74,9 +73,9 @@ export default function Sales() {
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">Ventas y Operaciones</h1>
             <p className="text-slate-500 text-sm font-medium flex items-center gap-2 mt-1">
               <span className="tabular-nums font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
-                {formatCurrency(totalClosedValue)}
+                {formatCurrency(totalSalesValue)}
               </span> 
-              en ventas cerradas
+              en total de ventas
             </p>
           </div>
         </div>
@@ -118,7 +117,7 @@ export default function Sales() {
             <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 font-bold text-slate-500 uppercase text-[10px] tracking-wider">Cliente</th>
-                <th className="px-6 py-4 font-bold text-slate-500 uppercase text-[10px] tracking-wider">Vivienda</th>
+                <th className="px-6 py-4 font-bold text-slate-500 uppercase text-[10px] tracking-wider">VIVIENDAS/PARCELAS</th>
                 <th className="px-6 py-4 font-bold text-slate-500 uppercase text-[10px] tracking-wider">Estado</th>
                 <th className="px-6 py-4 font-bold text-slate-500 uppercase text-[10px] tracking-wider">Precio Venta</th>
                 <th className="px-6 py-4 font-bold text-slate-500 uppercase text-[10px] tracking-wider">Fecha Cierre</th>
@@ -140,12 +139,13 @@ export default function Sales() {
                   const statusConf = STATUS_CONFIG[sale.sale_status] || STATUS_CONFIG.reserva;
                   
                   return (
-                    <tr key={sale.id} className="hover:bg-slate-50 transition-colors group">
+                    <tr 
+                      key={sale.id} 
+                      className="hover:bg-slate-50 transition-colors group cursor-pointer"
+                      onClick={() => setSelectedSaleForDocs(sale as any)}
+                    >
                       <td className="px-6 py-4">
-                        <div 
-                          className="flex items-center gap-3 cursor-pointer group-hover:text-emerald-600"
-                          onClick={() => navigate(`/leads?search=${encodeURIComponent(sale.lead.name)}`)}
-                        >
+                        <div className="flex items-center gap-3 group-hover:text-emerald-600">
                           <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 shrink-0">
                             <User size={14} />
                           </div>
@@ -156,13 +156,16 @@ export default function Sales() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div 
-                          className="flex items-center gap-2 cursor-pointer text-slate-700 hover:text-emerald-600"
-                          onClick={() => navigate(`/inventory?search=${encodeURIComponent(sale.property.numero_vivienda)}`)}
-                        >
-                          <Home size={16} className="text-slate-400" />
-                          <span className="font-bold">Vivienda {sale.property.numero_vivienda}</span>
-                          <span className="text-xs text-slate-400">({sale.property.modelo})</span>
+                        <div className="flex items-center gap-2 text-slate-700 group-hover:text-emerald-600">
+                          <Home size={16} className="text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                          {sale.property.modelo === 'PARCELA' ? (
+                            <span className="font-bold">Parcela {sale.property.numero_vivienda}</span>
+                          ) : (
+                            <>
+                              <span className="font-bold">Vivienda {sale.property.numero_vivienda}</span>
+                              <span className="text-xs text-slate-400">({sale.property.modelo})</span>
+                            </>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -180,7 +183,10 @@ export default function Sales() {
                       <td className="px-6 py-4 text-right">
                         <button 
                           className="text-xs font-bold text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded transition-colors"
-                          onClick={() => setSelectedSaleForDocs(sale as any)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedSaleForDocs(sale as any);
+                          }}
                         >
                           Ver Detalles
                         </button>

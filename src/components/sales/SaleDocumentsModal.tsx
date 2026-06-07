@@ -180,7 +180,7 @@ export default function SaleDocumentsModal({ sale, onClose }: SaleDocumentsModal
               Detalles y Documentos de la Operación
             </h2>
             <p className="text-sm font-medium text-slate-500 mt-1">
-              Cliente: <span className="text-slate-700 font-bold">{sale.lead.name}</span> | Vivienda: <span className="text-slate-700 font-bold">{sale.property.numero_vivienda}</span>
+              Cliente: <span className="text-slate-700 font-bold">{sale.lead.name}</span> | {sale.property.modelo === 'PARCELA' ? 'Parcela' : 'Vivienda'}: <span className="text-slate-700 font-bold">{sale.property.numero_vivienda}</span>
             </p>
           </div>
           <button 

@@ -7,7 +7,7 @@ interface Profile {
   id: string;
   full_name: string | null;
   avatar_url: string | null;
-  role: 'admin' | 'agent' | 'viewer';
+  role: 'admin' | 'agent' | 'viewer' | 'client';
   phone: string | null;
   email: string | null;
 }
