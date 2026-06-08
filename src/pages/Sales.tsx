@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { BadgeDollarSign, Loader2, Calendar, FileText, CheckCircle2, User, Home, Search, AlertCircle } from 'lucide-react';
 import { useSales } from '../hooks/useSales';
-import { useNavigate } from 'react-router-dom';
 import SaleDocumentsModal from '../components/sales/SaleDocumentsModal';
 import type { Database } from '../types/supabase';
 
@@ -24,7 +23,6 @@ const STATUS_CONFIG: Record<string, { label: string, color: string, icon: React.
 
 export default function Sales() {
   const { data: sales, isLoading } = useSales();
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedSaleForDocs, setSelectedSaleForDocs] = useState<Sale | null>(null);

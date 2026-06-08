@@ -25,7 +25,7 @@ const STATUS_CONFIG: Record<string, { dot: string; pill: string; label: string }
   visiting:    { dot: 'bg-cyan-400',    pill: 'bg-cyan-900/40 text-cyan-200 border border-cyan-700/50',       label: 'Visitando' },
   proposal:    { dot: 'bg-amber-400',   pill: 'bg-amber-900/40 text-amber-200 border border-amber-700/50',   label: 'Propuesta' },
   negotiation: { dot: 'bg-orange-400',  pill: 'bg-orange-900/40 text-orange-200 border border-orange-700/50', label: 'Negociación' },
-  closed:      { dot: 'bg-slate-400',   pill: 'bg-slate-700/50 text-slate-300 border border-slate-600/50',   label: 'Venta realizada' },
+  closed:      { dot: 'bg-indigo-400',   pill: 'bg-indigo-900/40 text-indigo-200 border border-indigo-700/50',   label: 'Venta realizada' },
   lost:        { dot: 'bg-red-400',     pill: 'bg-red-900/40 text-red-200 border border-red-700/50',         label: 'Perdido' },
 };
 

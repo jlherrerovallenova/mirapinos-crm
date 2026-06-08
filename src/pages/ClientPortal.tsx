@@ -38,7 +38,7 @@ export default function ClientPortal() {
         return;
       }
 
-      const currentSale = salesData[0];
+      const currentSale = salesData[0] as any;
       setSale(currentSale);
 
       // 2. Fetch Property

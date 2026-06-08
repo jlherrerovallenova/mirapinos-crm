@@ -1,6 +1,6 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Home, Loader2 } from 'lucide-react';
+import { LogOut, Loader2 } from 'lucide-react';
 
 export default function ClientLayout() {
   const { session, profile, loading, signOut } = useAuth();
