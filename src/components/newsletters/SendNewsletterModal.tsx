@@ -23,7 +23,7 @@ const PHASES: { value: PhaseType; label: string }[] = [
     { value: 'visiting', label: 'Visitando' },
     { value: 'proposal', label: 'Propuesta' },
     { value: 'negotiation', label: 'Negociación' },
-    { value: 'closed', label: 'Cerrado/Ganado' },
+    { value: 'closed', label: 'Venta realizada' },
     { value: 'lost', label: 'Perdido' },
 ];
 

@@ -29,7 +29,7 @@ const STATUS_OPTIONS = [
   { value: 'qualified', label: 'Cualificado' },
   { value: 'proposal', label: 'Propuesta Enviada' },
   { value: 'negotiation', label: 'En Negociación' },
-  { value: 'closed', label: 'Cerrado (Ganado)' },
+  { value: 'closed', label: 'Venta realizada' },
   { value: 'lost', label: 'Perdido' },
 ];
 

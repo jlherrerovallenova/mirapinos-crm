@@ -44,7 +44,7 @@ const STATUS_LABELS: Record<string, string> = {
   visiting: 'Visitando',
   proposal: 'Propuesta',
   negotiation: 'Negociación',
-  closed: 'Cerrado',
+  closed: 'Venta realizada',
   lost: 'Perdido',
 };
 
@@ -271,7 +271,7 @@ export default function Leads() {
                 <option value="visiting">Visitando</option>
                 <option value="proposal">Propuesta</option>
                 <option value="negotiation">Negociación</option>
-                <option value="closed">Cerrados</option>
+                <option value="closed">Venta realizada</option>
                 <option value="lost">Perdidos</option>
               </select>
             </div>
