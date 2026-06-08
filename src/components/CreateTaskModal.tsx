@@ -12,9 +12,10 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  defaultDate?: string;
 }
 
-export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
+export default function CreateTaskModal({ isOpen, onClose, onSuccess, defaultDate }: Props) {
   const { session } = useAuth();
   const { showAlert } = useDialog();
   const [loading, setLoading] = useState(false);
@@ -26,9 +27,15 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
   const [formData, setFormData] = useState({
     title: '',
     type: 'Llamada' as Database['public']['Tables']['agenda']['Row']['type'],
-    date: new Date().toISOString().split('T')[0],
+    date: defaultDate || new Date().toISOString().split('T')[0],
     time: '10:00',
   });
+
+  useEffect(() => {
+    if (defaultDate) {
+      setFormData(prev => ({ ...prev, date: defaultDate }));
+    }
+  }, [defaultDate]);
 
   // Buscar clientes cuando el usuario escribe
   useEffect(() => {
