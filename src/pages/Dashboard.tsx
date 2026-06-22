@@ -16,7 +16,9 @@ import {
   AlertCircle,
   Search,
   Plus,
-  Phone
+  Phone,
+  Mail,
+  Eye
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
@@ -41,6 +43,18 @@ interface RecentLead {
   created_at: string;
 }
 
+interface EmailTrackingItem {
+  id: string;
+  lead_id: string | null;
+  subject: string;
+  status: string;
+  opens_count: number;
+  first_opened_at: string | null;
+  last_opened_at: string | null;
+  created_at: string;
+  leads?: { name: string } | null;
+}
+
 export default function Dashboard() {
   const { session } = useAuth();
   const { showConfirm, showAlert } = useDialog();
@@ -57,8 +71,9 @@ export default function Dashboard() {
 
   // Estado para la búsqueda del cliente y el tab activo
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'futuras' | 'caducadas' | 'sinActividad'>('futuras');
+  const [activeTab, setActiveTab] = useState<'futuras' | 'caducadas' | 'sinActividad' | 'correos'>('futuras');
   const [noActivityLeads, setNoActivityLeads] = useState<RecentLead[]>([]);
+  const [emails, setEmails] = useState<EmailTrackingItem[]>([]);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -137,6 +152,23 @@ export default function Dashboard() {
         setNoActivityLeads(filtered);
       }
 
+      // 4. CARGA DE SEGUIMIENTO DE EMAILS
+      const { data: emailData, error: emailError } = await supabase
+        .from('email_tracking')
+        .select('*, leads(name)')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (emailError) {
+        console.error("Error fetching email tracking:", emailError);
+      } else if (emailData) {
+        const formattedEmails = (emailData || []).map((item: any) => ({
+          ...item,
+          leads: Array.isArray(item.leads) ? item.leads[0] : item.leads
+        })) as EmailTrackingItem[];
+        setEmails(formattedEmails);
+      }
+
     } catch (error) {
       console.error("Error general cargando dashboard:", error);
     } finally {
@@ -161,6 +193,13 @@ export default function Dashboard() {
     if (activeTab === 'futuras' && isOverdue) return false;
 
     return true;
+  });
+
+  const filteredEmails = emails.filter(email => {
+    const matchesSearch =
+      email.leads?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      email.subject?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
   });
 
   // Contador para el badge de tareas caducadas
@@ -343,6 +382,20 @@ export default function Dashboard() {
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setActiveTab('correos')}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeTab === 'correos'
+                  ? 'bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                  }`}
+              >
+                Correos
+                {emails.length > 0 && (
+                  <span className="bg-indigo-500 text-white text-[10px] px-1.5 py-0.5 rounded-full select-none">
+                    {emails.length}
+                  </span>
+                )}
+              </button>
             </div>
 
             {/* BUSCADOR DE CLIENTE */}
@@ -350,7 +403,7 @@ export default function Dashboard() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input
                 type="text"
-                placeholder="Buscar por cliente o tarea..."
+                placeholder={activeTab === 'correos' ? "Buscar por cliente o asunto..." : "Buscar por cliente o tarea..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700"
@@ -370,7 +423,7 @@ export default function Dashboard() {
                 noActivityLeads
                   .filter(l => l.name.toLowerCase().includes(searchQuery.toLowerCase()))
                   .map((lead) => (
-                    <div key={lead.id} className="p-4 hover:bg-slate-50 transition-all flex items-center justify-between group bg-white cursor-pointer" onClick={() => navigate(`/leads?search=${encodeURIComponent(lead.name)}`)}>
+                    <div key={lead.id} className="p-4 hover:bg-slate-50 transition-all flex items-center justify-between group bg-white cursor-pointer" onClick={() => navigate(`/leads?open=${lead.id}`)}>
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-orange-50 text-orange-600 border border-orange-100 font-bold text-xs">
                           {lead.name.substring(0, 2).toUpperCase()}
@@ -391,6 +444,73 @@ export default function Dashboard() {
                       </div>
                     </div>
                   ))
+              )
+            ) : activeTab === 'correos' ? (
+              filteredEmails.length === 0 && !loading ? (
+                <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-in fade-in">
+                  <Mail size={48} className="mb-4 opacity-20 text-indigo-500" />
+                  <p className="text-sm font-medium text-slate-600">
+                    {searchQuery ? 'No hay coincidencias' : 'Sin correos'}
+                  </p>
+                  <p className="text-xs opacity-60">
+                    {searchQuery ? 'Prueba con otro cliente o asunto' : 'No se ha enviado ningún correo todavía'}
+                  </p>
+                </div>
+              ) : (
+                filteredEmails.map((email) => {
+                  const isOpened = email.status === 'opened' || email.opens_count > 0;
+                  return (
+                    <div key={email.id} className={`p-4 hover:bg-slate-50 transition-all flex items-center justify-between group bg-white ${email.lead_id ? 'cursor-pointer' : ''}`} onClick={() => email.lead_id && navigate(`/leads?open=${email.lead_id}`)}>
+                      <div className="flex items-center gap-4 min-w-0 flex-1">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-600 border border-indigo-100 font-bold text-xs">
+                          <Mail size={18} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-sm font-bold text-slate-800 truncate">
+                              {email.leads?.name || 'Cliente desconocido'}
+                            </span>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                              isOpened
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                : 'bg-slate-50 text-slate-500 border-slate-200'
+                            }`}>
+                              {isOpened ? 'Abierto' : 'Enviado'}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-500 truncate font-medium">
+                            {email.subject}
+                          </div>
+                          <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1.5">
+                            <span>Enviado: {formatDateTime(email.created_at)}</span>
+                            {isOpened && email.last_opened_at && (
+                              <>
+                                <span>•</span>
+                                <span className="text-emerald-600 font-semibold flex items-center gap-0.5">
+                                  <Eye size={10} />
+                                  Últ. apertura: {formatDateTime(email.last_opened_at)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 shrink-0 pl-3">
+                        <div className="text-right">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+                            isOpened
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-slate-50 text-slate-400 border border-slate-200'
+                          }`}>
+                            <Eye size={12} />
+                            {email.opens_count} {email.opens_count === 1 ? 'apertura' : 'aperturas'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
               )
             ) : filteredAgenda.length === 0 && !loading ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-in fade-in">

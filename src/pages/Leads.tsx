@@ -10,12 +10,10 @@ import {
   Loader2,
   MessageCircle,
   Filter,
-  Download,
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
   FilterX,
-  Upload,
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
@@ -26,11 +24,10 @@ import {
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
 import EmailComposerModal from '../components/leads/EmailComposerModal';
-import ExportLeadsModal from '../components/leads/ExportLeadsModal';
-import ImportLeadsModal from '../components/leads/ImportLeadsModal';
 import { AppNotification } from '../components/AppNotification';
 import { useDocuments } from '../hooks/useDocuments';
 import { useLeads } from '../hooks/useLeads';
+import { supabase } from '../lib/supabase';
 import type { Database } from '../types/supabase';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
@@ -93,8 +90,6 @@ export default function Leads() {
 
   // Modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [emailLead, setEmailLead] = useState<Lead | null>(null);
   const [initialMethod, setInitialMethod] = useState<'email' | 'whatsapp'>('email');
@@ -109,8 +104,7 @@ export default function Leads() {
   // React Query para la gestión de leads
   const { 
     data, 
-    isLoading: loading, 
-    refetch 
+    isLoading: loading 
   } = useLeads({
     page,
     pageSize: ITEMS_PER_PAGE,
@@ -137,6 +131,33 @@ export default function Leads() {
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('create');
       setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Auto-abrir ficha del cliente si se especifica el parámetro 'open'
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (openId) {
+      const fetchLeadAndOpen = async () => {
+        try {
+          const { data: leadData } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('id', openId)
+            .maybeSingle();
+
+          if (leadData) {
+            setSelectedLead(leadData);
+          }
+        } catch (error) {
+          console.error("Error fetching lead to open:", error);
+        } finally {
+          const newParams = new URLSearchParams(searchParams);
+          newParams.delete('open');
+          setSearchParams(newParams, { replace: true });
+        }
+      };
+      fetchLeadAndOpen();
     }
   }, [searchParams, setSearchParams]);
 
@@ -216,24 +237,6 @@ export default function Leads() {
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <button
-              onClick={() => setIsImportModalOpen(true)}
-              className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-emerald-600 transition-colors shadow-sm hidden sm:flex items-center gap-2"
-              title="Importar CSV"
-            >
-              <Upload size={18} />
-              <span className="hidden lg:inline text-xs font-bold">Importar</span>
-            </button>
-
-            <button
-              onClick={() => setIsExportModalOpen(true)}
-              className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-emerald-600 transition-colors shadow-sm hidden sm:flex items-center gap-2"
-              title="Exportar Listado"
-            >
-              <Download size={18} />
-              <span className="hidden lg:inline text-xs font-bold">Exportar</span>
-            </button>
-
             <button
               onClick={() => setIsCreateModalOpen(true)}
               className="px-5 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 shrink-0 flex-1 md:flex-none justify-center"
@@ -333,22 +336,23 @@ export default function Leads() {
           <div className="flex-1">
             <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 hidden md:grid">
               <div
-                className={`col-span-4 flex items-center gap-1 cursor-pointer select-none transition-colors ${sortField === 'name' ? 'text-slate-700' : 'hover:text-slate-600'}`}
+                className={`col-span-3 flex items-center gap-1 cursor-pointer select-none transition-colors ${sortField === 'name' ? 'text-slate-700' : 'hover:text-slate-600'}`}
                 onClick={() => handleSort('name')}
               >
                 Cliente
                 {sortField === 'name' ? (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-30" />}
               </div>
-              <div className="col-span-2">Estado</div>
               <div className="col-span-3">Contacto</div>
-              <div className="col-span-1">Origen</div>
+              <div className="col-span-2 text-center">Estado</div>
+              <div className="col-span-1 text-center">Origen</div>
               <div
-                className={`col-span-2 flex items-center gap-1 cursor-pointer select-none transition-colors ${sortField === 'created_at' ? 'text-slate-700' : 'hover:text-slate-600'}`}
+                className={`col-span-2 flex items-center justify-center gap-1 cursor-pointer select-none transition-colors ${sortField === 'created_at' ? 'text-slate-700' : 'hover:text-slate-600'}`}
                 onClick={() => handleSort('created_at')}
               >
                 Alta
                 {sortField === 'created_at' ? (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-30" />}
               </div>
+              <div className="col-span-1 text-left pl-2">Acciones</div>
             </div>
 
             {leads.map((lead) => {
@@ -359,17 +363,13 @@ export default function Leads() {
                   onClick={() => setSelectedLead(lead)}
                   className={`grid grid-cols-1 md:grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group border-b border-slate-100 border-l-4 ${cfg.border} hover:bg-slate-50/80 transition-all duration-150`}
                 >
-                  <div className="md:col-span-4 flex items-center gap-3.5">
+                  <div className="md:col-span-3 flex items-center gap-3.5">
                     <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm border border-emerald-100 shrink-0">
                       {lead.name?.substring(0, 2).toUpperCase() || 'CL'}
                     </div>
                     <div className="min-w-0 flex items-center">
                       <h3 className="font-bold text-slate-900 text-sm truncate group-hover:text-emerald-700 transition-colors leading-tight">{lead.name}</h3>
                     </div>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    {getStatusBadge(lead.status)}
                   </div>
 
                   <div className="md:col-span-3 flex flex-col gap-1.5">
@@ -385,6 +385,10 @@ export default function Leads() {
                       </div>
                       <span className="truncate">{lead.phone || <span className="text-slate-300 italic">Sin teléfono</span>}</span>
                     </div>
+                  </div>
+
+                  <div className="md:col-span-2 flex justify-center">
+                    {getStatusBadge(lead.status)}
                   </div>
 
                   <div className="md:col-span-1 flex justify-center">
@@ -407,13 +411,13 @@ export default function Leads() {
                     })()}
                   </div>
 
-                  <div className="md:col-span-2 text-right md:text-left">
+                  <div className="md:col-span-2 flex justify-center items-center">
                     <p className="text-[11px] text-slate-500 font-medium whitespace-nowrap">
                       {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
 
-                  <div className="md:col-span-0 md:hidden lg:flex hidden items-center justify-end gap-1 absolute right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="hidden md:flex md:col-span-1 items-center justify-start gap-1 pl-2">
                     <button onClick={(e) => { e.stopPropagation(); openComposer(lead, 'whatsapp'); }} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="WhatsApp"><MessageCircle size={15} /></button>
                     <button onClick={(e) => { e.stopPropagation(); openComposer(lead, 'email'); }} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Email"><Mail size={15} /></button>
                     <ChevronRight size={15} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
@@ -468,14 +472,6 @@ export default function Leads() {
           </div>
         )}
       </div>
-
-      <ExportLeadsModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} />
-
-      <ImportLeadsModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onSuccess={() => { refetch(); showMsg('success', '¡Importación completada!', 'Los clientes han sido importados correctamente.'); }}
-      />
 
       <CreateLeadModal
         isOpen={isCreateModalOpen}

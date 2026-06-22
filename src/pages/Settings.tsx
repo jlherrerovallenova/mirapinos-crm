@@ -23,7 +23,8 @@ import {
   Map,
   Plus,
   Copy,
-  Home
+  Home,
+  Database
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +32,8 @@ import { useDialog } from '../context/DialogContext';
 import { useDocuments, DOCUMENT_CATEGORIES } from '../hooks/useDocuments';
 import type { SystemDocument } from '../hooks/useDocuments';
 import { useQueryClient } from '@tanstack/react-query';
+import ExportLeadsModal from '../components/leads/ExportLeadsModal';
+import ImportLeadsModal from '../components/leads/ImportLeadsModal';
 
 const Settings: React.FC = () => {
   const { profile, refreshProfile } = useAuth();
@@ -38,9 +41,11 @@ const Settings: React.FC = () => {
   const queryClient = useQueryClient();
 
   // Estados de Navegación y UI
-  const [activeTab, setActiveTab] = useState<'profile' | 'housing' | 'documents' | 'integrations'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'housing' | 'documents' | 'integrations' | 'data'>('profile');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Estados de Integraciones
   const [resendApiKey, setResendApiKey] = useState('');
@@ -367,6 +372,17 @@ const Settings: React.FC = () => {
           >
             <SettingsIcon size={16} />
             <span className="font-medium">Integraciones</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('data')}
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all ${activeTab === 'data'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'hover:bg-slate-100 text-slate-600'
+              }`}
+          >
+            <Database size={16} />
+            <span className="font-medium">Datos de Clientes</span>
           </button>
           
           <div className="h-px bg-slate-200 my-2 mx-3"></div>
@@ -803,6 +819,62 @@ const Settings: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* VISTA: DATOS DE CLIENTES (IMPORTAR / EXPORTAR) */}
+          {activeTab === 'data' && (
+            <div className="p-6 space-y-6 animate-in fade-in duration-300">
+              <div className="border-b pb-2">
+                <h2 className="text-lg font-semibold text-slate-800">Datos de Clientes</h2>
+                <p className="text-xs text-slate-500">Herramientas administrativas para la importación y exportación masiva de contactos.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+                {/* Importar */}
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 hover:border-emerald-400 transition-all flex flex-col justify-between group">
+                  <div className="space-y-3">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:rotate-12 transition-transform">
+                      <Upload size={24} />
+                    </div>
+                    <h3 className="font-bold text-slate-800 text-sm">Importar Clientes</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Carga masiva de contactos a través de archivos Excel o CSV. Mapea columnas para importar nombres, emails, teléfonos y orígenes de forma automatizada.
+                    </p>
+                  </div>
+                  <div className="mt-6">
+                    <button
+                      onClick={() => setIsImportModalOpen(true)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors"
+                    >
+                      <Upload size={16} />
+                      Importar CSV
+                    </button>
+                  </div>
+                </div>
+
+                {/* Exportar */}
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 hover:border-blue-400 transition-all flex flex-col justify-between group">
+                  <div className="space-y-3">
+                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:rotate-12 transition-transform">
+                      <Download size={24} />
+                    </div>
+                    <h3 className="font-bold text-slate-800 text-sm">Exportar Clientes</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Descarga un respaldo completo o parcial de todos tus contactos registrados en formato CSV, listo para usar en otras herramientas o mantener un backup local.
+                    </p>
+                  </div>
+                  <div className="mt-6">
+                    <button
+                      onClick={() => setIsExportModalOpen(true)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition-colors"
+                    >
+                      <Download size={16} />
+                      Exportar Listado
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -842,6 +914,17 @@ const Settings: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* MODALES DE IMPORTACIÓN Y EXPORTACIÓN */}
+      <ExportLeadsModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} />
+      <ImportLeadsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['leads'] });
+          showAlert({ title: 'Éxito', message: 'Los clientes han sido importados correctamente.' });
+        }}
+      />
     </div>
   );
 };
