@@ -36,7 +36,7 @@ const MONTH_NAMES = [
 ];
 
 export default function Agenda() {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +51,27 @@ export default function Agenda() {
   const [selectedCellDate, setSelectedCellDate] = useState<string | undefined>(undefined);
   const { showConfirm, showAlert } = useDialog();
 
+  const [agents, setAgents] = useState<any[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('all');
+
+  useEffect(() => {
+    if (profile?.role === 'admin') {
+      fetchAgents();
+    }
+  }, [profile]);
+
+  const fetchAgents = async () => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .order('full_name');
+      if (data) setAgents(data);
+    } catch (err) {
+      console.error('Error fetching agents:', err);
+    }
+  };
+
   useEffect(() => {
     fetchAgenda();
 
@@ -62,7 +83,7 @@ export default function Agenda() {
       newParams.delete('create');
       setSearchParams(newParams, { replace: true });
     }
-  }, [page, filterStatus, viewMode, currentDate, searchParams, setSearchParams]);
+  }, [page, filterStatus, viewMode, currentDate, searchParams, setSearchParams, selectedAgentId]);
 
   const fetchAgenda = async () => {
     if (!session) return;
@@ -76,6 +97,17 @@ export default function Agenda() {
 
       if (filterStatus === 'pending') query = query.eq('completed', false);
       if (filterStatus === 'completed') query = query.eq('completed', true);
+
+      // Aplicar filtro de usuario/agente
+      if (profile?.role === 'admin') {
+        if (selectedAgentId !== 'all') {
+          query = query.eq('user_id', selectedAgentId);
+        }
+      } else {
+        if (session?.user?.id) {
+          query = query.eq('user_id', session.user.id);
+        }
+      }
 
       let data, count, error;
 
@@ -289,6 +321,25 @@ export default function Agenda() {
               </button>
             </div>
 
+            {/* Filtro por Asesor (solo Administradores) */}
+            {profile?.role === 'admin' && (
+              <select
+                value={selectedAgentId}
+                onChange={(e) => {
+                  setSelectedAgentId(e.target.value);
+                  setPage(1);
+                }}
+                className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-sm"
+              >
+                <option value="all">👥 Todos los asesores</option>
+                {agents.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    👤 {agent.full_name || agent.email}
+                  </option>
+                ))}
+              </select>
+            )}
+
             <button
               onClick={() => { setSelectedCellDate(undefined); setIsCreateModalOpen(true); }}
               className="px-5 py-2.5 bg-slate-900 text-white font-bold rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 text-xs"
@@ -386,7 +437,7 @@ export default function Agenda() {
                             toggleStatus(task);
                           }}
                           className={`px-1.5 py-1 rounded text-[10px] font-bold border truncate cursor-pointer transition-all flex items-center gap-1 hover:scale-[1.02] shadow-sm select-none ${getTaskMiniBadgeStyle(task.type, task.completed)}`}
-                          title={`${task.title} ${task.leads?.name ? `(Cliente: ${task.leads.name})` : ''}`}
+                          title={`${task.title} ${task.leads?.name ? `(Cliente: ${task.leads.name})` : ''} ${profile?.role === 'admin' ? `[Asesor: ${agents.find(a => a.id === task.user_id)?.full_name || 'Sin asignar'}]` : ''}`}
                         >
                           <span className="shrink-0">{getTaskEmoji(task.type)}</span>
                           <span className="truncate flex-1">{task.title}</span>
@@ -443,6 +494,11 @@ export default function Agenda() {
                           </span>
                         ) : (
                           <span className="text-slate-400 italic">Sin cliente vinculado</span>
+                        )}
+                        {profile?.role === 'admin' && (
+                          <span className="flex items-center gap-1 text-slate-700 font-medium bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200" title="Asesor responsable">
+                            👤 {agents.find(a => a.id === item.user_id)?.full_name || 'Sin asignar'}
+                          </span>
                         )}
                         <span className="flex items-center gap-1 font-medium">
                           <Clock size={12} className="text-slate-400" /> {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
