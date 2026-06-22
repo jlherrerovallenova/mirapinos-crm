@@ -216,6 +216,303 @@ export default function Stats() {
     doc.save(`informe_clientes_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
+  const handleGenerateAcquisitionReport = () => {
+    if (rawLeads.length === 0) return;
+
+    const now = new Date();
+    
+    // 1. Filtrar leads por períodos (días naturales a partir de la fecha actual)
+    const dateLimitMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const dateLimitTrimester = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const dateLimitSemester = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+
+    const leadsTotal = rawLeads;
+    const leadsSemester = rawLeads.filter(l => new Date(l.created_at) >= dateLimitSemester);
+    const leadsTrimester = rawLeads.filter(l => new Date(l.created_at) >= dateLimitTrimester);
+    const leadsMonth = rawLeads.filter(l => new Date(l.created_at) >= dateLimitMonth);
+
+    // 2. Procesar datos por Origen/Canal
+    const uniqueSources = Array.from(new Set(rawLeads.map(l => l.source || 'Sin origen')));
+    
+    const sourceBreakdown = uniqueSources.map(source => {
+      const countTotal = leadsTotal.filter(l => (l.source || 'Sin origen') === source).length;
+      const countSemester = leadsSemester.filter(l => (l.source || 'Sin origen') === source).length;
+      const countTrimester = leadsTrimester.filter(l => (l.source || 'Sin origen') === source).length;
+      const countMonth = leadsMonth.filter(l => (l.source || 'Sin origen') === source).length;
+
+      return {
+        source,
+        total: countTotal,
+        semester: countSemester,
+        trimester: countTrimester,
+        month: countMonth
+      };
+    });
+
+    // Ordenar orígenes por total histórico descendente
+    sourceBreakdown.sort((a, b) => b.total - a.total);
+
+    // 3. Procesar datos por Mes
+    const monthlyGroups: Record<string, { total: number; semester: number; trimester: number; month: number }> = {};
+
+    const getMonthKey = (dateStr: string) => {
+      if (!dateStr) return 'Desconocido';
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return 'Desconocido';
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      return `${year}-${month}`;
+    };
+
+    const formatMonthKeyLabel = (key: string) => {
+      if (key === 'Desconocido') return 'Desconocido';
+      const [year, month] = key.split('-');
+      const d = new Date(parseInt(year), parseInt(month) - 1, 1);
+      const name = d.toLocaleString('es-ES', { month: 'long' });
+      return `${name.charAt(0).toUpperCase() + name.slice(1)} ${year}`;
+    };
+
+    // Inicializar grupos con todos los meses que tengan datos
+    rawLeads.forEach(l => {
+      const key = getMonthKey(l.created_at);
+      if (key !== 'Desconocido' && !monthlyGroups[key]) {
+        monthlyGroups[key] = { total: 0, semester: 0, trimester: 0, month: 0 };
+      }
+    });
+
+    // Rellenar conteos
+    leadsTotal.forEach(l => {
+      const key = getMonthKey(l.created_at);
+      if (key !== 'Desconocido') monthlyGroups[key].total++;
+    });
+    leadsSemester.forEach(l => {
+      const key = getMonthKey(l.created_at);
+      if (key !== 'Desconocido') monthlyGroups[key].semester++;
+    });
+    leadsTrimester.forEach(l => {
+      const key = getMonthKey(l.created_at);
+      if (key !== 'Desconocido') monthlyGroups[key].trimester++;
+    });
+    leadsMonth.forEach(l => {
+      const key = getMonthKey(l.created_at);
+      if (key !== 'Desconocido') monthlyGroups[key].month++;
+    });
+
+    // Convertir a array y ordenar cronológicamente inverso
+    const monthBreakdown = Object.entries(monthlyGroups)
+      .map(([key, counts]) => ({
+        key,
+        label: formatMonthKeyLabel(key),
+        ...counts
+      }))
+      .sort((a, b) => b.key.localeCompare(a.key));
+
+    // 4. Crear documento PDF (A4 Vertical)
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const primaryColor: [number, number, number] = [16, 185, 129]; // Emerald-500
+    const darkSlate: [number, number, number] = [15, 23, 42]; // Slate-900
+    const lightGray: [number, number, number] = [248, 250, 252]; // Slate-50
+
+    // Cabecera
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text('FINCA MIRAPINOS', 14, 20);
+    
+    doc.setFontSize(13);
+    doc.setTextColor(darkSlate[0], darkSlate[1], darkSlate[2]);
+    doc.text('INFORME ESTADÍSTICO DE ADQUISICIÓN DE CONTACTOS', 14, 27);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(100);
+    doc.text(`Fecha de generación: ${now.toLocaleString('es-ES')}`, 14, 33);
+    doc.text('Comparativa temporal: Total Histórico vs. Último Semestre (180d), Trimestre (90d) y Mes (30d)', 14, 38);
+
+    // Separador horizontal
+    doc.setDrawColor(226, 232, 240); // Slate-200
+    doc.setLineWidth(0.4);
+    doc.line(14, 42, 196, 42);
+
+    // Bloque 1: Resumen Ejecutivo
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.setTextColor(darkSlate[0], darkSlate[1], darkSlate[2]);
+    doc.text('1. RESUMEN DE REGISTROS POR PERÍODO', 14, 49);
+
+    const kpiColumns = ['Período', 'Rango Estimado', 'Total Contactos', 'Promedio Mensual'];
+    const monthsTotalCount = Object.keys(monthlyGroups).length || 1;
+    const avgTotal = (leadsTotal.length / monthsTotalCount).toFixed(1);
+    const avgSemester = (leadsSemester.length / 6).toFixed(1);
+    const avgTrimester = (leadsTrimester.length / 3).toFixed(1);
+    const avgMonth = leadsMonth.length.toString();
+
+    const kpiRows = [
+      ['Total Histórico', 'Todo el histórico disponible', leadsTotal.length.toString(), `${avgTotal} / mes`],
+      ['Último Semestre', 'Últimos 180 días', leadsSemester.length.toString(), `${avgSemester} / mes`],
+      ['Último Trimestre', 'Últimos 90 días', leadsTrimester.length.toString(), `${avgTrimester} / mes`],
+      ['Último Mes', 'Últimos 30 días', leadsMonth.length.toString(), `${avgMonth} / mes`]
+    ];
+
+    autoTable(doc, {
+      head: [kpiColumns],
+      body: kpiRows,
+      startY: 53,
+      theme: 'grid',
+      headStyles: {
+        fillColor: primaryColor,
+        textColor: 255,
+        fontSize: 8.5,
+        fontStyle: 'bold'
+      },
+      styles: {
+        fontSize: 8.5,
+        cellPadding: 2.5
+      },
+      alternateRowStyles: {
+        fillColor: lightGray
+      }
+    });
+
+    // Bloque 2: Distribución por Origen
+    let currentY = (doc as any).lastAutoTable.finalY + 9;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.setTextColor(darkSlate[0], darkSlate[1], darkSlate[2]);
+    doc.text('2. CONTACTOS POR ORIGEN / CANAL', 14, currentY);
+
+    const originColumns = ['Origen o Canal', 'Histórico Total', 'Último Semestre', 'Último Trimestre', 'Último Mes'];
+    const originRows = sourceBreakdown.map(s => [
+      s.source,
+      s.total.toString(),
+      s.semester.toString(),
+      s.trimester.toString(),
+      s.month.toString()
+    ]);
+
+    originRows.push([
+      'TOTAL GENERAL',
+      leadsTotal.length.toString(),
+      leadsSemester.length.toString(),
+      leadsTrimester.length.toString(),
+      leadsMonth.length.toString()
+    ]);
+
+    autoTable(doc, {
+      head: [originColumns],
+      body: originRows,
+      startY: currentY + 4,
+      theme: 'grid',
+      headStyles: {
+        fillColor: primaryColor,
+        textColor: 255,
+        fontSize: 8.5,
+        fontStyle: 'bold'
+      },
+      styles: {
+        fontSize: 8.5,
+        cellPadding: 2.5
+      },
+      alternateRowStyles: {
+        fillColor: lightGray
+      },
+      didParseCell: (data) => {
+        if (data.row.index === originRows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [241, 245, 249];
+        }
+      }
+    });
+
+    // Bloque 3: Distribución por Meses
+    currentY = (doc as any).lastAutoTable.finalY + 9;
+    
+    if (currentY > 220) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.setTextColor(darkSlate[0], darkSlate[1], darkSlate[2]);
+    doc.text('3. EVOLUCIÓN HISTÓRICA POR MESES', 14, currentY);
+
+    const monthColumns = ['Mes / Año', 'Histórico Total', 'Último Semestre', 'Último Trimestre', 'Último Mes'];
+    const monthRows = monthBreakdown.map(m => [
+      m.label,
+      m.total.toString(),
+      m.semester.toString(),
+      m.trimester.toString(),
+      m.month.toString()
+    ]);
+
+    monthRows.push([
+      'TOTAL GENERAL',
+      leadsTotal.length.toString(),
+      leadsSemester.length.toString(),
+      leadsTrimester.length.toString(),
+      leadsMonth.length.toString()
+    ]);
+
+    autoTable(doc, {
+      head: [monthColumns],
+      body: monthRows,
+      startY: currentY + 4,
+      theme: 'grid',
+      headStyles: {
+        fillColor: primaryColor,
+        textColor: 255,
+        fontSize: 8.5,
+        fontStyle: 'bold'
+      },
+      styles: {
+        fontSize: 8.5,
+        cellPadding: 2.5
+      },
+      alternateRowStyles: {
+        fillColor: lightGray
+      },
+      didParseCell: (data) => {
+        if (data.row.index === monthRows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [241, 245, 249];
+        }
+      }
+    });
+
+    // Añadir numeración y pie de página
+    const totalPages = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(150);
+      
+      doc.setDrawColor(241, 245, 249);
+      doc.line(14, 280, 196, 280);
+      
+      doc.text(
+        'Finca Mirapinos CRM - Informe confidencial de rendimiento de adquisición.',
+        14,
+        285
+      );
+      doc.text(
+        `Página ${i} de ${totalPages}`,
+        196,
+        285,
+        { align: 'right' }
+      );
+    }
+
+    const filename = `informe_adquisicion_mirapinos_${now.toISOString().split('T')[0]}.pdf`;
+    doc.save(filename);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
@@ -235,6 +532,15 @@ export default function Stats() {
               <option value="12m">Últimos 12 meses</option>
               <option value="all">Histórico total</option>
             </select>
+            <button 
+              onClick={handleGenerateAcquisitionReport}
+              disabled={loading || rawLeads.length === 0}
+              className="bg-emerald-600 border border-emerald-600 px-3 py-2 rounded-xl text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-bold shadow-sm"
+              title="Generar y Descargar Informe de Adquisición PDF"
+            >
+              <FileText size={18} className="text-white" />
+              Informe Adquisición
+            </button>
             <button 
               onClick={handleDownloadPDF}
               disabled={loading || rawLeads.length === 0}

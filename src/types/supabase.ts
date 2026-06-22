@@ -178,6 +178,7 @@ export interface Database {
           due_date: string
           completed: boolean
           user_id: string | null
+          tracking_id: string | null
         }
         Insert: {
           id?: number
@@ -188,6 +189,7 @@ export interface Database {
           due_date: string
           completed?: boolean
           user_id?: string | null
+          tracking_id?: string | null
         }
         Update: {
           id?: number
@@ -198,6 +200,7 @@ export interface Database {
           due_date?: string
           completed?: boolean
           user_id?: string | null
+          tracking_id?: string | null
         }
       }
       newsletters: {

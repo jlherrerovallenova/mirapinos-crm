@@ -53,6 +53,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   // Tareas de la agenda
   const [tasks, setTasks] = useState<AgendaItem[]>([]);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [emailTracking, setEmailTracking] = useState<any[]>([]);
 
   // Estado local para el formulario de nueva tarea
   const getCurrentTime = () => {
@@ -109,17 +110,49 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
   useEffect(() => {
     fetchTasks();
+
+    // Suscribirse a cambios en tiempo real en email_tracking para este lead
+    const trackingChannel = supabase
+      .channel('email_tracking_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'email_tracking',
+          filter: `lead_id=eq.${lead.id}`
+        },
+        () => {
+          fetchTasks();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(trackingChannel);
+    };
   }, [lead.id]);
 
-  // Cargar tareas de la tabla agenda filtrando por ID del cliente
+  // Cargar tareas de la tabla agenda filtrando por ID del cliente y su seguimiento de email
   async function fetchTasks() {
-    const { data } = await supabase
+    const { data: agendaData } = await supabase
       .from('agenda')
       .select('*')
       .eq('lead_id', lead.id)
       .order('due_date', { ascending: true });
 
-    if (data) setTasks(data);
+    if (agendaData) setTasks(agendaData);
+
+    try {
+      const { data: trackingData } = await supabase
+        .from('email_tracking')
+        .select('*')
+        .eq('lead_id', lead.id);
+
+      if (trackingData) setEmailTracking(trackingData);
+    } catch (err) {
+      console.error("Error al cargar email tracking:", err);
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -708,6 +741,37 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                                   {(task as any).call_attended ? 'ATENDIDA' : 'NO ATENDIDA'}
                                 </span>
                               )}
+                              {task.type === 'Email' && (() => {
+                                const tracking = emailTracking.find((t) => {
+                                  if ((task as any).tracking_id) return t.id === (task as any).tracking_id;
+                                  const taskTime = new Date(task.due_date).getTime();
+                                  const trackingTime = new Date(t.created_at).getTime();
+                                  return Math.abs(taskTime - trackingTime) < 15000;
+                                });
+                                
+                                if (!tracking) return null;
+                                
+                                const isOpened = tracking.status === 'opened' || tracking.opens_count > 0;
+                                const opensLabel = tracking.opens_count > 1 ? ` (${tracking.opens_count})` : '';
+                                
+                                return (
+                                  <span 
+                                    className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                      isOpened 
+                                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' 
+                                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                    } transition-colors cursor-help`}
+                                    title={
+                                      isOpened 
+                                        ? `Abierto${opensLabel}. Última apertura: ${new Date(tracking.last_opened_at || tracking.first_opened_at).toLocaleString()}`
+                                        : 'Recibido pero aún no abierto.'
+                                    }
+                                  >
+                                    {isOpened ? 'ABIERTO' : 'ENVIADO'}
+                                    {opensLabel}
+                                  </span>
+                                );
+                              })()}
                             </p>
                           </div>
                         </div>

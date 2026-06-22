@@ -67,13 +67,37 @@ export default function EmailComposerModal({
     const agentEmail = profile?.email || user?.email || '';
     const agentPhone = profile?.phone || '';
 
+    // Heurística en español para determinar dinámicamente si es Asesor o Asesora
+    const getAgentTitle = (name: string): string => {
+      const lowerName = name.toLowerCase().trim();
+      const firstWord = lowerName.split(/\s+/)[0];
+      
+      const femaleKeywords = [
+        'maria', 'maría', 'carmen', 'isabel', 'pilar', 'mercedes', 
+        'dolores', 'luz', 'sol', 'concepcion', 'concepción', 'mar',
+        'raquel', 'beatriz', 'esther', 'belen', 'belén', 'inmaculada',
+        'consuelo', 'salud', 'amparo', 'remedios', 'socorro', 'milagros'
+      ];
+      
+      const maleExceptions = ['borja', 'luca', 'andrea', 'joshua', 'nikola'];
+      
+      const isFemale = 
+        (firstWord.endsWith('a') && !maleExceptions.includes(firstWord)) ||
+        (firstWord.endsWith('á') && !['josé', 'rene', 'rené'].includes(firstWord)) ||
+        femaleKeywords.some(keyword => lowerName.includes(keyword));
+        
+      return isFemale ? 'Asesora Inmobiliaria' : 'Asesor Inmobiliario';
+    };
+
+    const agentTitle = getAgentTitle(agentName);
+
     return `
       <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
         <table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif;">
           <tr>
             <td style="padding-right: 16px; border-right: 3px solid #1a5c38; vertical-align: middle;">
               <div style="font-size: 15px; font-weight: 700; color: #1e293b; white-space: nowrap;">${agentName}</div>
-              <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Asesora Inmobiliaria</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 2px;">${agentTitle}</div>
               <div style="font-size: 13px; font-weight: 700; color: #1a5c38; margin-top: 4px; letter-spacing: 0.05em;">MIRAPINOS</div>
             </td>
             <td style="padding-left: 16px; vertical-align: middle;">
@@ -94,21 +118,39 @@ export default function EmailComposerModal({
     );
   };
 
-  const createTaskRecord = async (sentMethod: 'email' | 'whatsapp') => {
+  const createTaskRecord = async (sentMethod: 'email' | 'whatsapp', trackingId?: string) => {
     try {
       const methodLabel = sentMethod === 'email' ? 'Email' : 'WhatsApp';
       const docNames = selectedDocs.length > 0 
         ? selectedDocs.map(d => d.name).join(', ')
         : 'Documentación manual';
       
-      await createAgendaMutation.mutateAsync({
+      const payload: any = {
         lead_id: leadId,
         user_id: user?.id,
         title: `Envío ${methodLabel}: ${docNames}`,
         type: methodLabel,
         due_date: new Date().toISOString(),
         completed: true
-      });
+      };
+
+      if (sentMethod === 'email' && trackingId) {
+        payload.tracking_id = trackingId;
+      }
+
+      try {
+        await createAgendaMutation.mutateAsync(payload);
+      } catch (err: any) {
+        // Si falla por columna tracking_id no existente (por falta de migración),
+        // reintentar sin ella para no romper la experiencia
+        if (payload.tracking_id && (err?.message?.includes('tracking_id') || err?.message?.includes('schema cache'))) {
+          console.warn('Volviendo a intentar sin tracking_id debido a error de base de datos:', err);
+          delete payload.tracking_id;
+          await createAgendaMutation.mutateAsync(payload);
+        } else {
+          throw err;
+        }
+      }
     } catch (error) {
       console.error('Error al crear tarea de agenda:', error);
     }
@@ -260,7 +302,7 @@ export default function EmailComposerModal({
         }
 
         await saveHistory('email');
-        await createTaskRecord('email');
+        await createTaskRecord('email', trackingId);
         setStatus('success');
         setTimeout(onClose, 2000);
       } else {
