@@ -467,9 +467,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     <span className="text-[10px] font-bold text-blue-700 uppercase tracking-widest text-center">Email</span>
                   </button>
 
-                  {/* 1ER CONTACTO */}
+                   {/* 1ER CONTACTO */}
                   <button
                     type="button"
+                    disabled={tasks.length > 0}
                     onClick={() => {
                       const agentName = profile?.full_name || 'Juan Herrero';
                       setComposerConfig({
@@ -479,10 +480,15 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       });
                       setIsEmailModalOpen(true);
                     }}
-                    className="flex-1 py-3.5 px-2 bg-amber-50/60 hover:bg-amber-100/70 border border-amber-100/30 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all active:scale-95 duration-200"
+                    className={`flex-1 py-3.5 px-2 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all duration-200 ${
+                      tasks.length > 0
+                        ? 'bg-slate-100/50 border border-slate-200/30 text-slate-400 cursor-not-allowed opacity-50'
+                        : 'bg-amber-50/60 hover:bg-amber-100/70 border border-amber-100/30 text-amber-700 active:scale-95'
+                    }`}
+                    title={tasks.length > 0 ? "El cliente ya tiene actividad en su agenda" : "Enviar mensaje de primer contacto"}
                   >
-                    <Zap className="text-amber-600 group-hover:scale-110 transition-transform" size={20} />
-                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest text-center">1er Contacto</span>
+                    <Zap className={tasks.length > 0 ? 'text-slate-400' : 'text-amber-600 group-hover:scale-110 transition-transform'} size={20} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-center">1er Contacto</span>
                   </button>
 
                   {/* ENCUESTA */}
