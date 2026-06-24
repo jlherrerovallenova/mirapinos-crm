@@ -15,7 +15,9 @@ import {
   Loader2,
   Trash2,
   User,
-  List
+  List,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import CreateTaskModal from '../components/CreateTaskModal';
 import { useDialog } from '../context/DialogContext';
@@ -53,6 +55,11 @@ export default function Agenda() {
 
   const [agents, setAgents] = useState<any[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('all');
+  const [expandedTasks, setExpandedTasks] = useState<Record<number, boolean>>({});
+
+  const toggleTaskExpand = (taskId: number) => {
+    setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
 
   useEffect(() => {
     if (profile?.role === 'admin') {
@@ -483,9 +490,55 @@ export default function Agenda() {
 
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`font-bold ${item.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>
-                          {item.title}
-                        </span>
+                        {(() => {
+                          const title = item.title || '';
+                          const isEnvio = title.startsWith('Envío Email:') || title.startsWith('Envío WhatsApp:');
+                          const colonIndex = title.indexOf(':');
+
+                          if (isEnvio && colonIndex !== -1) {
+                            const prefix = title.substring(0, colonIndex + 1);
+                            const docs = title.substring(colonIndex + 1).trim();
+
+                            if (docs) {
+                              const isExpanded = !!expandedTasks[item.id];
+                              return (
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`font-bold ${item.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>
+                                      {prefix}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleTaskExpand(item.id);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-500 font-bold transition-all active:scale-95 border border-slate-200"
+                                    >
+                                      <span>{isExpanded ? 'Ocultar archivos' : 'Ver archivos'}</span>
+                                      {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                                    </button>
+                                  </div>
+                                  {isExpanded && (
+                                    <div className="mt-1 pl-2 border-l-2 border-emerald-500 text-xs text-slate-500 font-medium py-1 animate-in slide-in-from-top-1 duration-200">
+                                      <ul className="list-disc list-inside space-y-0.5">
+                                        {docs.split(',').map((doc, idx) => (
+                                          <li key={idx} className="truncate max-w-md">{doc.trim()}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+                          }
+
+                          return (
+                            <span className={`font-bold ${item.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>
+                              {title}
+                            </span>
+                          );
+                        })()}
                       </div>
                       <div className="flex items-center gap-3 text-sm text-slate-500">
                         {item.leads?.name ? (

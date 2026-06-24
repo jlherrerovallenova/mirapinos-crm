@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Mail, Phone, Save, Trash2, Loader2, Send,
   Compass, MessageCircle, Calendar as CalendarIcon,
-  CheckCircle2, Circle, Plus, Pencil, RotateCcw, Smartphone, Users, Globe
+  CheckCircle2, Circle, Plus, Pencil, RotateCcw, Smartphone, Users, Globe,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -107,6 +108,12 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   });
   
   const INTERESTED_OPTIONS = ["Chalet Olivo", "Chalet Arce", "Parcelas"];
+
+  const [expandedTasks, setExpandedTasks] = useState<Record<number, boolean>>({});
+
+  const toggleTaskExpand = (taskId: number) => {
+    setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
 
   useEffect(() => {
     fetchTasks();
@@ -771,7 +778,55 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                                 {task.type === 'Reunión' && <Users size={10} />}
                                 {task.type}
                               </span>
-                              <p className={`text-sm font-bold ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>{task.title}</p>
+                              {(() => {
+                                const title = task.title || '';
+                                const isEnvio = title.startsWith('Envío Email:') || title.startsWith('Envío WhatsApp:');
+                                const colonIndex = title.indexOf(':');
+
+                                if (isEnvio && colonIndex !== -1) {
+                                  const prefix = title.substring(0, colonIndex + 1);
+                                  const docs = title.substring(colonIndex + 1).trim();
+
+                                  if (docs) {
+                                    const isExpanded = !!expandedTasks[task.id];
+                                    return (
+                                      <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <p className={`text-sm font-bold ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>
+                                            {prefix}
+                                          </p>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleTaskExpand(task.id);
+                                            }}
+                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-500 font-bold transition-all active:scale-95 border border-slate-200"
+                                          >
+                                            <span>{isExpanded ? 'Ocultar archivos' : 'Ver archivos'}</span>
+                                            {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                                          </button>
+                                        </div>
+                                        {isExpanded && (
+                                          <div className="mt-1 pl-2 border-l-2 border-emerald-500 text-xs text-slate-500 font-medium py-1 animate-in slide-in-from-top-1 duration-200">
+                                            <ul className="list-disc list-inside space-y-0.5">
+                                              {docs.split(',').map((doc, idx) => (
+                                                <li key={idx} className="truncate max-w-md">{doc.trim()}</li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  }
+                                }
+
+                                return (
+                                  <p className={`text-sm font-bold ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>
+                                    {title}
+                                  </p>
+                                );
+                              })()}
                             </div>
                             <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
                               {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
