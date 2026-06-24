@@ -4,7 +4,7 @@ import {
   X, Mail, Phone, Save, Trash2, Loader2, Send,
   Compass, MessageCircle, Calendar as CalendarIcon,
   CheckCircle2, Circle, Plus, Pencil, RotateCcw, Smartphone, Users, Globe,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Zap
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -39,7 +39,7 @@ interface Props {
 import { useUpdateLead, useDeleteLead } from '../../hooks/useLeads';
 
 export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const { showAlert, showConfirm } = useDialog();
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'sale'>('info');
@@ -110,6 +110,11 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const INTERESTED_OPTIONS = ["Chalet Olivo", "Chalet Arce", "Parcelas"];
 
   const [expandedTasks, setExpandedTasks] = useState<Record<number, boolean>>({});
+  const [composerConfig, setComposerConfig] = useState<{
+    method?: 'email' | 'whatsapp';
+    subject?: string;
+    message?: string;
+  }>({});
 
   const toggleTaskExpand = (taskId: number) => {
     setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
@@ -435,12 +440,68 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
               {/* COLUMNA IZQUIERDA: FORMULARIO */}
               <div className="space-y-4 flex flex-col h-full">
-                <button
-                  onClick={() => setIsEmailModalOpen(true)}
-                  className="w-full py-3 px-4 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 transition-all active:scale-95 text-xs"
-                >
-                  <Send size={16} /> Enviar Documentación (WhatsApp / Email)
-                </button>
+                <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 shrink-0">
+                  {/* WHATSAPP */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setComposerConfig({ method: 'whatsapp' });
+                      setIsEmailModalOpen(true);
+                    }}
+                    className="flex-1 py-3.5 px-2 bg-emerald-50/60 hover:bg-emerald-100/70 border border-emerald-100/30 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all active:scale-95 duration-200"
+                  >
+                    <MessageCircle className="text-emerald-600 group-hover:scale-110 transition-transform" size={20} />
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest text-center">WhatsApp</span>
+                  </button>
+
+                  {/* EMAIL */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setComposerConfig({ method: 'email' });
+                      setIsEmailModalOpen(true);
+                    }}
+                    className="flex-1 py-3.5 px-2 bg-blue-50/60 hover:bg-blue-100/70 border border-blue-100/30 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all active:scale-95 duration-200"
+                  >
+                    <Mail className="text-blue-600 group-hover:scale-110 transition-transform" size={20} />
+                    <span className="text-[10px] font-bold text-blue-700 uppercase tracking-widest text-center">Email</span>
+                  </button>
+
+                  {/* 1ER CONTACTO */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const agentName = profile?.full_name || 'Juan Herrero';
+                      setComposerConfig({
+                        method: 'whatsapp',
+                        subject: 'Información Finca Mirapinos',
+                        message: `Hola ${formData.name.split(' ')[0]},\n\nSoy ${agentName} de Terravall inmobiliaria. Nos ha solicitado información de la promoción inmobiliaria FINCA MIRAPINOS. ¿En qué puedo ayudarle?`
+                      });
+                      setIsEmailModalOpen(true);
+                    }}
+                    className="flex-1 py-3.5 px-2 bg-amber-50/60 hover:bg-amber-100/70 border border-amber-100/30 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all active:scale-95 duration-200"
+                  >
+                    <Zap className="text-amber-600 group-hover:scale-110 transition-transform" size={20} />
+                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest text-center">1er Contacto</span>
+                  </button>
+
+                  {/* ENCUESTA */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setComposerConfig({
+                        method: 'email',
+                        subject: 'Encuesta de satisfacción - Mirapinos',
+                        message: `Hola ${formData.name.split(' ')[0]},\n\nNos gustaría conocer tu opinión sobre el servicio recibido. Por favor, dedica unos minutos a completar nuestra encuesta de satisfacción:\n\nhttps://forms.gle/mirapinos-satisfaccion\n\n¡Muchas gracias por tu tiempo!`
+                      });
+                      setIsEmailModalOpen(true);
+                    }}
+                    className="flex-1 py-3.5 px-2 bg-teal-50/60 hover:bg-teal-100/70 border border-teal-100/30 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all active:scale-95 duration-200"
+                  >
+                    <Send className="text-teal-600 group-hover:scale-110 transition-transform" size={20} />
+                    <span className="text-[10px] font-bold text-teal-700 uppercase tracking-widest text-center">Encuesta</span>
+                  </button>
+                </div>
 
                 <form onSubmit={handleUpdate} className="space-y-4 flex-1 overflow-y-auto pr-2">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -919,6 +980,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           leadEmail={formData.email}
           leadPhone={formData.phone}
           availableDocs={availableDocs}
+          onSentSuccess={fetchTasks}
+          initialMethod={composerConfig.method}
+          initialSubject={composerConfig.subject}
+          initialMessage={composerConfig.message}
         />
       )}
     </>

@@ -29,6 +29,8 @@ interface Props {
   availableDocs: { name: string; url: string; category?: string }[];
   onSentSuccess?: () => void;
   initialMethod?: 'email' | 'whatsapp';
+  initialSubject?: string;
+  initialMessage?: string;
 }
 
 export default function EmailComposerModal({
@@ -39,22 +41,27 @@ export default function EmailComposerModal({
   leadEmail,
   leadPhone,
   availableDocs,
-  onSentSuccess
+  onSentSuccess,
+  initialMethod,
+  initialSubject,
+  initialMessage
 }: Props) {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const { showAlert } = useDialog();
   const [method, setMethod] = useState<'email' | 'whatsapp'>(
-    leadEmail ? 'email' : 'whatsapp'
+    initialMethod || (leadEmail ? 'email' : 'whatsapp')
   );
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   
   const createAgendaMutation = useCreateAgendaItem();
 
-  const [subject, setSubject] = useState(`Documentación MIRAPINOS para ${leadName}`);
+  const [subject, setSubject] = useState(
+    initialSubject || `Documentación MIRAPINOS para ${leadName}`
+  );
   const [message, setMessage] = useState(
-    `Hola ${leadName},\n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
+    initialMessage || `Hola ${leadName},\n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
   );
 
   const [selectedDocs, setSelectedDocs] = useState<{ name: string; url: string; category?: string }[]>([]);
