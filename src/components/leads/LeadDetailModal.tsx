@@ -699,8 +699,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
               {/* COLUMNA DERECHA: AGENDA (CONECTADA A LA TABLA AGENDA) */}
               <div className="bg-slate-50 rounded-2xl p-6 text-slate-900 shadow-sm flex flex-col h-full border border-slate-200 lg:min-h-0">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-600">
-                  <CalendarIcon size={14} /> Agenda de Acciones
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-600">
+                  <CalendarIcon size={16} /> Agenda de Acciones
                 </h3>
 
                 {/* Formulario Inline Compacto */}
