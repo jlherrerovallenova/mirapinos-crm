@@ -434,12 +434,12 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           </div>
 
           {/* CONTENIDO PRINCIPAL */}
-          <div className="flex-1 overflow-y-auto bg-white">
+          <div className="flex-1 overflow-y-auto lg:overflow-hidden bg-white flex flex-col min-h-0">
             {activeTab === 'info' ? (
-              <div className="p-6 h-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="p-6 h-full grid grid-cols-1 lg:grid-cols-2 gap-6 lg:min-h-0">
 
               {/* COLUMNA IZQUIERDA: FORMULARIO */}
-              <div className="space-y-4 flex flex-col h-full">
+              <div className="space-y-4 flex flex-col h-full lg:min-h-0">
                 <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 shrink-0">
                   {/* WHATSAPP */}
                   <button
@@ -698,7 +698,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
               </div>
 
               {/* COLUMNA DERECHA: AGENDA (CONECTADA A LA TABLA AGENDA) */}
-              <div className="bg-slate-50 rounded-2xl p-6 text-slate-900 shadow-sm flex flex-col h-full border border-slate-200">
+              <div className="bg-slate-50 rounded-2xl p-6 text-slate-900 shadow-sm flex flex-col h-full border border-slate-200 lg:min-h-0">
                 <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-600">
                   <CalendarIcon size={14} /> Agenda de Acciones
                 </h3>
@@ -955,7 +955,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
             </div>
             ) : (
-              <div className="p-6">
+              <div className="p-6 overflow-y-auto flex-1">
                 <SaleTab lead={lead as any} onLeadUpdate={async (updates) => {
                   try {
                     await updateMutation.mutateAsync({ id: lead.id, updates });
