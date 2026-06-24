@@ -269,9 +269,9 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
                 onChange={e => setFormData({ ...formData, interested_in: e.target.value })}
               >
                 <option value="">Sin especificar</option>
-                <option value="Chalet Olivo">Chalet Olivo</option>
-                <option value="Chalet Arce">Chalet Arce</option>
-                <option value="Parcelas">Parcelas</option>
+                <option value="Chalet Olivo">OLIVO</option>
+                <option value="Chalet Arce">ARCE</option>
+                <option value="Parcelas">PARCELAS</option>
               </select>
             </div>
           </div>

@@ -621,7 +621,7 @@ export default function SaleTab({ lead, onLeadUpdate }: Props) {
               <button
                 onClick={() => advanceSaleStatus('contrato')}
                 disabled={loading}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm"
+                className="w-full py-2.5 bg-[#1a5c38] hover:bg-[#134228] text-white text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm"
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <PenLine size={16} />}
                 Confirmar Contrato Firmado
@@ -1008,7 +1008,7 @@ export default function SaleTab({ lead, onLeadUpdate }: Props) {
                   if (d) await generarReservaDocx(d);
                   setGeneratingDoc(false);
                 }}
-                className="flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all active:scale-95 shadow-sm"
+                className="flex items-center justify-center gap-2 py-3 bg-[#1a5c38] hover:bg-[#134228] text-white text-xs font-bold rounded-xl transition-all active:scale-95 shadow-sm"
               >
                 {generatingDoc ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                 Descargar DOCX

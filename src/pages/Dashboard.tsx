@@ -18,7 +18,8 @@ import {
   Plus,
   Phone,
   Mail,
-  Eye
+  Eye,
+  MessageCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
@@ -52,7 +53,7 @@ interface EmailTrackingItem {
   first_opened_at: string | null;
   last_opened_at: string | null;
   created_at: string;
-  leads?: { name: string } | null;
+  leads?: { name: string, phone: string | null } | null;
 }
 
 export default function Dashboard() {
@@ -155,7 +156,7 @@ export default function Dashboard() {
       // 4. CARGA DE SEGUIMIENTO DE EMAILS
       const { data: emailData, error: emailError } = await supabase
         .from('email_tracking')
-        .select('*, leads(name)')
+        .select('*, leads(name, phone)')
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -470,13 +471,35 @@ export default function Dashboard() {
                             <span className="text-sm font-bold text-slate-800 truncate">
                               {email.leads?.name || 'Cliente desconocido'}
                             </span>
-                            <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
-                              isOpened
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                : 'bg-slate-50 text-slate-500 border-slate-200'
-                            }`}>
-                              {isOpened ? 'Abierto' : 'Enviado'}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                                isOpened
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                  : 'bg-slate-50 text-slate-500 border-slate-200'
+                              }`}>
+                                {isOpened ? 'Abierto' : 'Enviado'}
+                              </span>
+                              {!isOpened && email.leads?.phone && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const firstName = (email.leads?.name || '').split(' ')[0];
+                                    const hour = new Date().getHours();
+                                    const greeting = hour < 14 ? 'Buenos días' : 'Buenas tardes';
+                                    const message = `${greeting}, ${firstName}:\nSoy Juan Herrero, de Terravall, inmobiliaria comercializadora de Finca Mirapinos. Le escribo para confirmar si pudo recibir el dossier informativo de la promoción que le enviamos hace unos días. Si no es así, le agradecería que revisase su carpeta de correo no deseado (SPAM); en caso de que siga sin localizarlo, por favor háganoslo saber y se lo haré llegar de inmediato. Quedo a su entera disposición para resolver cualquier duda que pueda tener sobre la promoción.\nUn cordial saludo,\nJuan Herrero\nwww.mirapinos.com`;
+                                    
+                                    const cleanPhone = email.leads.phone.replace(/\D/g, '');
+                                    const phoneWithCode = cleanPhone.startsWith('34') ? cleanPhone : '34' + cleanPhone;
+                                    window.open(`https://wa.me/${phoneWithCode}?text=${encodeURIComponent(message)}`, '_blank');
+                                  }}
+                                  className="p-1 rounded-full hover:bg-emerald-100 text-emerald-600 transition-colors shadow-sm bg-white border border-emerald-100"
+                                  title="Enviar WhatsApp de seguimiento"
+                                >
+                                  <MessageCircle size={12} />
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <div className="text-xs text-slate-500 truncate font-medium">
                             {email.subject}

@@ -58,10 +58,11 @@ export default function EmailComposerModal({
   const createAgendaMutation = useCreateAgendaItem();
 
   const [subject, setSubject] = useState(
-    initialSubject || `Documentación MIRAPINOS para ${leadName}`
+    initialSubject || `Documentación de interés - Finca Mirapinos`
   );
+  const greeting = new Date().getHours() < 14 ? 'Buenos días' : 'Buenas tardes';
   const [message, setMessage] = useState(
-    initialMessage || `Hola ${leadName},\n\nSegún acordamos, adjunto la documentación sobre MIRAPINOS.\n\nQuedo a tu disposición para cualquier duda.`
+    initialMessage || `${greeting}, ${leadName.split(' ')[0]}:\n\nTal como comentamos en nuestra última conversación, le envío la documentación comercial actualizada sobre la promoción Finca Mirapinos.\n\nLe agradecería que me confirmara la recepción de los archivos. Asimismo, me pongo a su disposición para coordinar una reunión o llamada si precisa cualquier aclaración adicional sobre el proyecto.\n\nAtentamente,`
   );
 
   const [selectedDocs, setSelectedDocs] = useState<{ name: string; url: string; category?: string }[]>([]);
@@ -103,13 +104,13 @@ export default function EmailComposerModal({
         <table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif;">
           <tr>
             <td style="padding-right: 16px; border-right: 3px solid #1a5c38; vertical-align: middle;">
-              <div style="font-size: 15px; font-weight: 700; color: #1e293b; white-space: nowrap;">${agentName}</div>
-              <div style="font-size: 12px; color: #64748b; margin-top: 2px;">${agentTitle}</div>
-              <div style="font-size: 13px; font-weight: 700; color: #1a5c38; margin-top: 4px; letter-spacing: 0.05em;">MIRAPINOS</div>
+              <div style="font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 4px; letter-spacing: 0.02em;">TERRAVALL</div>
+              <div style="font-size: 14px; font-weight: 700; color: #1a5c38; letter-spacing: 0.05em;">FINCA MIRAPINOS</div>
             </td>
             <td style="padding-left: 16px; vertical-align: middle;">
-              ${agentPhone ? `<div style="font-size: 12px; color: #475569; margin-bottom: 4px;">&#128222; ${agentPhone}</div>` : ''}
-              ${agentEmail ? `<div style="font-size: 12px; color: #475569;">&#9993; ${agentEmail}</div>` : ''}
+              <div style="font-size: 13px; color: #475569; margin-bottom: 4px;">📍 Plaza Mayor 8, 1ºA &middot; Valladolid</div>
+              <div style="font-size: 13px; color: #475569; margin-bottom: 4px;">📞 983 34 21 32</div>
+              <div style="font-size: 13px; color: #475569;">🌐 <a href="https://www.mirapinos.com" style="color: #1a5c38; text-decoration: none;">www.mirapinos.com</a></div>
             </td>
           </tr>
         </table>
@@ -265,8 +266,8 @@ export default function EmailComposerModal({
 
                     <!-- ENCABEZADO MIRAPINOS -->
                     <tr>
-                      <td style="background-color:#1a5c38; padding: 28px 40px; text-align:center;">
-                        <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 30px; font-weight: 700; color: #ffffff; letter-spacing: 0.12em; text-transform: uppercase;">MIRAPINOS</div>
+                      <td style="background-color:#ffffff; padding: 24px 40px; text-align:center; border-bottom: 3px solid #1a5c38;">
+                        <img src="https://www.mirapinos.com/wp-content/uploads/2025/07/LOGO1.png" alt="MIRAPINOS" height="60" style="height: 60px; width: auto; display: block; margin: 0 auto;" />
                       </td>
                     </tr>
 
@@ -281,8 +282,8 @@ export default function EmailComposerModal({
 
                     <!-- PIE -->
                     <tr>
-                      <td style="background-color:#1a5c38; padding: 10px 40px;">
-                        <div style="height:4px;"></div>
+                      <td style="background-color:#1a5c38; padding: 24px 40px; text-align: center;">
+                        <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: 700; color: #ffffff; letter-spacing: 0.1em; text-transform: uppercase;">MIRAPINOS, CASAS DE CAMPO</div>
                       </td>
                     </tr>
 
@@ -512,7 +513,7 @@ export default function EmailComposerModal({
                 type="submit"
                 disabled={loading || status === 'success'}
                 className={`px-6 py-2.5 rounded-lg font-bold text-sm text-white flex items-center gap-2 transition-all active:scale-95 disabled:opacity-60 shadow-sm ${
-                  method === 'email' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                  method === 'email' ? 'bg-[#1a5c38] hover:bg-[#134228]' : 'bg-emerald-600 hover:bg-emerald-700'
                 }`}
               >
                 {loading ? <Loader2 className="animate-spin" size={16} /> : 'Enviar Documentación'}

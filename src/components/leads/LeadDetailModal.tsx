@@ -107,9 +107,14 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     interested_in: lead.interested_in || ''
   });
   
-  const INTERESTED_OPTIONS = ["Chalet Olivo", "Chalet Arce", "Parcelas"];
+  const INTERESTED_OPTIONS = [
+    { value: "Chalet Olivo", label: "OLIVO" },
+    { value: "Chalet Arce", label: "ARCE" },
+    { value: "Parcelas", label: "PARCELAS" }
+  ];
 
   const [expandedTasks, setExpandedTasks] = useState<Record<number, boolean>>({});
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [composerConfig, setComposerConfig] = useState<{
     method?: 'email' | 'whatsapp';
     subject?: string;
@@ -118,6 +123,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
   const toggleTaskExpand = (taskId: number) => {
     setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
+
+  const toggleGroup = (type: string) => {
+    setCollapsedGroups(prev => ({ ...prev, [type]: !prev[type] }));
   };
 
   useEffect(() => {
@@ -410,7 +419,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </a>
                     )}
                     {formData.email && (
-                      <a href={mailtoUrl} className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors shadow-sm" title="Email">
+                      <a href={mailtoUrl} className="p-1.5 bg-[#1a5c38] text-white rounded-lg hover:bg-[#134228] transition-colors shadow-sm" title="Email">
                         <Mail size={13} />
                       </a>
                     )}
@@ -509,7 +518,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   </button>
                 </div>
 
-                <form onSubmit={handleUpdate} className="space-y-4 flex-1 overflow-y-auto pr-2">
+                <form onSubmit={handleUpdate} className="space-y-4 flex flex-col flex-1 overflow-y-auto pr-2">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                     {/* Row 1: NOMBRE COMPLETO & TELÉFONO */}
                     <div>
@@ -646,19 +655,19 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">INTERESADO EN</label>
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {INTERESTED_OPTIONS.map(option => {
-                          const isSelected = formData.interested_in.split(', ').includes(option);
+                          const isSelected = formData.interested_in.split(', ').includes(option.value);
                           return (
                             <button
-                              key={option}
+                              key={option.value}
                               type="button"
-                              onClick={() => handleInterestedInToggle(option)}
+                              onClick={() => handleInterestedInToggle(option.value)}
                               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
                                 isSelected 
                                   ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm' 
                                   : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
                               }`}
                             >
-                              {option}
+                              {option.label}
                             </button>
                           );
                         })}
@@ -685,14 +694,14 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     </div>
                   </div>
 
-                  <div>
+                  <div className="flex flex-col flex-1 min-h-[120px]">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Notas Internas</label>
-                    <textarea name="notes" rows={2} value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 resize-none border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" placeholder="Escribe detalles importantes..." />
+                    <textarea name="notes" value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 resize-none border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all flex-1" placeholder="Escribe detalles importantes..." />
                   </div>
 
 
 
-                  <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center justify-between pt-4 mt-auto">
                     <button type="button" onClick={handleDelete} className="text-red-500 font-medium text-xs flex items-center gap-1.5 px-3 py-2 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={14} /> Eliminar lead
                     </button>
@@ -806,7 +815,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     )}
                     <button
                       onClick={() => saveTask()}
-                      className={`${editingTaskId ? 'bg-blue-600 hover:bg-blue-500' : 'bg-emerald-600 hover:bg-emerald-500'} px-4 text-white rounded-lg transition-colors shadow-sm active:scale-95`}
+                      className={`${editingTaskId ? 'bg-[#1a5c38] hover:bg-[#134228]' : 'bg-emerald-600 hover:bg-emerald-500'} px-4 text-white rounded-lg transition-colors shadow-sm active:scale-95`}
                     >
                       {editingTaskId ? <Save size={18} /> : <Plus size={18} />}
                     </button>
@@ -821,7 +830,27 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       <p className="text-xs text-slate-500 italic">No hay tareas para este cliente.</p>
                     </div>
                   )}
-                  {tasks.map((task) => {
+                  {Object.entries(
+                    tasks.reduce((acc, task) => {
+                      if (!acc[task.type]) acc[task.type] = [];
+                      acc[task.type].push(task);
+                      return acc;
+                    }, {} as Record<string, typeof tasks>)
+                  ).map(([type, typeTasks]) => (
+                    <div key={type} className="mb-5 last:mb-0">
+                      <button 
+                        type="button"
+                        onClick={() => toggleGroup(type)}
+                        className="w-full flex items-center justify-between group mb-2 hover:bg-slate-50 p-1.5 -ml-1.5 rounded transition-colors"
+                      >
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{type}</h4>
+                        <div className="text-slate-300 group-hover:text-emerald-500 transition-colors mr-1">
+                          {collapsedGroups[type] ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                        </div>
+                      </button>
+                      {!collapsedGroups[type] && (
+                        <div className="space-y-2">
+                          {typeTasks.map((task) => {
                     const dateObj = new Date(task.due_date);
                     return (
                       <div key={task.id} className={`group flex items-center justify-between p-2.5 rounded-lg border transition-all ${task.completed ? 'bg-slate-50 border-transparent opacity-50' : 'bg-white border-slate-200 hover:border-emerald-200 shadow-sm'}`}>
@@ -916,21 +945,43 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                                 const opensLabel = tracking.opens_count > 1 ? ` (${tracking.opens_count})` : '';
                                 
                                 return (
-                                  <span 
-                                    className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                                      isOpened 
-                                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' 
-                                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                    } transition-colors cursor-help`}
-                                    title={
-                                      isOpened 
-                                        ? `Abierto${opensLabel}. Última apertura: ${new Date(tracking.last_opened_at || tracking.first_opened_at).toLocaleString()}`
-                                        : 'Recibido pero aún no abierto.'
-                                    }
-                                  >
-                                    {isOpened ? 'ABIERTO' : 'ENVIADO'}
-                                    {opensLabel}
-                                  </span>
+                                  <div className="flex items-center gap-1 ml-1">
+                                    <span 
+                                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                        isOpened 
+                                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' 
+                                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                      } transition-colors cursor-help`}
+                                      title={
+                                        isOpened 
+                                          ? `Abierto${opensLabel}. Última apertura: ${new Date(tracking.last_opened_at || tracking.first_opened_at).toLocaleString()}`
+                                          : 'Recibido pero aún no abierto.'
+                                      }
+                                    >
+                                      {isOpened ? 'ABIERTO' : 'ENVIADO'}
+                                      {opensLabel}
+                                    </span>
+                                    {!isOpened && lead.phone && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const firstName = (lead.name || '').split(' ')[0];
+                                          const hour = new Date().getHours();
+                                          const greeting = hour < 14 ? 'Buenos días' : 'Buenas tardes';
+                                          const message = `${greeting}, ${firstName}:\nSoy Juan Herrero, de Terravall, inmobiliaria comercializadora de Finca Mirapinos. Le escribo para confirmar si pudo recibir el dossier informativo de la promoción que le enviamos hace unos días. Si no es así, le agradecería que revisase su carpeta de correo no deseado (SPAM); en caso de que siga sin localizarlo, por favor háganoslo saber y se lo haré llegar de inmediato. Quedo a su entera disposición para resolver cualquier duda que pueda tener sobre la promoción.\nUn cordial saludo,\nJuan Herrero\nwww.mirapinos.com`;
+                                          
+                                          const cleanPhone = lead.phone.replace(/\D/g, '');
+                                          const phoneWithCode = cleanPhone.startsWith('34') ? cleanPhone : '34' + cleanPhone;
+                                          window.open(`https://wa.me/${phoneWithCode}?text=${encodeURIComponent(message)}`, '_blank');
+                                        }}
+                                        className="p-1 rounded-full hover:bg-emerald-100 text-emerald-600 transition-colors shadow-sm bg-white border border-emerald-100"
+                                        title="Enviar WhatsApp de seguimiento"
+                                      >
+                                        <MessageCircle size={10} />
+                                      </button>
+                                    )}
+                                  </div>
                                 );
                               })()}
                             </p>
@@ -954,8 +1005,12 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                           </button>
                         </div>
                       </div>
-                    )
+                    );
                   })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
