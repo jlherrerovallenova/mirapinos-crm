@@ -348,30 +348,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
       }
     });
   };
-
-  const handleDelete = async () => {
-    const confirmed = await showConfirm({
-      title: 'Eliminar Cliente',
-      message: '¿Estás seguro de que deseas eliminar este cliente y TODA su agenda asociada? Esta acción es irreversible.',
-      confirmText: 'Sí, eliminar',
-      cancelText: 'Cancelar'
-    });
-    if (!confirmed) return;
-
-    // Borrar tareas asociadas primero (por seguridad)
-    await supabase.from('agenda').delete().eq('lead_id', lead.id);
-    
-    deleteMutation.mutate(lead.id, {
-      onSuccess: () => {
-        onUpdate(true);
-        onClose();
-      },
-      onError: (err) => {
-        console.error("Error eliminando lead:", err);
-      }
-    });
-  };
-
   // WhatsApp URL con mensaje predefinido
   const getWhatsAppUrl = () => {
     const cleanPhone = formData.phone.replace(/\D/g, '');
@@ -615,9 +591,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                           name="created_at_date"
                           value={formData.created_at_date}
                           onChange={handleChange}
-                          className="w-full px-4 pr-10 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all"
+                          className="w-full px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all"
                         />
-                        <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                       </div>
                     </div>
 
@@ -701,10 +676,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
 
 
-                  <div className="flex items-center justify-between pt-4 mt-auto">
-                    <button type="button" onClick={handleDelete} className="text-red-500 font-medium text-xs flex items-center gap-1.5 px-3 py-2 hover:bg-red-50 rounded-lg transition-colors">
-                      <Trash2 size={14} /> Eliminar lead
-                    </button>
+                  <div className="flex items-center justify-end pt-4 mt-auto">
                     <button type="submit" disabled={loading} className="px-6 py-2.5 bg-emerald-600 text-white font-semibold text-sm rounded-lg flex items-center gap-2 shadow-md hover:bg-emerald-700 transition-all active:scale-95">
                       {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Guardar cambios
                     </button>

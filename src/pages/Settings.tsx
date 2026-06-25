@@ -81,6 +81,74 @@ const Settings: React.FC = () => {
     fetchProperties();
   }, [profile]);
 
+  // --- Lógica de Clientes (Admin) ---
+  const [settingsLeads, setSettingsLeads] = useState<any[]>([]);
+  const [loadingSettingsLeads, setLoadingSettingsLeads] = useState(false);
+  const [searchClientQuery, setSearchClientQuery] = useState('');
+
+  const fetchSettingsLeads = async () => {
+    try {
+      setLoadingSettingsLeads(true);
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setSettingsLeads(data || []);
+    } catch (err) {
+      console.error('Error fetching leads:', err);
+    } finally {
+      setLoadingSettingsLeads(false);
+    }
+  };
+
+  const handleDeleteLead = async (leadId: string) => {
+    const leadToDelete = settingsLeads.find(l => l.id === leadId);
+    if (leadToDelete && leadToDelete.sale_status) {
+      showAlert({ 
+        title: 'Operación denegada', 
+        message: 'No puedes borrar este cliente porque tiene una operación de compra en curso o finalizada.' 
+      });
+      return;
+    }
+
+    const password = window.prompt("Por seguridad, introduce la contraseña de administrador para borrar este cliente:");
+    if (password !== "mirapinos2026") {
+      if (password !== null) {
+        showAlert({ title: 'Error', message: 'Contraseña incorrecta. Operación cancelada.' });
+      }
+      return;
+    }
+
+    const confirmed = await showConfirm({
+      title: 'Eliminar Cliente',
+      message: '¿Estás seguro de que deseas eliminar este cliente y TODA su agenda asociada? Esta acción es irreversible.',
+      confirmText: 'Sí, eliminar',
+      cancelText: 'Cancelar'
+    });
+    if (!confirmed) return;
+
+    try {
+      // Borrar tareas asociadas primero
+      await supabase.from('agenda').delete().eq('lead_id', leadId);
+      
+      const { error } = await supabase.from('leads').delete().eq('id', leadId);
+      if (error) throw error;
+      
+      showAlert({ title: 'Éxito', message: 'Cliente eliminado correctamente.' });
+      fetchSettingsLeads();
+    } catch (err: any) {
+      console.error('Error eliminando lead:', err);
+      showAlert({ title: 'Error', message: 'No se pudo eliminar el cliente: ' + (err.message || 'Error desconocido') });
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'data') {
+      fetchSettingsLeads();
+    }
+  }, [activeTab]);
+
   // --- Lógica de Viviendas (Admin) ---
   const [properties, setProperties] = useState<any[]>([]);
   const [loadingProperties, setLoadingProperties] = useState(false);
@@ -382,21 +450,18 @@ const Settings: React.FC = () => {
               }`}
           >
             <Database size={16} />
-            <span className="font-medium">Datos de Clientes</span>
+            <span className="font-medium">Clientes</span>
           </button>
           
-          <div className="h-px bg-slate-200 my-2 mx-3"></div>
-          
-          <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 mt-2">Diferencial</p>
           <button
             onClick={() => setActiveTab('housing')}
             className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all ${activeTab === 'housing'
-              ? 'bg-amber-600 text-white shadow-sm'
+              ? 'bg-emerald-600 text-white shadow-sm'
               : 'hover:bg-slate-100 text-slate-600'
               }`}
           >
             <Map size={16} />
-            <span className="font-medium">Viviendas (Admin)</span>
+            <span className="font-medium">Viviendas</span>
           </button>
         </div>
 
@@ -820,11 +885,11 @@ const Settings: React.FC = () => {
             </div>
           )}
 
-          {/* VISTA: DATOS DE CLIENTES (IMPORTAR / EXPORTAR) */}
+          {/* VISTA: CLIENTES (IMPORTAR / EXPORTAR / BORRAR) */}
           {activeTab === 'data' && (
             <div className="p-6 space-y-6 animate-in fade-in duration-300">
               <div className="border-b pb-2">
-                <h2 className="text-lg font-semibold text-slate-800">Datos de Clientes</h2>
+                <h2 className="text-lg font-semibold text-slate-800">Clientes</h2>
                 <p className="text-xs text-slate-500">Herramientas administrativas para la importación y exportación masiva de contactos.</p>
               </div>
 
@@ -871,6 +936,83 @@ const Settings: React.FC = () => {
                       Exportar Listado
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* Lista de Clientes para Borrar */}
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
+                  <h3 className="font-bold text-slate-800 whitespace-nowrap">Gestión de Clientes</h3>
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <input 
+                      type="text" 
+                      placeholder="Buscar cliente para eliminar..." 
+                      value={searchClientQuery}
+                      onChange={(e) => setSearchClientQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                    />
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-xs text-slate-400 font-bold uppercase tracking-widest border-b border-slate-200">
+                        <th className="py-3 px-6">Nombre</th>
+                        <th className="py-3 px-6">Email</th>
+                        <th className="py-3 px-6">Teléfono</th>
+                        <th className="py-3 px-6 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {loadingSettingsLeads ? (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-slate-400">
+                            Cargando clientes...
+                          </td>
+                        </tr>
+                      ) : searchClientQuery.trim().length < 2 ? (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-slate-400">
+                            Escribe al menos 2 letras en el buscador para encontrar un cliente.
+                          </td>
+                        </tr>
+                      ) : (() => {
+                        const filtered = settingsLeads.filter(lead => 
+                          (lead.name?.toLowerCase().includes(searchClientQuery.toLowerCase())) ||
+                          (lead.email?.toLowerCase().includes(searchClientQuery.toLowerCase())) ||
+                          (lead.phone?.includes(searchClientQuery))
+                        );
+                        
+                        if (filtered.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={4} className="py-8 text-center text-slate-400">
+                                No se encontraron clientes con "{searchClientQuery}".
+                              </td>
+                            </tr>
+                          );
+                        }
+                        
+                        return filtered.map((lead) => (
+                          <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-3 px-6 text-sm font-medium text-slate-800">{lead.name || '-'}</td>
+                            <td className="py-3 px-6 text-sm text-slate-500">{lead.email || '-'}</td>
+                            <td className="py-3 px-6 text-sm text-slate-500">{lead.phone || '-'}</td>
+                            <td className="py-3 px-6 text-right">
+                              <button
+                                onClick={() => handleDeleteLead(lead.id)}
+                                className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors inline-flex items-center"
+                                title="Eliminar Cliente"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
