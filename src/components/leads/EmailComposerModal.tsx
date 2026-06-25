@@ -46,7 +46,7 @@ export default function EmailComposerModal({
   initialSubject,
   initialMessage
 }: Props) {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const { showAlert } = useDialog();
   const [method, setMethod] = useState<'email' | 'whatsapp'>(
@@ -71,34 +71,6 @@ export default function EmailComposerModal({
 
   // Genera la firma dinámica con los datos del comercial que envía
   const getSignatureHtml = (): string => {
-    const agentName = profile?.full_name || user?.email || 'Equipo Mirapinos';
-    const agentEmail = profile?.email || user?.email || '';
-    const agentPhone = profile?.phone || '';
-
-    // Heurística en español para determinar dinámicamente si es Asesor o Asesora
-    const getAgentTitle = (name: string): string => {
-      const lowerName = name.toLowerCase().trim();
-      const firstWord = lowerName.split(/\s+/)[0];
-      
-      const femaleKeywords = [
-        'maria', 'maría', 'carmen', 'isabel', 'pilar', 'mercedes', 
-        'dolores', 'luz', 'sol', 'concepcion', 'concepción', 'mar',
-        'raquel', 'beatriz', 'esther', 'belen', 'belén', 'inmaculada',
-        'consuelo', 'salud', 'amparo', 'remedios', 'socorro', 'milagros'
-      ];
-      
-      const maleExceptions = ['borja', 'luca', 'andrea', 'joshua', 'nikola'];
-      
-      const isFemale = 
-        (firstWord.endsWith('a') && !maleExceptions.includes(firstWord)) ||
-        (firstWord.endsWith('á') && !['josé', 'rene', 'rené'].includes(firstWord)) ||
-        femaleKeywords.some(keyword => lowerName.includes(keyword));
-        
-      return isFemale ? 'Asesora Inmobiliaria' : 'Asesor Inmobiliario';
-    };
-
-    const agentTitle = getAgentTitle(agentName);
-
     return `
       <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
         <table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif;">

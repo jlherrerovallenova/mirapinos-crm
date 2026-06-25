@@ -489,7 +489,7 @@ export default function Dashboard() {
                                     const greeting = hour < 14 ? 'Buenos días' : 'Buenas tardes';
                                     const message = `${greeting}, ${firstName}:\nSoy Juan Herrero, de Terravall, inmobiliaria comercializadora de Finca Mirapinos. Le escribo para confirmar si pudo recibir el dossier informativo de la promoción que le enviamos hace unos días. Si no es así, le agradecería que revisase su carpeta de correo no deseado (SPAM); en caso de que siga sin localizarlo, por favor háganoslo saber y se lo haré llegar de inmediato. Quedo a su entera disposición para resolver cualquier duda que pueda tener sobre la promoción.\nUn cordial saludo,\nJuan Herrero\nwww.mirapinos.com`;
                                     
-                                    const cleanPhone = email.leads.phone.replace(/\D/g, '');
+                                    const cleanPhone = (email.leads?.phone || '').replace(/\D/g, '');
                                     const phoneWithCode = cleanPhone.startsWith('34') ? cleanPhone : '34' + cleanPhone;
                                     window.open(`https://wa.me/${phoneWithCode}?text=${encodeURIComponent(message)}`, '_blank');
                                   }}
