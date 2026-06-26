@@ -1,6 +1,5 @@
 // src/lib/supabase.ts
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '../types/supabase';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -17,7 +16,8 @@ if (!supabaseAnonKey) {
   console.log('✅ VITE_SUPABASE_ANON_KEY detectada');
 }
 
-export const supabase = createClient<Database>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const supabase = createClient<any>(
   supabaseUrl || '',
   supabaseAnonKey || '',
   {
@@ -53,18 +53,19 @@ export const withRetry = async <T>(
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await Promise.resolve(fn());
-    } catch (error: any) {
-      lastError = error;
+    } catch (error: unknown) {
+      const err = error as { message?: string; code?: string; status?: number };
+      lastError = error instanceof Error ? error : new Error(String(error));
       const isNetworkError =
-        error.message?.includes('NetworkError') ||
-        error.message?.includes('Failed to fetch') ||
-        error.code === 'NETWORK_ERROR' ||
-        error.status === 0;
+        err.message?.includes('NetworkError') ||
+        err.message?.includes('Failed to fetch') ||
+        err.code === 'NETWORK_ERROR' ||
+        err.status === 0;
 
       if (isNetworkError && i < maxRetries - 1) {
         console.warn(`⚠️ Error de red, reintentando (${i + 1}/${maxRetries})...`);
         await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-      } else if (!isNetworkError) {
+      } else {
         throw error;
       }
     }

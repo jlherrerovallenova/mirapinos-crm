@@ -2,8 +2,16 @@
 import React from 'react';
 import { CheckCircle2, AlertCircle, X, Info } from 'lucide-react';
 
+interface StatCardProps {
+  title: string;
+  value: React.ReactNode;
+  subtext: string;
+  icon: React.ReactNode;
+  type?: 'primary' | 'warning' | 'success' | 'neutral' | 'error';
+}
+
 // 1. Tarjeta de Estadísticas
-export function StatCard({ title, value, subtext, icon, type = 'neutral' }: any) {
+export function StatCard({ title, value, subtext, icon, type = 'neutral' }: StatCardProps) {
   const colors = {
     primary: 'bg-blue-500',
     warning: 'bg-amber-500',
@@ -12,7 +20,7 @@ export function StatCard({ title, value, subtext, icon, type = 'neutral' }: any)
     error: 'bg-rose-500'
   };
   
-  const activeColor = colors[type as keyof typeof colors] || colors.neutral;
+  const activeColor = colors[type] || colors.neutral;
 
   return (
     <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group hover:border-slate-300 transition-all">
@@ -35,21 +43,11 @@ export function StatCard({ title, value, subtext, icon, type = 'neutral' }: any)
   );
 }
 
+import { LEAD_STATUS_STAGE_BADGES } from '../../config/constants';
+
 // 2. Badge de Estado (CONECTADO A DB)
 export function StageBadge({ stage }: { stage: string }) {
-  // Mapeo directo de los valores de la base de datos a Estilos y Etiquetas
-  const config: any = {
-     'new':         { label: 'Nuevo', class: 'bg-slate-100 text-slate-600 border-slate-200' },
-     'contacted':   { label: 'Contactado', class: 'bg-blue-50 text-blue-700 border-blue-200' },
-     'qualified':   { label: 'Cualificado', class: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-     'visiting':    { label: 'Visitando', class: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-     'proposal':    { label: 'Propuesta', class: 'bg-amber-50 text-amber-700 border-amber-200' },
-     'negotiation': { label: 'Negociación', class: 'bg-orange-50 text-orange-700 border-orange-200' },
-     'closed':      { label: 'Ganado', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-     'lost':        { label: 'Perdido', class: 'bg-rose-50 text-rose-700 border-rose-200' },
-  };
-
-  const active = config[stage] || { label: stage, class: 'bg-slate-50 text-slate-600 border-slate-200' };
+  const active = LEAD_STATUS_STAGE_BADGES[stage] || { label: stage, class: 'bg-slate-50 text-slate-600 border-slate-200' };
 
   return (
      <span className={`px-2.5 py-1 rounded border text-[10px] font-bold uppercase tracking-wide ${active.class}`}>

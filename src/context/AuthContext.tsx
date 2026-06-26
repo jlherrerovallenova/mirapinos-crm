@@ -3,7 +3,7 @@ import { supabase, withRetry } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 import { Loader2, AlertCircle, XCircle } from 'lucide-react';
 
-interface Profile {
+export interface Profile {
   id: string;
   full_name: string | null;
   avatar_url: string | null;

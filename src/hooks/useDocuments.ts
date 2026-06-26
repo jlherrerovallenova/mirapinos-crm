@@ -1,8 +1,8 @@
 // src/hooks/useDocuments.ts
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
-
-export const DOCUMENT_CATEGORIES = ['Documentos Olivo', 'Documentos Arce', 'Parcelas', 'Renders-Fotos'];
+import { DOCUMENT_CATEGORIES } from '../config/constants';
+export { DOCUMENT_CATEGORIES };
 
 export interface SystemDocument {
     name: string;
@@ -29,20 +29,24 @@ export function useDocuments() {
                     console.error(`Error listando la carpeta ${category}:`, error);
                     continue;
                 }
-
                 if (data) {
                     const validFiles = data.filter(f => f.name !== '.emptyFolderPlaceholder' && f.name !== '.emptyFolder' && f.id);
-                    const docsWithMeta = validFiles.map(doc => {
+                    const docsWithMeta: SystemDocument[] = validFiles.map(doc => {
                         const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(`${category}/${doc.name}`);
                         return {
-                            ...doc,
+                            name: doc.name,
+                            id: doc.id || '',
+                            updated_at: doc.updated_at || '',
                             category,
                             fullPath: `${category}/${doc.name}`,
-                            url: publicUrl
+                            url: publicUrl,
+                            metadata: doc.metadata ? {
+                                size: doc.metadata.size || 0,
+                                mimetype: doc.metadata.mimetype || ''
+                            } : undefined
                         };
                     });
 
-                    // @ts-ignore
                     allDocs = [...allDocs, ...docsWithMeta];
                 }
             }
@@ -50,19 +54,24 @@ export function useDocuments() {
             // Archivos huérfanos en la raíz ("Sin Categorizar")
             const { data: rootData, error: rootError } = await supabase.storage.from('documents').list();
             if (!rootError && rootData) {
-                const rootFiles = rootData.filter(f => f.id && f.name !== '.emptyFolderPlaceholder' && f.name !== '.emptyFolder' && !DOCUMENT_CATEGORIES.includes(f.name));
+                const rootFiles = rootData.filter(f => f.id && f.name !== '.emptyFolderPlaceholder' && f.name !== '.emptyFolder' && !(DOCUMENT_CATEGORIES as readonly string[]).includes(f.name));
 
-                const rootDocsWithMeta = rootFiles.map(doc => {
+                const rootDocsWithMeta: SystemDocument[] = rootFiles.map(doc => {
                     const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(doc.name);
                     return {
-                        ...doc,
+                        name: doc.name,
+                        id: doc.id || '',
+                        updated_at: doc.updated_at || '',
                         category: 'Sin Categorizar',
                         fullPath: doc.name,
-                        url: publicUrl
+                        url: publicUrl,
+                        metadata: doc.metadata ? {
+                            size: doc.metadata.size || 0,
+                            mimetype: doc.metadata.mimetype || ''
+                        } : undefined
                     };
                 });
 
-                // @ts-ignore
                 allDocs = [...allDocs, ...rootDocsWithMeta];
             }
 

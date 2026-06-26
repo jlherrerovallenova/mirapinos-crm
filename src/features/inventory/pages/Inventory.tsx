@@ -21,12 +21,14 @@ import MortgageSimulatorModal from '../components/MortgageSimulatorModal';
 import { useDialog } from '../../../context/DialogContext';
 import { inventoryService } from '../api/inventoryService';
 import type { Property } from '../api/inventoryService';
+import { PROPERTY_STATUS } from '../../../config/constants';
+import type { PropertyStatus } from '../../../config/constants';
 
 export default function Inventory() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [stateFilter, setStateFilter] = useState('DISPONIBLE');
+  const [stateFilter, setStateFilter] = useState<PropertyStatus | ''>(PROPERTY_STATUS.DISPONIBLE);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const { showAlert } = useDialog();
@@ -119,7 +121,7 @@ export default function Inventory() {
       const tableColumn = ["№", "MODELO", "PARCELA (m²)", "ÚTIL (m²)", "HAB/BAÑOS", "PRECIO", "ESTADO"];
       const tableRows = filteredProperties.map(p => [
         p.numero_vivienda, p.modelo, formatSurface(p.superficie_parcela), formatSurface(p.superficie_util),
-        `${p.habitaciones} / ${p.banos}`, formatCurrency(p.precio), (p.estado_vivienda || 'DISPONIBLE').toUpperCase()
+        `${p.habitaciones} / ${p.banos}`, formatCurrency(p.precio), (p.estado_vivienda || PROPERTY_STATUS.DISPONIBLE).toUpperCase()
       ]);
       autoTable(doc, {
         head: [tableColumn], body: tableRows, startY: 45, theme: 'grid',
@@ -318,16 +320,13 @@ export default function Inventory() {
             <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <select
               value={stateFilter}
-              onChange={(e) => setStateFilter(e.target.value)}
+              onChange={(e) => setStateFilter(e.target.value as PropertyStatus | '')}
               className="w-full pl-12 pr-8 py-2 bg-white border border-slate-200 rounded-lg outline-none appearance-none cursor-pointer text-sm font-bold text-slate-700 shadow-sm"
             >
               <option value="">Cualquier Estado</option>
-              <option value="DISPONIBLE">DISPONIBLE</option>
-              <option value="NO DISPONIBLE">NO DISPONIBLE</option>
-              <option value="BLOQUEADA">BLOQUEADA</option>
-              <option value="RESERVADA">RESERVADA</option>
-              <option value="CONTRATO CV">CONTRATO CV</option>
-              <option value="ESCRITURADA">ESCRITURADA</option>
+              {Object.values(PROPERTY_STATUS).map(status => (
+                <option key={status} value={status}>{status}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -380,12 +379,12 @@ export default function Inventory() {
                     </td>
                     <td className="px-6 py-5 text-center">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                        property.estado_vivienda === 'DISPONIBLE' ? 'bg-emerald-100 text-emerald-700' :
-                        property.estado_vivienda === 'RESERVADA' ? 'bg-amber-100 text-amber-700' : 
-                        property.estado_vivienda === 'CONTRATO CV' ? 'bg-blue-100 text-blue-700' :
-                        property.estado_vivienda === 'ESCRITURADA' ? 'bg-purple-100 text-purple-700' :
+                        property.estado_vivienda === PROPERTY_STATUS.DISPONIBLE ? 'bg-emerald-100 text-emerald-700' :
+                        property.estado_vivienda === PROPERTY_STATUS.RESERVADA ? 'bg-amber-100 text-amber-700' : 
+                        property.estado_vivienda === PROPERTY_STATUS.CONTRATO_CV ? 'bg-blue-100 text-blue-700' :
+                        property.estado_vivienda === PROPERTY_STATUS.ESCRITURADA ? 'bg-purple-100 text-purple-700' :
                         'bg-slate-100 text-slate-700'
-                      }`}>{property.estado_vivienda || 'DISPONIBLE'}</span>
+                      }`}>{property.estado_vivienda || PROPERTY_STATUS.DISPONIBLE}</span>
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex justify-end gap-1 px-1">

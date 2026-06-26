@@ -3,28 +3,19 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
-  ArrowUpRight,
-  ArrowDownRight,
-  Globe,
-  Smartphone,
-  HelpCircle,
   Clock,
   Calendar,
-  CheckCircle2,
-  Trash2,
-  Circle,
-  AlertCircle,
   Search,
-  Plus,
-  Phone,
-  Mail,
-  Eye,
-  MessageCircle
+  Plus
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useDialog } from '../../../context/DialogContext';
 import type { Database } from '../../../types/supabase';
 import { dashboardService } from '../api/dashboardService';
+import DashboardStats from '../components/DashboardStats';
+import DashboardAgenda from '../components/DashboardAgenda';
+import DashboardNoActivity from '../components/DashboardNoActivity';
+import DashboardEmailTracking from '../components/DashboardEmailTracking';
 
 // --- TIPOS ---
 type AgendaItem = Database['public']['Tables']['agenda']['Row'] & {
@@ -175,25 +166,6 @@ export default function Dashboard() {
     }
   };
 
-  // --- HELPERS DE UI ---
-  const getSourceIcon = (sourceName: string) => {
-    const lower = sourceName.toLowerCase();
-    if (lower.includes('idealista')) return <img src="/idealista.png" alt="Idealista" className="w-4 h-4 object-contain rounded" />;
-    if (lower.includes('web') || lower.includes('google')) return <Globe className="text-blue-600" size={16} />;
-    if (lower.includes('insta') || lower.includes('facebook') || lower.includes('redes')) return <Smartphone className="text-purple-600" size={16} />;
-    if (lower.includes('referido') || lower.includes('amigo')) return <Users className="text-emerald-600" size={16} />;
-    if (lower.includes('llamada')) return <Phone className="text-amber-600" size={16} />;
-    return <HelpCircle className="text-slate-400" size={16} />;
-  };
-
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    return isToday ? `Hoy, ${time}` : `${date.toLocaleDateString()} ${time}`;
-  };
-
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
 
@@ -222,37 +194,7 @@ export default function Dashboard() {
       </div>
 
       {/* TARJETAS DE MÉTRICAS COMPACTAS */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {loading ? (
-          Array(4).fill(0).map((_, i) => (
-            <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-24 animate-pulse" />
-          ))
-        ) : (
-          <>
-            <StatCard
-              title="Total Contactos"
-              value={stats.totalLeads.toString()}
-              change="Base de Datos"
-              isPositive={true}
-              icon={<Users className="text-slate-900" size={16} />}
-              trendIcon={false}
-              onClick={() => navigate('/leads')}
-            />
-            {stats.topSources.map((source, index) => (
-              <StatCard
-                key={index}
-                title={`Origen: ${source.name}`}
-                value={source.count.toString()}
-                change={`${source.percentage}%`}
-                isPositive={true}
-                icon={getSourceIcon(source.name)}
-                trendIcon={true}
-                onClick={() => navigate(`/leads?source=${encodeURIComponent(source.name)}`)}
-              />
-            ))}
-          </>
-        )}
-      </div>
+      <DashboardStats loading={loading} stats={stats} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
@@ -342,195 +284,26 @@ export default function Dashboard() {
 
           <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[500px]">
             {activeTab === 'sinActividad' ? (
-              noActivityLeads.length === 0 && !loading ? (
-                <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-in fade-in">
-                  <CheckCircle2 size={48} className="mb-4 opacity-30 text-emerald-500" />
-                  <p className="text-sm font-medium text-slate-600">¡Increíble!</p>
-                  <p className="text-xs opacity-60">Todos tus clientes tienen acciones programadas.</p>
-                </div>
-              ) : (
-                noActivityLeads
-                  .filter(l => l.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                  .map((lead) => (
-                    <div key={lead.id} className="p-4 hover:bg-slate-50 transition-all flex items-center justify-between group bg-white cursor-pointer" onClick={() => navigate(`/leads?open=${lead.id}`)}>
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-orange-50 text-orange-600 border border-orange-100 font-bold text-xs">
-                          {lead.name.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-bold text-slate-800">{lead.name}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-slate-500">
-                            <span className="font-medium">{lead.source || 'Sin origen'}</span>
-                            <span>•</span>
-                            <span className="text-red-400 font-medium">Sin actividad registrada</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Plus size={18} className="text-emerald-500" />
-                      </div>
-                    </div>
-                  ))
-              )
+              <DashboardNoActivity
+                noActivityLeads={noActivityLeads}
+                searchQuery={searchQuery}
+                loading={loading}
+              />
             ) : activeTab === 'correos' ? (
-              filteredEmails.length === 0 && !loading ? (
-                <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-in fade-in">
-                  <Mail size={48} className="mb-4 opacity-20 text-indigo-500" />
-                  <p className="text-sm font-medium text-slate-600">
-                    {searchQuery ? 'No hay coincidencias' : 'Sin correos'}
-                  </p>
-                  <p className="text-xs opacity-60">
-                    {searchQuery ? 'Prueba con otro cliente o asunto' : 'No se ha enviado ningún correo todavía'}
-                  </p>
-                </div>
-              ) : (
-                filteredEmails.map((email) => {
-                  const isOpened = email.status === 'opened' || email.opens_count > 0;
-                  return (
-                    <div key={email.id} className={`p-4 hover:bg-slate-50 transition-all flex items-center justify-between group bg-white ${email.lead_id ? 'cursor-pointer' : ''}`} onClick={() => email.lead_id && navigate(`/leads?open=${email.lead_id}`)}>
-                      <div className="flex items-center gap-4 min-w-0 flex-1">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-600 border border-indigo-100 font-bold text-xs">
-                          <Mail size={18} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <span className="text-sm font-bold text-slate-800 truncate">
-                              {email.leads?.name || 'Cliente desconocido'}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
-                                isOpened
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                  : 'bg-slate-50 text-slate-500 border-slate-200'
-                              }`}>
-                                {isOpened ? 'Abierto' : 'Enviado'}
-                              </span>
-                              {!isOpened && email.leads?.phone && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const firstName = (email.leads?.name || '').split(' ')[0];
-                                    const hour = new Date().getHours();
-                                    const greeting = hour < 14 ? 'Buenos días' : 'Buenas tardes';
-                                    const message = `${greeting}, ${firstName}:\nSoy Juan Herrero, de Terravall, inmobiliaria comercializadora de Finca Mirapinos. Le escribo para confirmar si pudo recibir el dossier informativo de la promoción que le enviamos hace unos días. Si no es así, le agradecería que revisase su carpeta de correo no deseado (SPAM); en caso de que siga sin localizarlo, por favor háganoslo saber y se lo haré llegar de inmediato. Quedo a su entera disposición para resolver cualquier duda que pueda tener sobre la promoción.\nUn cordial saludo,\nJuan Herrero\nwww.mirapinos.com`;
-                                    
-                                    const cleanPhone = (email.leads?.phone || '').replace(/\D/g, '');
-                                    const phoneWithCode = cleanPhone.startsWith('34') ? cleanPhone : '34' + cleanPhone;
-                                    window.open(`https://wa.me/${phoneWithCode}?text=${encodeURIComponent(message)}`, '_blank');
-                                  }}
-                                  className="p-1 rounded-full hover:bg-emerald-100 text-emerald-600 transition-colors shadow-sm bg-white border border-emerald-100"
-                                  title="Enviar WhatsApp de seguimiento"
-                                >
-                                  <MessageCircle size={12} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-xs text-slate-500 truncate font-medium">
-                            {email.subject}
-                          </div>
-                          <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1.5">
-                            <span>Enviado: {formatDateTime(email.created_at)}</span>
-                            {isOpened && email.last_opened_at && (
-                              <>
-                                <span>•</span>
-                                <span className="text-emerald-600 font-semibold flex items-center gap-0.5">
-                                  <Eye size={10} />
-                                  Últ. apertura: {formatDateTime(email.last_opened_at)}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4 shrink-0 pl-3">
-                        <div className="text-right">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
-                            isOpened
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-slate-50 text-slate-400 border border-slate-200'
-                          }`}>
-                            <Eye size={12} />
-                            {email.opens_count} {email.opens_count === 1 ? 'apertura' : 'aperturas'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )
-            ) : filteredAgenda.length === 0 && !loading ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-in fade-in">
-                {activeTab === 'caducadas' ? (
-                  <>
-                    <CheckCircle2 size={48} className="mb-4 opacity-30 text-emerald-500" />
-                    <p className="text-sm font-medium text-slate-600">¡Impecable!</p>
-                    <p className="text-xs opacity-60">No tienes ninguna tarea vencida.</p>
-                  </>
-                ) : (
-                  <>
-                    <Calendar size={48} className="mb-4 opacity-20 text-slate-500" />
-                    <p className="text-sm font-medium text-slate-600">
-                      {searchQuery ? 'No hay coincidencias' : 'Todo al día'}
-                    </p>
-                    <p className="text-xs opacity-60">
-                      {searchQuery ? 'Prueba con otro nombre' : 'No tienes acciones futuras pendientes'}
-                    </p>
-                  </>
-                )}
-              </div>
+              <DashboardEmailTracking
+                filteredEmails={filteredEmails}
+                searchQuery={searchQuery}
+                loading={loading}
+              />
             ) : (
-              filteredAgenda.map((task) => {
-                const isOverdue = new Date(task.due_date) < new Date();
-                return (
-                  <div key={task.id} className="p-4 hover:bg-slate-50 transition-all flex items-center justify-between group bg-white">
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={() => toggleTask(task)}
-                        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all shadow-sm bg-white border border-slate-200 text-slate-300 hover:border-emerald-400 hover:text-emerald-500"
-                      >
-                        <Circle size={20} />
-                      </button>
-
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-xs font-medium uppercase tracking-wider px-2 py-0.5 rounded border ${task.type === 'Llamada' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                            task.type === 'WhatsApp' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                              task.type === 'Visita' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                                'bg-slate-50 text-slate-600 border-slate-100'
-                            }`}>
-                            {task.type}
-                          </span>
-                          <span className="text-sm font-bold text-slate-800">
-                            {task.leads?.name || 'Sin cliente vinculado'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-slate-500">
-                           <span className="font-medium">{task.title}</span>
-                          <span>•</span>
-                          <span className={`${isOverdue ? "text-red-500 font-bold flex items-center gap-1" : ""}`}>
-                            {isOverdue && <AlertCircle size={10} />}
-                            {formatDateTime(task.due_date)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => deleteTask(task.id)}
-                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
+              <DashboardAgenda
+                filteredAgenda={filteredAgenda}
+                searchQuery={searchQuery}
+                loading={loading}
+                activeTab={activeTab}
+                onToggleTask={toggleTask}
+                onDeleteTask={deleteTask}
+              />
             )}
           </div>
         </div>
@@ -591,30 +364,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ title, value, change, isPositive, icon, trendIcon = true, onClick }: any) {
-  return (
-    <div
-      onClick={onClick}
-      className={`bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all duration-200 flex flex-col justify-between ${onClick ? 'cursor-pointer hover:shadow-md hover:border-emerald-200 hover:-translate-y-0.5' : ''
-        }`}
-    >
-      <div className="flex justify-between items-start mb-2">
-        <div className="p-1.5 bg-slate-50 rounded-lg">{icon}</div>
-        {trendIcon && (
-          <div className={`flex items-center text-[10px] font-bold ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
-            {isPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-            <span className="ml-1">{change}</span>
-          </div>
-        )}
-      </div>
-      <div>
-        <p className="text-slate-500 text-xs font-medium">{title}</p>
-        <h4 className="text-xl font-bold text-slate-900 mt-0.5">{value}</h4>
       </div>
     </div>
   );

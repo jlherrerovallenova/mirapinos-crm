@@ -1,5 +1,5 @@
 // src/components/leads/LeadDetailModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X, Mail, Phone, Save, Trash2, Loader2, Send,
   Compass, MessageCircle, Calendar as CalendarIcon,
@@ -18,18 +18,23 @@ import SaleTab from './SaleTab';
 type Lead = Database['public']['Tables']['leads']['Row'];
 type AgendaItem = Database['public']['Tables']['agenda']['Row'];
 
-// getAvatarColor removed as it's no longer used for emerald square avatars
-
-const STATUS_CONFIG: Record<string, { dot: string; pill: string; label: string }> = {
-  new:         { dot: 'bg-blue-400',    pill: 'bg-blue-900/40 text-blue-200 border border-blue-700/50',     label: 'Nuevo' },
-  contacted:   { dot: 'bg-purple-400',  pill: 'bg-purple-900/40 text-purple-200 border border-purple-700/50', label: 'Contactado' },
-  qualified:   { dot: 'bg-emerald-400', pill: 'bg-emerald-900/40 text-emerald-200 border border-emerald-700/50', label: 'Cualificado' },
-  visiting:    { dot: 'bg-cyan-400',    pill: 'bg-cyan-900/40 text-cyan-200 border border-cyan-700/50',       label: 'Visitando' },
-  proposal:    { dot: 'bg-amber-400',   pill: 'bg-amber-900/40 text-amber-200 border border-amber-700/50',   label: 'Propuesta' },
-  negotiation: { dot: 'bg-orange-400',  pill: 'bg-orange-900/40 text-orange-200 border border-orange-700/50', label: 'Negociación' },
-  closed:      { dot: 'bg-indigo-400',   pill: 'bg-indigo-900/40 text-indigo-200 border border-indigo-700/50',   label: 'Venta realizada' },
-  lost:        { dot: 'bg-red-400',     pill: 'bg-red-900/40 text-red-200 border border-red-700/50',         label: 'Perdido' },
+type ExtendedAgendaItem = AgendaItem & {
+  call_attended?: boolean | null;
+  tracking_id?: string | null;
 };
+
+interface EmailTrackingItem {
+  id: string;
+  created_at: string;
+  status: string;
+  opens_count: number;
+  last_opened_at?: string | null;
+  first_opened_at?: string | null;
+}
+
+import { LEAD_STATUS_DETAILS } from '../../../config/constants';
+
+const STATUS_CONFIG = LEAD_STATUS_DETAILS;
 
 interface Props {
   lead: Lead;
@@ -52,9 +57,9 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const [loading, setLoading] = useState(false); // Mantener para el estado local de guardado de tareas o procesos largos
 
   // Tareas de la agenda
-  const [tasks, setTasks] = useState<AgendaItem[]>([]);
+  const [tasks, setTasks] = useState<ExtendedAgendaItem[]>([]);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
-  const [emailTracking, setEmailTracking] = useState<any[]>([]);
+  const [emailTracking, setEmailTracking] = useState<EmailTrackingItem[]>([]);
 
   // Estado local para el formulario de nueva tarea
   const getCurrentTime = () => {
@@ -129,6 +134,27 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     setCollapsedGroups(prev => ({ ...prev, [type]: !prev[type] }));
   };
 
+  // Cargar tareas de la tabla agenda filtrando por ID del cliente y su seguimiento de email
+  const fetchTasks = useCallback(async () => {
+    try {
+      const { data: agendaData } = await agendaService.fetchItems({ leadId: lead.id });
+      setTasks(agendaData as ExtendedAgendaItem[]);
+    } catch (err) {
+      console.error("Error al cargar tareas:", err);
+    }
+
+    try {
+      const { data: trackingData } = await supabase
+        .from('email_tracking')
+        .select('*')
+        .eq('lead_id', lead.id);
+
+      if (trackingData) setEmailTracking(trackingData as EmailTrackingItem[]);
+    } catch (err) {
+      console.error("Error al cargar email tracking:", err);
+    }
+  }, [lead.id]);
+
   useEffect(() => {
     fetchTasks();
 
@@ -152,28 +178,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     return () => {
       supabase.removeChannel(trackingChannel);
     };
-  }, [lead.id]);
-
-  // Cargar tareas de la tabla agenda filtrando por ID del cliente y su seguimiento de email
-  async function fetchTasks() {
-    try {
-      const { data: agendaData } = await agendaService.fetchItems({ leadId: lead.id });
-      setTasks(agendaData);
-    } catch (err) {
-      console.error("Error al cargar tareas:", err);
-    }
-
-    try {
-      const { data: trackingData } = await supabase
-        .from('email_tracking')
-        .select('*')
-        .eq('lead_id', lead.id);
-
-      if (trackingData) setEmailTracking(trackingData);
-    } catch (err) {
-      console.error("Error al cargar email tracking:", err);
-    }
-  }
+  }, [lead.id, fetchTasks]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -189,7 +194,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     }
     
     const newValue = updated.join(', ');
-    const updates: any = { interested_in: newValue };
+    const updates: { interested_in: string; status?: Lead['status'] } = { interested_in: newValue };
     
     // Si se selecciona algo (no vacío) y el estado es Nuevo o Contactado, pasar a Cualificado
     if (updated.length > 0 && (formData.status === 'new' || formData.status === 'contacted')) {
@@ -199,7 +204,16 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
-  const saveTask = async (overrides?: any) => {
+  interface TaskOverrides {
+    title?: string;
+    type?: string;
+    date?: string;
+    time?: string;
+    call_attended?: boolean | null;
+    completed?: boolean;
+  }
+
+  const saveTask = async (overrides?: TaskOverrides) => {
     const taskTitle = overrides?.title || newTask.title;
     const taskType = overrides?.type || newTask.type;
     const taskDate = overrides?.date || newTask.date;
@@ -227,7 +241,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     try {
       if (editingTaskId) {
         // Editar
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('agenda')
           .update({
             title: taskData.title,
@@ -239,7 +253,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
         setEditingTaskId(null);
       } else {
         // En lugar de Google Calendar directo aquí, lo mantenemos igual por ahora
-        const { error } = await (supabase as any).from('agenda').insert([taskData]);
+        const { error } = await supabase.from('agenda').insert([taskData]);
         if (error) throw error;
 
         // Abrir Google Calendar
@@ -260,7 +274,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
       if (isCompleted && formData.status === 'new') {
         const updatedStatus = 'contacted';
         setFormData(prev => ({ ...prev, status: updatedStatus }));
-        await (supabase as any).from('leads').update({ status: updatedStatus }).eq('id', lead.id);
+        await supabase.from('leads').update({ status: updatedStatus }).eq('id', lead.id);
       }
 
       setNewTask({ 
@@ -296,7 +310,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     }
   };
 
-  const startEditingTask = (task: AgendaItem) => {
+  const startEditingTask = (task: ExtendedAgendaItem) => {
     setEditingTaskId(task.id);
     const dateObj = new Date(task.due_date);
     setNewTask({
@@ -304,20 +318,20 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
       title: task.title,
       date: dateObj.toISOString().slice(0, 10),
       time: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-      call_attended: (task as any).call_attended ?? null
+      call_attended: task.call_attended ?? null
     });
   };
 
-  const toggleTaskStatus = async (task: AgendaItem) => {
+  const toggleTaskStatus = async (task: ExtendedAgendaItem) => {
     const newStatus = !task.completed;
     setTasks(tasks.map(t => t.id === task.id ? { ...t, completed: newStatus } : t));
-    await (supabase as any).from('agenda').update({ completed: newStatus }).eq('id', task.id);
+    await supabase.from('agenda').update({ completed: newStatus }).eq('id', task.id);
     
     // Lógica de transición automática al marcar una tarea como realizada
     if (newStatus && formData.status === 'new') {
       const updatedStatus = 'contacted';
       setFormData(prev => ({ ...prev, status: updatedStatus }));
-      await (supabase as any).from('leads').update({ status: updatedStatus }).eq('id', lead.id);
+      await supabase.from('leads').update({ status: updatedStatus }).eq('id', lead.id);
     }
   };
 
@@ -335,9 +349,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
         onUpdate();
         onClose();
       },
-      onError: (err: any) => {
+      onError: (err: unknown) => {
+        const errorVal = err as { message?: string };
         console.error("Error actualizando lead:", err);
-        if (err.message?.includes('interested_in')) {
+        if (errorVal.message?.includes('interested_in')) {
           showAlert({ 
             title: 'Error de Base de Datos', 
             message: 'La columna "interested_in" no existe en la base de datos. Por favor, ejecuta la migración SQL necesaria.' 
@@ -345,7 +360,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
         } else {
           showAlert({ 
             title: 'Error', 
-            message: 'No se pudieron guardar los cambios: ' + (err.message || 'Error desconocido') 
+            message: 'No se pudieron guardar los cambios: ' + (errorVal.message || 'Error desconocido') 
           });
         }
       }
@@ -901,14 +916,14 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                             </div>
                             <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
                               {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              {(task as any).call_attended !== null && task.type === 'Llamada' && (
-                                <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${(task as any).call_attended ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                  {(task as any).call_attended ? 'ATENDIDA' : 'NO ATENDIDA'}
+                              {task.call_attended !== null && task.type === 'Llamada' && (
+                                <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${task.call_attended ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                  {task.call_attended ? 'ATENDIDA' : 'NO ATENDIDA'}
                                 </span>
                               )}
                               {task.type === 'Email' && (() => {
                                 const tracking = emailTracking.find((t) => {
-                                  if ((task as any).tracking_id) return t.id === (task as any).tracking_id;
+                                  if (task.tracking_id) return t.id === task.tracking_id;
                                   const taskTime = new Date(task.due_date).getTime();
                                   const trackingTime = new Date(t.created_at).getTime();
                                   return Math.abs(taskTime - trackingTime) < 15000;
@@ -929,7 +944,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                                       } transition-colors cursor-help`}
                                       title={
                                         isOpened 
-                                          ? `Abierto${opensLabel}. Última apertura: ${new Date(tracking.last_opened_at || tracking.first_opened_at).toLocaleString()}`
+                                          ? `Abierto${opensLabel}. Última apertura: ${new Date(tracking.last_opened_at || tracking.first_opened_at || tracking.created_at).toLocaleString()}`
                                           : 'Recibido pero aún no abierto.'
                                       }
                                     >
@@ -992,7 +1007,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
             </div>
             ) : (
               <div className="p-6 overflow-y-auto flex-1">
-                <SaleTab lead={lead as any} onLeadUpdate={async (updates) => {
+                <SaleTab lead={lead} onLeadUpdate={async (updates) => {
                   try {
                     await updateMutation.mutateAsync({ id: lead.id, updates });
                     onUpdate();

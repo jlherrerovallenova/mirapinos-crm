@@ -14,27 +14,29 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useDialog } from '../../../context/DialogContext';
+import { PROPERTY_STATUS, PROPERTY_MODELS } from '../../../config/constants';
+import type { Property } from '../api/inventoryService';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
-  initialData?: any;
+  initialData?: Property | null;
 }
 
 export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initialData }: Props) {
   const [loading, setLoading] = useState(false);
   const { showAlert } = useDialog();
   const [formData, setFormData] = useState({
-    modelo: initialData?.modelo || 'OLIVO',
+    modelo: initialData?.modelo || PROPERTY_MODELS[0],
     numero_vivienda: initialData?.numero_vivienda || '',
-    superficie_parcela: initialData?.superficie_parcela || '',
-    superficie_util: initialData?.superficie_util || '',
-    superficie_construida: initialData?.superficie_construida || '',
+    superficie_parcela: initialData?.superficie_parcela?.toString() || '',
+    superficie_util: initialData?.superficie_util?.toString() || '',
+    superficie_construida: initialData?.superficie_construida?.toString() || '',
     habitaciones: initialData?.habitaciones?.toString() || '',
     banos: initialData?.banos?.toString() || '',
     precio: initialData?.precio?.toString() || '',
-    estado_vivienda: initialData?.estado_vivienda || 'DISPONIBLE'
+    estado_vivienda: initialData?.estado_vivienda || PROPERTY_STATUS.DISPONIBLE
   });
 
   if (!isOpen) return null;
@@ -87,14 +89,14 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
 
       if (initialData?.id) {
         // Modo Edición: Actualizar
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('inventory')
           .update(propertyData)
           .eq('id', initialData.id);
         if (error) throw error;
       } else {
         // Modo Creación: Insertar
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('inventory')
           .insert([propertyData]);
         if (error) throw error;
@@ -106,7 +108,7 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
       // Resetear formulario si era creación
       if (!initialData?.id) {
         setFormData({
-          modelo: 'OLIVO',
+          modelo: PROPERTY_MODELS[0],
           numero_vivienda: '',
           superficie_parcela: '',
           superficie_util: '',
@@ -114,12 +116,13 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
           habitaciones: '',
           banos: '',
           precio: '',
-          estado_vivienda: 'DISPONIBLE'
+          estado_vivienda: PROPERTY_STATUS.DISPONIBLE
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving property:', error);
-      await showAlert({ title: 'Error', message: 'Error al guardar la propiedad: ' + (error.message || 'Error desconocido') });
+      const errMsg = error instanceof Error ? error.message : 'Error desconocido';
+      await showAlert({ title: 'Error', message: 'Error al guardar la propiedad: ' + errMsg });
     } finally {
       setLoading(false);
     }
@@ -164,9 +167,9 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                     onChange={handleChange}
                     className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 appearance-none cursor-pointer"
                   >
-                    <option value="OLIVO">OLIVO</option>
-                    <option value="ARCE">ARCE</option>
-                    <option value="PARCELA">PARCELA</option>
+                    {PROPERTY_MODELS.map(model => (
+                      <option key={model} value={model}>{model}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -304,12 +307,9 @@ export default function CreatePropertyModal({ isOpen, onClose, onSuccess, initia
                     onChange={handleChange}
                     className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-sm font-medium text-slate-700 appearance-none cursor-pointer"
                   >
-                    <option value="DISPONIBLE">DISPONIBLE</option>
-                    <option value="NO DISPONIBLE">NO DISPONIBLE</option>
-                    <option value="BLOQUEADA">BLOQUEADA</option>
-                    <option value="RESERVADA">RESERVADA</option>
-                    <option value="CONTRATO CV">CONTRATO CV</option>
-                    <option value="ESCRITURADA">ESCRITURADA</option>
+                    {Object.values(PROPERTY_STATUS).map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
                   </select>
                 </div>
               </div>

@@ -27,7 +27,6 @@ const SettingsProfileTab: React.FC = () => {
     try {
       const { error } = await supabase
         .from('profiles')
-        // @ts-expect-error
         .update({ full_name: fullName, phone: profilePhone || null })
         .eq('id', profile.id);
 

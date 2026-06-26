@@ -56,16 +56,24 @@ export const agendaService = {
     const { data, count, error } = await query;
     if (error) throw error;
 
-    const formattedData = (data || []).map(item => ({
-      ...(item as any),
-      leads: Array.isArray((item as any).leads) ? (item as any).leads[0] : (item as any).leads
-    })) as AgendaItem[];
+    const formattedData = (data || []).map(item => {
+      const itemWithLeads = item as typeof item & {
+        leads: { name: string } | { name: string }[] | null;
+      };
+      const leads = Array.isArray(itemWithLeads.leads)
+        ? itemWithLeads.leads[0]
+        : itemWithLeads.leads;
+      return {
+        ...itemWithLeads,
+        leads: leads ? { name: leads.name } : null
+      } as AgendaItem;
+    });
 
     return { data: formattedData, count };
   },
 
   async toggleStatus(id: number, completed: boolean) {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('agenda')
       .update({ completed })
       .eq('id', id)
@@ -81,8 +89,8 @@ export const agendaService = {
     if (error) throw error;
   },
 
-  async createItem(newItem: any) {
-    const { data, error } = await (supabase as any)
+  async createItem(newItem: Database['public']['Tables']['agenda']['Insert']) {
+    const { data, error } = await supabase
       .from('agenda')
       .insert([newItem])
       .select()
@@ -90,5 +98,14 @@ export const agendaService = {
 
     if (error) throw error;
     return data;
+  },
+
+  async getAgents() {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .order('full_name');
+    if (error) throw error;
+    return data || [];
   }
 };
