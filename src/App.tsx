@@ -5,21 +5,21 @@ import { useAuth } from './context/AuthContext';
 import { Loader2 } from 'lucide-react';
 import MainLayout from './layouts/MainLayout';
 import ClientLayout from './layouts/ClientLayout';
-import Login from './pages/Login';
+import Login from './features/auth/pages/Login';
 
 // Importaciones perezosas
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Leads = lazy(() => import('./pages/Leads'));
-const LeadDetail = lazy(() => import('./pages/LeadDetail'));
-const Pipeline = lazy(() => import('./pages/Pipeline'));
-const Inventory = lazy(() => import('./pages/Inventory'));
-const Agenda = lazy(() => import('./pages/Agenda'));
-const Settings = lazy(() => import('./pages/Settings'));
-const Newsletters = lazy(() => import('./pages/Newsletters'));
-const NewsletterEditor = lazy(() => import('./pages/NewsletterEditor'));
-const Stats = lazy(() => import('./pages/Stats'));
-const Sales = lazy(() => import('./pages/Sales'));
-const ClientPortal = lazy(() => import('./pages/ClientPortal'));
+const Dashboard = lazy(() => import('./features/dashboard/pages/Dashboard'));
+const Leads = lazy(() => import('./features/leads/pages/Leads'));
+const LeadDetail = lazy(() => import('./features/leads/pages/LeadDetail'));
+const Pipeline = lazy(() => import('./features/dashboard/pages/Pipeline'));
+const Inventory = lazy(() => import('./features/inventory/pages/Inventory'));
+const Agenda = lazy(() => import('./features/agenda/pages/Agenda'));
+const Settings = lazy(() => import('./features/settings/pages/Settings'));
+const Newsletters = lazy(() => import('./features/newsletters/pages/Newsletters'));
+const NewsletterEditor = lazy(() => import('./features/newsletters/pages/NewsletterEditor'));
+const Stats = lazy(() => import('./features/dashboard/pages/Stats'));
+const Sales = lazy(() => import('./features/sales/pages/Sales'));
+const ClientPortal = lazy(() => import('./features/client-portal/pages/ClientPortal'));
 
 const PageLoader = () => (
   <div className="w-full h-[60vh] flex flex-col items-center justify-center">

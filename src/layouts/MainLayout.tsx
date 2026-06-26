@@ -3,9 +3,9 @@ import { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext';
-import { AppNotification } from '../components/AppNotification';
-import { ConnectionStatus } from '../components/ConnectionStatus';
-import DebugPanel from '../components/DebugPanel';
+import { AppNotification } from '../components/ui/AppNotification';
+import { ConnectionStatus } from '../components/ui/ConnectionStatus';
+import DebugPanel from '../components/ui/DebugPanel';
 import { 
   LayoutDashboard, 
   Users, 
@@ -24,7 +24,7 @@ import {
   BarChart3,
   BadgeDollarSign
 } from 'lucide-react';
-import { useAgendaAlerts } from '../hooks/useAgendaAlerts';
+import { useAgendaAlerts } from '../features/agenda/hooks/useAgendaAlerts';
 import { useEmailTrackingNotifications } from '../hooks/useEmailTrackingNotifications';
 
 

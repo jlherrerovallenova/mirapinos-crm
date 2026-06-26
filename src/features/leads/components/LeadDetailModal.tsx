@@ -1,0 +1,1024 @@
+// src/components/leads/LeadDetailModal.tsx
+import React, { useState, useEffect } from 'react';
+import {
+  X, Mail, Phone, Save, Trash2, Loader2, Send,
+  Compass, MessageCircle, Calendar as CalendarIcon,
+  CheckCircle2, Circle, Plus, Pencil, RotateCcw, Smartphone, Users, Globe,
+  ChevronDown, ChevronUp, Zap
+} from 'lucide-react';
+import { supabase } from '../../../lib/supabase';
+import { useAuth } from '../../../context/AuthContext';
+import { useDialog } from '../../../context/DialogContext';
+import EmailComposerModal from './EmailComposerModal';
+import { useDocuments } from '../../../hooks/useDocuments';
+import type { Database } from '../../../types/supabase';
+import SaleTab from './SaleTab';
+
+type Lead = Database['public']['Tables']['leads']['Row'];
+type AgendaItem = Database['public']['Tables']['agenda']['Row'];
+
+// getAvatarColor removed as it's no longer used for emerald square avatars
+
+const STATUS_CONFIG: Record<string, { dot: string; pill: string; label: string }> = {
+  new:         { dot: 'bg-blue-400',    pill: 'bg-blue-900/40 text-blue-200 border border-blue-700/50',     label: 'Nuevo' },
+  contacted:   { dot: 'bg-purple-400',  pill: 'bg-purple-900/40 text-purple-200 border border-purple-700/50', label: 'Contactado' },
+  qualified:   { dot: 'bg-emerald-400', pill: 'bg-emerald-900/40 text-emerald-200 border border-emerald-700/50', label: 'Cualificado' },
+  visiting:    { dot: 'bg-cyan-400',    pill: 'bg-cyan-900/40 text-cyan-200 border border-cyan-700/50',       label: 'Visitando' },
+  proposal:    { dot: 'bg-amber-400',   pill: 'bg-amber-900/40 text-amber-200 border border-amber-700/50',   label: 'Propuesta' },
+  negotiation: { dot: 'bg-orange-400',  pill: 'bg-orange-900/40 text-orange-200 border border-orange-700/50', label: 'Negociación' },
+  closed:      { dot: 'bg-indigo-400',   pill: 'bg-indigo-900/40 text-indigo-200 border border-indigo-700/50',   label: 'Venta realizada' },
+  lost:        { dot: 'bg-red-400',     pill: 'bg-red-900/40 text-red-200 border border-red-700/50',         label: 'Perdido' },
+};
+
+interface Props {
+  lead: Lead;
+  onClose: () => void;
+  onUpdate: (deleted?: boolean) => void;
+}
+
+import { useUpdateLead, useDeleteLead } from '../hooks/useLeads';
+
+export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
+  const { session, profile } = useAuth();
+  const { showAlert, showConfirm } = useDialog();
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'info' | 'sale'>('info');
+  const { data: rawDocs = [] } = useDocuments();
+  const availableDocs = rawDocs.filter(d => d.url).map(d => ({ name: d.name, url: d.url!, category: d.category }));
+
+  // Mutations
+  const updateMutation = useUpdateLead();
+  const deleteMutation = useDeleteLead();
+  const [loading, setLoading] = useState(false); // Mantener para el estado local de guardado de tareas o procesos largos
+
+  // Tareas de la agenda
+  const [tasks, setTasks] = useState<AgendaItem[]>([]);
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [emailTracking, setEmailTracking] = useState<any[]>([]);
+
+  // Estado local para el formulario de nueva tarea
+  const getCurrentTime = () => {
+    const now = new Date();
+    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  const getFollowUpTime = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    const scheduled = new Date(now);
+    
+    if (hour < 13) {
+      scheduled.setHours(hour + 1);
+      return { 
+        date: scheduled.toISOString().slice(0, 10), 
+        time: scheduled.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) 
+      };
+    } else if (hour < 19) {
+      return { 
+        date: scheduled.toISOString().slice(0, 10), 
+        time: '17:00' 
+      };
+    } else {
+      scheduled.setDate(now.getDate() + 1);
+      return { 
+        date: scheduled.toISOString().slice(0, 10), 
+        time: '10:00' 
+      };
+    }
+  };
+
+  const [newTask, setNewTask] = useState({
+    type: 'Llamada',
+    title: '',
+    date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
+    time: getCurrentTime(),
+    call_attended: null as boolean | null
+  });
+
+  const [formData, setFormData] = useState({
+    name: lead.name || '',
+    email: lead.email || '',
+    phone: lead.phone || '',
+    status: lead.status || 'new',
+    source: lead.source || 'Web',
+    notes: lead.notes || '',
+    is_subscribed: lead.is_subscribed ?? true,
+    created_at_date: lead.created_at ? new Date(lead.created_at).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+    interested_in: lead.interested_in || ''
+  });
+  
+  const INTERESTED_OPTIONS = [
+    { value: "Chalet Olivo", label: "OLIVO" },
+    { value: "Chalet Arce", label: "ARCE" },
+    { value: "Parcelas", label: "PARCELAS" }
+  ];
+
+  const [expandedTasks, setExpandedTasks] = useState<Record<number, boolean>>({});
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [composerConfig, setComposerConfig] = useState<{
+    method?: 'email' | 'whatsapp';
+    subject?: string;
+    message?: string;
+  }>({});
+
+  const toggleTaskExpand = (taskId: number) => {
+    setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
+
+  const toggleGroup = (type: string) => {
+    setCollapsedGroups(prev => ({ ...prev, [type]: !prev[type] }));
+  };
+
+  useEffect(() => {
+    fetchTasks();
+
+    // Suscribirse a cambios en tiempo real en email_tracking para este lead
+    const trackingChannel = supabase
+      .channel('email_tracking_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'email_tracking',
+          filter: `lead_id=eq.${lead.id}`
+        },
+        () => {
+          fetchTasks();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(trackingChannel);
+    };
+  }, [lead.id]);
+
+  // Cargar tareas de la tabla agenda filtrando por ID del cliente y su seguimiento de email
+  async function fetchTasks() {
+    const { data: agendaData } = await supabase
+      .from('agenda')
+      .select('*')
+      .eq('lead_id', lead.id)
+      .order('due_date', { ascending: true });
+
+    if (agendaData) setTasks(agendaData);
+
+    try {
+      const { data: trackingData } = await supabase
+        .from('email_tracking')
+        .select('*')
+        .eq('lead_id', lead.id);
+
+      if (trackingData) setEmailTracking(trackingData);
+    } catch (err) {
+      console.error("Error al cargar email tracking:", err);
+    }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleInterestedInToggle = (option: string) => {
+    const current = formData.interested_in ? formData.interested_in.split(', ').filter(Boolean) : [];
+    let updated;
+    if (current.includes(option)) {
+      updated = current.filter(o => o !== option);
+    } else {
+      updated = [...current, option];
+    }
+    
+    const newValue = updated.join(', ');
+    const updates: any = { interested_in: newValue };
+    
+    // Si se selecciona algo (no vacío) y el estado es Nuevo o Contactado, pasar a Cualificado
+    if (updated.length > 0 && (formData.status === 'new' || formData.status === 'contacted')) {
+      updates.status = 'qualified';
+    }
+    
+    setFormData(prev => ({ ...prev, ...updates }));
+  };
+
+  const saveTask = async (overrides?: any) => {
+    const taskTitle = overrides?.title || newTask.title;
+    const taskType = overrides?.type || newTask.type;
+    const taskDate = overrides?.date || newTask.date;
+    const taskTime = overrides?.time || newTask.time;
+    const taskAttended = overrides?.call_attended !== undefined ? overrides.call_attended : newTask.call_attended;
+    const isCompleted = overrides?.completed !== undefined ? overrides.completed : false;
+
+    if (!taskTitle || !session?.user.id) return;
+
+    // Combinar fecha y hora para crear un ISO String
+    const dateTimeString = `${taskDate}T${taskTime}:00`;
+    const finalDate = new Date(dateTimeString).toISOString();
+
+    const taskData = {
+      title: taskTitle,
+      type: taskType,
+      due_date: finalDate,
+      lead_id: lead.id,          // Vinculación clave con el cliente
+      user_id: session.user.id,  // Vinculación clave con el usuario
+      completed: isCompleted,
+      call_attended: taskType === 'Llamada' ? taskAttended : null
+    };
+
+    setLoading(true);
+    try {
+      if (editingTaskId) {
+        // Editar
+        const { error } = await (supabase as any)
+          .from('agenda')
+          .update({
+            title: taskData.title,
+            type: taskData.type,
+            due_date: finalDate
+          })
+          .eq('id', editingTaskId);
+        if (error) throw error;
+        setEditingTaskId(null);
+      } else {
+        // En lugar de Google Calendar directo aquí, lo mantenemos igual por ahora
+        const { error } = await (supabase as any).from('agenda').insert([taskData]);
+        if (error) throw error;
+
+        // Abrir Google Calendar
+        const parsedDate = new Date(finalDate);
+        const endParsedDate = new Date(parsedDate.getTime() + 60 * 60 * 1000);
+        const formatGoogleDate = (d: Date) => d.toISOString().replace(/-|:|\.\d\d\d/g, '');
+
+        const googleCalUrl = new URL('https://calendar.google.com/calendar/render');
+        googleCalUrl.searchParams.append('action', 'TEMPLATE');
+        googleCalUrl.searchParams.append('text', `[${taskData.type}] ${taskData.title}`);
+        googleCalUrl.searchParams.append('details', `Tarea añadida desde Mirapinos CRM.\nCliente vinculado: ${lead.name}`);
+        googleCalUrl.searchParams.append('dates', `${formatGoogleDate(parsedDate)}/${formatGoogleDate(endParsedDate)}`);
+
+        window.open(googleCalUrl.toString(), '_blank');
+      }
+
+      // Lógica de transición automática al guardar una tarea completada con éxito
+      if (isCompleted && formData.status === 'new') {
+        const updatedStatus = 'contacted';
+        setFormData(prev => ({ ...prev, status: updatedStatus }));
+        await (supabase as any).from('leads').update({ status: updatedStatus }).eq('id', lead.id);
+      }
+
+      setNewTask({ 
+        type: 'Llamada', 
+        title: '', 
+        date: new Date().toISOString().slice(0, 10), 
+        time: getCurrentTime(), 
+        call_attended: null 
+      });
+      fetchTasks();
+
+    } catch (error) {
+      console.error("Error guardando tarea:", error);
+      await showAlert({ title: 'Error', message: 'Error al guardar la tarea.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteTask = async (id: number) => {
+    const confirmed = await showConfirm({
+      title: 'Eliminar Tarea',
+      message: '¿Estás seguro de que deseas eliminar esta tarea?',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar'
+    });
+    if (!confirmed) return;
+    const { error } = await supabase.from('agenda').delete().eq('id', id);
+    if (!error) fetchTasks();
+  };
+
+  const startEditingTask = (task: AgendaItem) => {
+    setEditingTaskId(task.id);
+    const dateObj = new Date(task.due_date);
+    setNewTask({
+      type: task.type,
+      title: task.title,
+      date: dateObj.toISOString().slice(0, 10),
+      time: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+      call_attended: (task as any).call_attended ?? null
+    });
+  };
+
+  const toggleTaskStatus = async (task: AgendaItem) => {
+    const newStatus = !task.completed;
+    setTasks(tasks.map(t => t.id === task.id ? { ...t, completed: newStatus } : t));
+    await (supabase as any).from('agenda').update({ completed: newStatus }).eq('id', task.id);
+    
+    // Lógica de transición automática al marcar una tarea como realizada
+    if (newStatus && formData.status === 'new') {
+      const updatedStatus = 'contacted';
+      setFormData(prev => ({ ...prev, status: updatedStatus }));
+      await (supabase as any).from('leads').update({ status: updatedStatus }).eq('id', lead.id);
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const { created_at_date, ...restData } = formData;
+    const finalData = {
+      ...restData,
+      created_at: new Date(`${created_at_date}T12:00:00Z`).toISOString()
+    };
+
+    updateMutation.mutate({ id: lead.id, updates: finalData }, {
+      onSuccess: () => {
+        onUpdate();
+        onClose();
+      },
+      onError: (err: any) => {
+        console.error("Error actualizando lead:", err);
+        if (err.message?.includes('interested_in')) {
+          showAlert({ 
+            title: 'Error de Base de Datos', 
+            message: 'La columna "interested_in" no existe en la base de datos. Por favor, ejecuta la migración SQL necesaria.' 
+          });
+        } else {
+          showAlert({ 
+            title: 'Error', 
+            message: 'No se pudieron guardar los cambios: ' + (err.message || 'Error desconocido') 
+          });
+        }
+      }
+    });
+  };
+  // WhatsApp URL con mensaje predefinido
+  const getWhatsAppUrl = () => {
+    const cleanPhone = formData.phone.replace(/\D/g, '');
+    if (!cleanPhone) return '#';
+    
+    const hour = new Date().getHours();
+    const greeting = hour < 14 ? 'Buenos días' : 'Buenas tardes';
+    const firstName = formData.name.split(' ')[0];
+    const message = `${greeting}, ${firstName}. Soy Juan Herrero de Terravall inmobiliaria. Nos ha solicitado información de la promoción inmobiliaria FINCA MIRAPINOS. ¿En qué puedo ayudarle?.`;
+    
+    return `https://wa.me/${cleanPhone.startsWith('34') ? cleanPhone : '34' + cleanPhone}?text=${encodeURIComponent(message)}`;
+  };
+
+  const whatsappUrl = getWhatsAppUrl();
+  const mailtoUrl = formData.email ? `mailto:${formData.email}?subject=Información%20Finca%20Mirapinos` : '#';
+
+  const statusCfg = STATUS_CONFIG[formData.status || 'new'] || STATUS_CONFIG['new'];
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="bg-white w-full max-w-6xl rounded-xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200">
+
+          {/* HEADER oscuro con avatar de color */}
+          <div className="px-8 py-5 bg-slate-900 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xl border border-emerald-100/50 shadow-sm shrink-0">
+                {formData.name.substring(0, 2).toUpperCase() || 'CL'}
+              </div>
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                  <h2 className="text-lg font-bold text-white leading-tight">{formData.name}</h2>
+                  {/* Badge de estado */}
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${statusCfg.pill}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+                    {statusCfg.label}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-slate-400 font-medium">Ficha del Cliente</p>
+                  <div className="flex gap-1.5">
+                    {formData.phone && (
+                      <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors shadow-sm" title="WhatsApp">
+                        <MessageCircle size={13} />
+                      </a>
+                    )}
+                    {formData.email && (
+                      <a href={mailtoUrl} className="p-1.5 bg-[#1a5c38] text-white rounded-lg hover:bg-[#134228] transition-colors shadow-sm" title="Email">
+                        <Mail size={13} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-400 hover:text-white">
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* TABS */}
+          <div className="flex px-8 bg-slate-900 border-t border-slate-800">
+            <button onClick={() => setActiveTab('info')} className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'info' ? 'text-emerald-400 border-emerald-400' : 'text-slate-400 border-transparent hover:text-slate-200'}`}>
+              Información y Agenda
+            </button>
+            <button onClick={() => setActiveTab('sale')} className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'sale' ? 'text-emerald-400 border-emerald-400' : 'text-slate-400 border-transparent hover:text-slate-200'}`}>
+              Expediente de Venta
+            </button>
+          </div>
+
+          {/* CONTENIDO PRINCIPAL */}
+          <div className="flex-1 overflow-y-auto lg:overflow-hidden bg-white flex flex-col min-h-0">
+            {activeTab === 'info' ? (
+              <div className="p-6 h-full grid grid-cols-1 lg:grid-cols-2 gap-6 lg:min-h-0">
+
+              {/* COLUMNA IZQUIERDA: FORMULARIO */}
+              <div className="space-y-4 flex flex-col h-full lg:min-h-0">
+                <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 shrink-0">
+                  {/* WHATSAPP */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setComposerConfig({ method: 'whatsapp' });
+                      setIsEmailModalOpen(true);
+                    }}
+                    className="flex-1 py-3.5 px-2 bg-emerald-50/60 hover:bg-emerald-100/70 border border-emerald-100/30 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all active:scale-95 duration-200"
+                  >
+                    <MessageCircle className="text-emerald-600 group-hover:scale-110 transition-transform" size={20} />
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest text-center">WhatsApp</span>
+                  </button>
+
+                  {/* EMAIL */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setComposerConfig({ method: 'email' });
+                      setIsEmailModalOpen(true);
+                    }}
+                    className="flex-1 py-3.5 px-2 bg-blue-50/60 hover:bg-blue-100/70 border border-blue-100/30 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all active:scale-95 duration-200"
+                  >
+                    <Mail className="text-blue-600 group-hover:scale-110 transition-transform" size={20} />
+                    <span className="text-[10px] font-bold text-blue-700 uppercase tracking-widest text-center">Email</span>
+                  </button>
+
+                   {/* 1ER CONTACTO */}
+                  <button
+                    type="button"
+                    disabled={tasks.length > 0}
+                    onClick={() => {
+                      const agentName = profile?.full_name || 'Juan Herrero';
+                      setComposerConfig({
+                        method: 'whatsapp',
+                        subject: 'Información Finca Mirapinos',
+                        message: `Hola ${formData.name.split(' ')[0]},\n\nSoy ${agentName} de Terravall inmobiliaria. Nos ha solicitado información de la promoción inmobiliaria FINCA MIRAPINOS. ¿En qué puedo ayudarle?`
+                      });
+                      setIsEmailModalOpen(true);
+                    }}
+                    className={`flex-1 py-3.5 px-2 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all duration-200 ${
+                      tasks.length > 0
+                        ? 'bg-slate-100/50 border border-slate-200/30 text-slate-400 cursor-not-allowed opacity-50'
+                        : 'bg-amber-50/60 hover:bg-amber-100/70 border border-amber-100/30 text-amber-700 active:scale-95'
+                    }`}
+                    title={tasks.length > 0 ? "El cliente ya tiene actividad en su agenda" : "Enviar mensaje de primer contacto"}
+                  >
+                    <Zap className={tasks.length > 0 ? 'text-slate-400' : 'text-amber-600 group-hover:scale-110 transition-transform'} size={20} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-center">1er Contacto</span>
+                  </button>
+
+                  {/* ENCUESTA */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setComposerConfig({
+                        method: 'email',
+                        subject: 'Encuesta de satisfacción - Mirapinos',
+                        message: `Hola ${formData.name.split(' ')[0]},\n\nNos gustaría conocer tu opinión sobre el servicio recibido. Por favor, dedica unos minutos a completar nuestra encuesta de satisfacción:\n\nhttps://forms.gle/mirapinos-satisfaccion\n\n¡Muchas gracias por tu tiempo!`
+                      });
+                      setIsEmailModalOpen(true);
+                    }}
+                    className="flex-1 py-3.5 px-2 bg-teal-50/60 hover:bg-teal-100/70 border border-teal-100/30 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all active:scale-95 duration-200"
+                  >
+                    <Send className="text-teal-600 group-hover:scale-110 transition-transform" size={20} />
+                    <span className="text-[10px] font-bold text-teal-700 uppercase tracking-widest text-center">Encuesta</span>
+                  </button>
+                </div>
+
+                <form onSubmit={handleUpdate} className="space-y-4 flex flex-col flex-1 overflow-y-auto pr-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    {/* Row 1: NOMBRE COMPLETO & TELÉFONO */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">NOMBRE COMPLETO</label>
+                      <input 
+                        name="name" 
+                        value={formData.name} 
+                        onChange={handleChange} 
+                        className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" 
+                        required 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">TELÉFONO</label>
+                      <div className="flex gap-2 mt-1">
+                        <div className="relative flex-1">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <input 
+                            name="phone" 
+                            value={formData.phone} 
+                            onChange={handleChange} 
+                            placeholder="600..." 
+                            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" 
+                          />
+                        </div>
+                        {formData.phone && (
+                          <a 
+                            href={whatsappUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="p-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 shadow-md flex items-center justify-center shrink-0 group/wa"
+                            title="Contactar por WhatsApp"
+                          >
+                            <MessageCircle size={18} className="group-hover/wa:scale-110 transition-transform" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Row 2: CORREO ELECTRÓNICO & ORIGEN DEL CONTACTO */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">CORREO ELECTRÓNICO</label>
+                      <input 
+                        name="email" 
+                        value={formData.email} 
+                        onChange={handleChange} 
+                        className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ORIGEN DEL CONTACTO</label>
+                      <div className="relative group/source mt-1">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                          {(() => {
+                            const src = (formData.source || '').toLowerCase();
+                            if (src.includes('idealista')) return <img src="/idealista.png" className="w-4 h-4 object-contain rounded-sm" alt="" />;
+                            if (src.includes('web') || src.includes('google')) return <Globe className="text-blue-500" size={16} />;
+                            if (src.includes('social') || src.includes('redes') || src.includes('insta')) return <Smartphone className="text-purple-500" size={16} />;
+                            if (src.includes('referido')) return <Users className="text-emerald-500" size={16} />;
+                            if (src.includes('llamada')) return <Phone className="text-amber-500" size={16} />;
+                            return <Compass className="text-slate-400" size={16} />;
+                          })()}
+                        </div>
+                        <select
+                          name="source"
+                          value={formData.source}
+                          onChange={handleChange}
+                          className="w-full pl-9 pr-10 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all appearance-none cursor-pointer"
+                        >
+                          <option value="Idealista">Idealista</option>
+                          <option value="Web">Web</option>
+                          <option value="Google">Google</option>
+                          <option value="Redes Sociales">Redes Sociales</option>
+                          <option value="Referido">Referido</option>
+                          <option value="Llamada">Llamada</option>
+                          <option value="Otro">Otro</option>
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
+                          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Row 3: FECHA DE ALTA & ESTADO ACTUAL */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FECHA DE ALTA</label>
+                      <div className="relative mt-1">
+                        <input
+                          type="date"
+                          name="created_at_date"
+                          value={formData.created_at_date}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ESTADO ACTUAL</label>
+                      <div className="relative mt-1">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                          <span className={`w-2.5 h-2.5 rounded-full ${statusCfg.dot}`} />
+                        </div>
+                        <select
+                          name="status"
+                          value={formData.status}
+                          onChange={handleChange}
+                          className="w-full pl-9 pr-10 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 cursor-pointer transition-all appearance-none"
+                        >
+                          <option value="new">Nuevo</option>
+                          <option value="contacted">Contactado</option>
+                          <option value="qualified">Cualificado</option>
+                          <option value="visiting">Visitando</option>
+                          <option value="proposal">Propuesta</option>
+                          <option value="negotiation">Negociación</option>
+                          <option value="closed">Venta realizada</option>
+                          <option value="lost">Perdido</option>
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
+                          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Row 4: INTERESADO EN & NEWSLETTERS */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">INTERESADO EN</label>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {INTERESTED_OPTIONS.map(option => {
+                          const isSelected = formData.interested_in.split(', ').includes(option.value);
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => handleInterestedInToggle(option.value)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                                isSelected 
+                                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm' 
+                                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                        {formData.interested_in === '' && (
+                          <span className="text-[10px] text-slate-400 italic ml-1 self-center">Sin especificar</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">NEWSLETTERS</label>
+                      <div className="mt-1 px-4 py-2 bg-slate-50 rounded-lg flex items-center justify-between border border-transparent">
+                        <span className="text-sm font-medium text-slate-700">Suscrito a Correos</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={formData.is_subscribed}
+                            onChange={(e) => setFormData({ ...formData, is_subscribed: e.target.checked })}
+                          />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col flex-1 min-h-[120px]">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Notas Internas</label>
+                    <textarea name="notes" value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 resize-none border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all flex-1" placeholder="Escribe detalles importantes..." />
+                  </div>
+
+
+
+                  <div className="flex items-center justify-end pt-4 mt-auto">
+                    <button type="submit" disabled={loading} className="px-6 py-2.5 bg-emerald-600 text-white font-semibold text-sm rounded-lg flex items-center gap-2 shadow-md hover:bg-emerald-700 transition-all active:scale-95">
+                      {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Guardar cambios
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* COLUMNA DERECHA: AGENDA (CONECTADA A LA TABLA AGENDA) */}
+              <div className="bg-slate-50 rounded-2xl p-6 text-slate-900 shadow-sm flex flex-col h-full border border-slate-200 lg:min-h-0">
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-600">
+                  <CalendarIcon size={16} /> Agenda de Acciones
+                </h3>
+
+                {/* Formulario Inline Compacto */}
+                <div className="grid grid-cols-1 gap-2 mb-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="flex gap-2">
+                    <select
+                      value={newTask.type}
+                      onChange={(e) => setNewTask({ ...newTask, type: e.target.value })}
+                      className="bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-700"
+                    >
+                      <option value="Llamada">Llamada</option>
+                      <option value="Email">Email</option>
+                      <option value="WhatsApp">WhatsApp</option>
+                      <option value="Visita">Visita</option>
+                      <option value="Reunión">Reunión</option>
+                    </select>
+                    <input
+                      type="date"
+                      value={newTask.date}
+                      onChange={(e) => setNewTask({ ...newTask, date: e.target.value })}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-700"
+                    />
+                    <input
+                      type="time"
+                      value={newTask.time}
+                      onChange={(e) => setNewTask({ ...newTask, time: e.target.value })}
+                      className="w-20 bg-slate-50 border border-slate-200 rounded-lg text-[11px] p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-700"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder={editingTaskId ? "Editando tarea..." : "Nueva tarea pendiente..."}
+                      value={newTask.title}
+                      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-lg text-xs p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-900 placeholder-slate-400"
+                    />
+                    
+                    {newTask.type === 'Llamada' && (
+                      <div className="flex bg-slate-50 border border-slate-200 rounded-lg p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setNewTask({ ...newTask, call_attended: true })}
+                          className={`px-2 py-1 text-[10px] rounded-md font-bold transition-all ${newTask.call_attended === true ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                          Atendida
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const currentTitle = newTask.title || 'Llamada no atendida';
+                            // 1. Guardar la llamada actual como completada
+                            const currentTaskData = { 
+                              ...newTask, 
+                              call_attended: false, 
+                              title: currentTitle,
+                              completed: true 
+                            };
+                            setNewTask(currentTaskData);
+                            await saveTask(currentTaskData);
+
+                            // 2. Generar nueva tarea de seguimiento
+                            const followUp = getFollowUpTime();
+                            const nextTaskData = {
+                              type: 'Llamada',
+                              title: `Re-intento: ${currentTitle.replace('Re-intento: ', '')}`,
+                              date: followUp.date,
+                              time: followUp.time,
+                              call_attended: null,
+                              completed: false
+                            };
+                            await saveTask(nextTaskData);
+                          }}
+                          className={`px-2 py-1 text-[10px] rounded-md font-bold transition-all ${newTask.call_attended === false ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                          No atendida
+                        </button>
+                      </div>
+                    )}
+                    {editingTaskId && (
+                      <button
+                        onClick={() => {
+                          setEditingTaskId(null);
+                          setNewTask({ 
+                            type: 'Llamada', 
+                            title: '', 
+                            date: new Date().toISOString().slice(0, 10), 
+                            time: getCurrentTime(), 
+                            call_attended: null 
+                          });
+                        }}
+                        className="bg-slate-100 px-3 rounded-lg hover:bg-slate-200 transition-colors text-slate-500"
+                        title="Cancelar edición"
+                      >
+                        <RotateCcw size={16} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => saveTask()}
+                      className={`${editingTaskId ? 'bg-[#1a5c38] hover:bg-[#134228]' : 'bg-emerald-600 hover:bg-emerald-500'} px-4 text-white rounded-lg transition-colors shadow-sm active:scale-95`}
+                    >
+                      {editingTaskId ? <Save size={18} /> : <Plus size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Lista de Tareas */}
+                <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
+                  {tasks.length === 0 && (
+                    <div className="text-center py-10 opacity-50">
+                      <CalendarIcon size={32} className="mx-auto mb-2 text-slate-300" />
+                      <p className="text-xs text-slate-500 italic">No hay tareas para este cliente.</p>
+                    </div>
+                  )}
+                  {Object.entries(
+                    tasks.reduce((acc, task) => {
+                      if (!acc[task.type]) acc[task.type] = [];
+                      acc[task.type].push(task);
+                      return acc;
+                    }, {} as Record<string, typeof tasks>)
+                  ).map(([type, typeTasks]) => (
+                    <div key={type} className="mb-5 last:mb-0">
+                      <button 
+                        type="button"
+                        onClick={() => toggleGroup(type)}
+                        className="w-full flex items-center justify-between group mb-2 hover:bg-slate-50 p-1.5 -ml-1.5 rounded transition-colors"
+                      >
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{type}</h4>
+                        <div className="text-slate-300 group-hover:text-emerald-500 transition-colors mr-1">
+                          {collapsedGroups[type] ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                        </div>
+                      </button>
+                      {!collapsedGroups[type] && (
+                        <div className="space-y-2">
+                          {typeTasks.map((task) => {
+                    const dateObj = new Date(task.due_date);
+                    return (
+                      <div key={task.id} className={`group flex items-center justify-between p-2.5 rounded-lg border transition-all ${task.completed ? 'bg-slate-50 border-transparent opacity-50' : 'bg-white border-slate-200 hover:border-emerald-200 shadow-sm'}`}>
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => toggleTaskStatus(task)} className={`transition-transform hover:scale-110 ${task.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-emerald-500'}`}>
+                            {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                          </button>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                                task.type === 'Llamada' ? 'bg-blue-100 text-blue-700' :
+                                task.type === 'WhatsApp' ? 'bg-emerald-100 text-emerald-700' :
+                                task.type === 'Visita' ? 'bg-purple-100 text-purple-700' :
+                                task.type === 'Email' ? 'bg-amber-100 text-amber-700' :
+                                'bg-slate-100 text-slate-700'
+                              }`}>
+                                {task.type === 'Llamada' && <Phone size={10} />}
+                                {task.type === 'WhatsApp' && <Smartphone size={10} />}
+                                {task.type === 'Visita' && <CalendarIcon size={10} />}
+                                {task.type === 'Email' && <Mail size={10} />}
+                                {task.type === 'Reunión' && <Users size={10} />}
+                                {task.type}
+                              </span>
+                              {(() => {
+                                const title = task.title || '';
+                                const isEnvio = title.startsWith('Envío Email:') || title.startsWith('Envío WhatsApp:');
+                                const colonIndex = title.indexOf(':');
+
+                                if (isEnvio && colonIndex !== -1) {
+                                  const prefix = title.substring(0, colonIndex + 1);
+                                  const docs = title.substring(colonIndex + 1).trim();
+
+                                  if (docs) {
+                                    const isExpanded = !!expandedTasks[task.id];
+                                    return (
+                                      <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <p className={`text-sm font-bold ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>
+                                            {prefix}
+                                          </p>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleTaskExpand(task.id);
+                                            }}
+                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-500 font-bold transition-all active:scale-95 border border-slate-200"
+                                          >
+                                            <span>{isExpanded ? 'Ocultar archivos' : 'Ver archivos'}</span>
+                                            {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                                          </button>
+                                        </div>
+                                        {isExpanded && (
+                                          <div className="mt-1 pl-2 border-l-2 border-emerald-500 text-xs text-slate-500 font-medium py-1 animate-in slide-in-from-top-1 duration-200">
+                                            <ul className="list-disc list-inside space-y-0.5">
+                                              {docs.split(',').map((doc, idx) => (
+                                                <li key={idx} className="truncate max-w-md">{doc.trim()}</li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  }
+                                }
+
+                                return (
+                                  <p className={`text-sm font-bold ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>
+                                    {title}
+                                  </p>
+                                );
+                              })()}
+                            </div>
+                            <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
+                              {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {(task as any).call_attended !== null && task.type === 'Llamada' && (
+                                <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${(task as any).call_attended ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                  {(task as any).call_attended ? 'ATENDIDA' : 'NO ATENDIDA'}
+                                </span>
+                              )}
+                              {task.type === 'Email' && (() => {
+                                const tracking = emailTracking.find((t) => {
+                                  if ((task as any).tracking_id) return t.id === (task as any).tracking_id;
+                                  const taskTime = new Date(task.due_date).getTime();
+                                  const trackingTime = new Date(t.created_at).getTime();
+                                  return Math.abs(taskTime - trackingTime) < 15000;
+                                });
+                                
+                                if (!tracking) return null;
+                                
+                                const isOpened = tracking.status === 'opened' || tracking.opens_count > 0;
+                                const opensLabel = tracking.opens_count > 1 ? ` (${tracking.opens_count})` : '';
+                                
+                                return (
+                                  <div className="flex items-center gap-1 ml-1">
+                                    <span 
+                                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                        isOpened 
+                                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' 
+                                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                      } transition-colors cursor-help`}
+                                      title={
+                                        isOpened 
+                                          ? `Abierto${opensLabel}. Última apertura: ${new Date(tracking.last_opened_at || tracking.first_opened_at).toLocaleString()}`
+                                          : 'Recibido pero aún no abierto.'
+                                      }
+                                    >
+                                      {isOpened ? 'ABIERTO' : 'ENVIADO'}
+                                      {opensLabel}
+                                    </span>
+                                    {!isOpened && lead.phone && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const firstName = (lead.name || '').split(' ')[0];
+                                          const hour = new Date().getHours();
+                                          const greeting = hour < 14 ? 'Buenos días' : 'Buenas tardes';
+                                          const message = `${greeting}, ${firstName}:\nSoy Juan Herrero, de Terravall, inmobiliaria comercializadora de Finca Mirapinos. Le escribo para confirmar si pudo recibir el dossier informativo de la promoción que le enviamos hace unos días. Si no es así, le agradecería que revisase su carpeta de correo no deseado (SPAM); en caso de que siga sin localizarlo, por favor háganoslo saber y se lo haré llegar de inmediato. Quedo a su entera disposición para resolver cualquier duda que pueda tener sobre la promoción.\nUn cordial saludo,\nJuan Herrero\nwww.mirapinos.com`;
+                                          
+                                          const cleanPhone = (lead.phone || '').replace(/\D/g, '');
+                                          const phoneWithCode = cleanPhone.startsWith('34') ? cleanPhone : '34' + cleanPhone;
+                                          window.open(`https://wa.me/${phoneWithCode}?text=${encodeURIComponent(message)}`, '_blank');
+                                        }}
+                                        className="p-1 rounded-full hover:bg-emerald-100 text-emerald-600 transition-colors shadow-sm bg-white border border-emerald-100"
+                                        title="Enviar WhatsApp de seguimiento"
+                                      >
+                                        <MessageCircle size={10} />
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => startEditingTask(task)}
+                            className="p-1.5 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600 transition-colors"
+                            title="Editar"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => deleteTask(task.id)}
+                            className="p-1.5 hover:bg-slate-100 rounded text-slate-400 hover:text-red-600 transition-colors"
+                            title="Borrar"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+            ) : (
+              <div className="p-6 overflow-y-auto flex-1">
+                <SaleTab lead={lead as any} onLeadUpdate={async (updates) => {
+                  try {
+                    await updateMutation.mutateAsync({ id: lead.id, updates });
+                    onUpdate();
+                  } catch (err) {
+                    console.error("Error updating lead from SaleTab:", err);
+                    showAlert({ title: 'Error', message: 'No se pudieron guardar los datos.' });
+                  }
+                }} />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {isEmailModalOpen && (
+        <EmailComposerModal
+          isOpen={isEmailModalOpen}
+          onClose={() => setIsEmailModalOpen(false)}
+          leadId={lead.id}
+          leadName={formData.name}
+          leadEmail={formData.email}
+          leadPhone={formData.phone}
+          availableDocs={availableDocs}
+          onSentSuccess={fetchTasks}
+          initialMethod={composerConfig.method}
+          initialSubject={composerConfig.subject}
+          initialMessage={composerConfig.message}
+        />
+      )}
+    </>
+  );
+}

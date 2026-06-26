@@ -3,8 +3,8 @@ import { Upload, Download, Search, Trash2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useDialog } from '../../../context/DialogContext';
 import { useQueryClient } from '@tanstack/react-query';
-import ExportLeadsModal from '../../../components/leads/ExportLeadsModal';
-import ImportLeadsModal from '../../../components/leads/ImportLeadsModal';
+import ExportLeadsModal from '../../leads/components/ExportLeadsModal';
+import ImportLeadsModal from '../../leads/components/ImportLeadsModal';
 
 const SettingsDataTab: React.FC = () => {
   const { showConfirm, showAlert } = useDialog();

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Home, Copy, Edit3, Trash2, Loader2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useDialog } from '../../../context/DialogContext';
-import CreatePropertyModal from '../../../components/inventory/CreatePropertyModal';
+import CreatePropertyModal from '../../inventory/components/CreatePropertyModal';
 
 const SettingsHousingTab: React.FC = () => {
   const { showConfirm, showAlert } = useDialog();
