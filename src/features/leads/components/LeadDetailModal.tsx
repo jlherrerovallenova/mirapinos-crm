@@ -380,70 +380,30 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   };
 
   const whatsappUrl = getWhatsAppUrl();
-  const mailtoUrl = formData.email ? `mailto:${formData.email}?subject=Información%20Finca%20Mirapinos` : '#';
 
   const statusCfg = STATUS_CONFIG[formData.status || 'new'] || STATUS_CONFIG['new'];
 
   return (
     <>
       <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-        <div className="bg-white w-full max-w-6xl rounded-xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200">
+        <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200">
 
-          {/* HEADER oscuro con avatar de color */}
-          <div className="px-8 py-5 bg-slate-900 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xl border border-emerald-100/50 shadow-sm shrink-0">
+          {/* HEADER oscuro con avatar de color y botones de acción rápida */}
+          <div className="px-8 py-6 bg-[#131b2e] flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 relative">
+            <div className="flex items-center gap-6">
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center font-bold text-2xl border-4 border-[#131b2e] ring-2 ring-emerald-500/30 shrink-0 ${getAvatarStyle(formData.name)}`}>
                 {formData.name.substring(0, 2).toUpperCase() || 'CL'}
               </div>
               <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h2 className="text-lg font-bold text-white leading-tight">{formData.name}</h2>
-                  {/* Badge de estado */}
-                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${statusCfg.pill}`}>
+                <div className="flex flex-wrap items-center gap-3 mb-1">
+                  <h2 className="text-2xl font-bold text-white leading-tight">{formData.name}</h2>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusCfg.pill}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
                     {statusCfg.label}
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-slate-400 font-medium">Ficha del Cliente</p>
-                  <div className="flex gap-1.5">
-                    {formData.phone && (
-                      <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors shadow-sm" title="WhatsApp">
-                        <MessageCircle size={13} />
-                      </a>
-                    )}
-                    {formData.email && (
-                      <a href={mailtoUrl} className="p-1.5 bg-[#1a5c38] text-white rounded-lg hover:bg-[#134228] transition-colors shadow-sm" title="Email">
-                        <Mail size={13} />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-400 hover:text-white">
-              <X size={20} />
-            </button>
-          </div>
-
-          {/* TABS */}
-          <div className="flex px-8 bg-slate-900 border-t border-slate-800">
-            <button onClick={() => setActiveTab('info')} className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'info' ? 'text-emerald-400 border-emerald-400' : 'text-slate-400 border-transparent hover:text-slate-200'}`}>
-              Información y Agenda
-            </button>
-            <button onClick={() => setActiveTab('sale')} className={`py-3 px-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'sale' ? 'text-emerald-400 border-emerald-400' : 'text-slate-400 border-transparent hover:text-slate-200'}`}>
-              Expediente de Venta
-            </button>
-          </div>
-
-          {/* CONTENIDO PRINCIPAL */}
-          <div className="flex-1 overflow-y-auto lg:overflow-hidden bg-white flex flex-col min-h-0">
-            {activeTab === 'info' ? (
-              <div className="p-6 h-full grid grid-cols-1 lg:grid-cols-2 gap-6 lg:min-h-0">
-
-              {/* COLUMNA IZQUIERDA: FORMULARIO */}
-              <div className="space-y-4 flex flex-col h-full lg:min-h-0">
-                <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 shrink-0">
+                <p className="text-slate-400 text-xs font-medium mt-0.5">Ficha del Cliente</p>
+                <div className="flex flex-wrap gap-2 mt-3">
                   {/* WHATSAPP */}
                   <button
                     type="button"
@@ -451,10 +411,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       setComposerConfig({ method: 'whatsapp' });
                       setIsEmailModalOpen(true);
                     }}
-                    className="flex-1 py-3.5 px-2 bg-emerald-50/60 hover:bg-emerald-100/70 border border-emerald-100/30 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all active:scale-95 duration-200"
+                    className="flex items-center gap-2 px-4 py-2 bg-[#006c4a] hover:bg-[#006c4a]/90 text-white rounded-lg transition-all text-xs font-semibold uppercase tracking-wider shadow-sm"
                   >
-                    <MessageCircle className="text-emerald-600 group-hover:scale-110 transition-transform" size={20} />
-                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest text-center">WhatsApp</span>
+                    <MessageCircle size={14} />
+                    <span>WhatsApp</span>
                   </button>
 
                   {/* EMAIL */}
@@ -464,13 +424,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       setComposerConfig({ method: 'email' });
                       setIsEmailModalOpen(true);
                     }}
-                    className="flex-1 py-3.5 px-2 bg-blue-50/60 hover:bg-blue-100/70 border border-blue-100/30 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all active:scale-95 duration-200"
+                    className="flex items-center gap-2 px-4 py-2 border border-white/20 hover:bg-white/10 text-white rounded-lg transition-all text-xs font-semibold uppercase tracking-wider"
                   >
-                    <Mail className="text-blue-600 group-hover:scale-110 transition-transform" size={20} />
-                    <span className="text-[10px] font-bold text-blue-700 uppercase tracking-widest text-center">Email</span>
+                    <Mail size={14} />
+                    <span>Email</span>
                   </button>
 
-                   {/* 1ER CONTACTO */}
+                  {/* 1ER CONTACTO */}
                   <button
                     type="button"
                     disabled={tasks.length > 0}
@@ -483,15 +443,15 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       });
                       setIsEmailModalOpen(true);
                     }}
-                    className={`flex-1 py-3.5 px-2 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all duration-200 ${
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-all text-xs font-semibold uppercase tracking-wider ${
                       tasks.length > 0
-                        ? 'bg-slate-100/50 border border-slate-200/30 text-slate-400 cursor-not-allowed opacity-50'
-                        : 'bg-amber-50/60 hover:bg-amber-100/70 border border-amber-100/30 text-amber-700 active:scale-95'
+                        ? 'border-white/10 text-white/40 cursor-not-allowed opacity-50'
+                        : 'border-white/20 hover:bg-white/10 text-white'
                     }`}
                     title={tasks.length > 0 ? "El cliente ya tiene actividad en su agenda" : "Enviar mensaje de primer contacto"}
                   >
-                    <Zap className={tasks.length > 0 ? 'text-slate-400' : 'text-amber-600 group-hover:scale-110 transition-transform'} size={20} />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-center">1er Contacto</span>
+                    <Zap size={14} />
+                    <span>1er Contacto</span>
                   </button>
 
                   {/* ENCUESTA */}
@@ -505,175 +465,215 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       });
                       setIsEmailModalOpen(true);
                     }}
-                    className="flex-1 py-3.5 px-2 bg-teal-50/60 hover:bg-teal-100/70 border border-teal-100/30 rounded-xl flex flex-col items-center justify-center gap-1.5 group transition-all active:scale-95 duration-200"
+                    className="flex items-center gap-2 px-4 py-2 border border-white/20 hover:bg-white/10 text-white rounded-lg transition-all text-xs font-semibold uppercase tracking-wider"
                   >
-                    <Send className="text-teal-600 group-hover:scale-110 transition-transform" size={20} />
-                    <span className="text-[10px] font-bold text-teal-700 uppercase tracking-widest text-center">Encuesta</span>
+                    <Send size={14} />
+                    <span>Encuesta</span>
                   </button>
                 </div>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white self-start md:self-center">
+              <X size={24} />
+            </button>
+          </div>
 
-                <form onSubmit={handleUpdate} className="space-y-4 flex flex-col flex-1 overflow-y-auto pr-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                    {/* Row 1: NOMBRE COMPLETO & TELÉFONO */}
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">NOMBRE COMPLETO</label>
-                      <input 
-                        name="name" 
-                        value={formData.name} 
-                        onChange={handleChange} 
-                        className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" 
-                        required 
-                      />
-                    </div>
+          {/* TABS */}
+          <div className="flex gap-8 border-b border-slate-200 px-8 bg-white pt-4">
+            <button
+              onClick={() => setActiveTab('info')}
+              className={`pb-4 font-bold border-b-2 text-sm transition-all ${
+                activeTab === 'info'
+                  ? 'text-[#006c4a] border-[#006c4a]'
+                  : 'text-slate-500 border-transparent hover:text-[#006c4a]'
+              }`}
+            >
+              Información y Agenda
+            </button>
+            <button
+              onClick={() => setActiveTab('sale')}
+              className={`pb-4 font-bold border-b-2 text-sm transition-all ${
+                activeTab === 'sale'
+                  ? 'text-[#006c4a] border-[#006c4a]'
+                  : 'text-slate-500 border-transparent hover:text-[#006c4a]'
+              }`}
+            >
+              Expediente de Venta
+            </button>
+          </div>
 
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">TELÉFONO</label>
-                      <div className="flex gap-2 mt-1">
-                        <div className="relative flex-1">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input 
-                            name="phone" 
-                            value={formData.phone} 
-                            onChange={handleChange} 
-                            placeholder="600..." 
-                            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" 
-                          />
-                        </div>
-                        {formData.phone && (
-                          <a 
-                            href={whatsappUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="p-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all active:scale-95 shadow-md flex items-center justify-center shrink-0 group/wa"
-                            title="Contactar por WhatsApp"
-                          >
-                            <MessageCircle size={18} className="group-hover/wa:scale-110 transition-transform" />
-                          </a>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Row 2: CORREO ELECTRÓNICO & ORIGEN DEL CONTACTO */}
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">CORREO ELECTRÓNICO</label>
-                      <input 
-                        name="email" 
-                        value={formData.email} 
-                        onChange={handleChange} 
-                        className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all" 
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ORIGEN DEL CONTACTO</label>
-                      <div className="relative group/source mt-1">
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
-                          {(() => {
-                            const src = (formData.source || '').toLowerCase();
-                            if (src.includes('idealista')) return <img src="/idealista.png" className="w-4 h-4 object-contain rounded-sm" alt="" />;
-                            if (src.includes('web') || src.includes('google')) return <Globe className="text-blue-500" size={16} />;
-                            if (src.includes('social') || src.includes('redes') || src.includes('insta')) return <Smartphone className="text-purple-500" size={16} />;
-                            if (src.includes('referido')) return <Users className="text-emerald-500" size={16} />;
-                            if (src.includes('llamada')) return <Phone className="text-amber-500" size={16} />;
-                            return <Compass className="text-slate-400" size={16} />;
-                          })()}
-                        </div>
-                        <select
-                          name="source"
-                          value={formData.source}
+          {/* CONTENIDO PRINCIPAL */}
+          <div className="flex-1 overflow-y-auto lg:overflow-hidden bg-slate-50 flex flex-col min-h-0">
+            {activeTab === 'info' ? (
+              <div className="p-8 flex-1 overflow-y-auto custom-scrollbar space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                  
+                  {/* COLUMNA IZQUIERDA: FORMULARIO */}
+                  <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-6 text-[#006c4a]">
+                      Información Personal
+                    </h3>
+                    <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                      
+                      {/* NOMBRE COMPLETO */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nombre Completo</label>
+                        <input
+                          name="name"
+                          value={formData.name}
                           onChange={handleChange}
-                          className="w-full pl-9 pr-10 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all appearance-none cursor-pointer"
-                        >
-                          <option value="Idealista">Idealista</option>
-                          <option value="Web">Web</option>
-                          <option value="Google">Google</option>
-                          <option value="Redes Sociales">Redes Sociales</option>
-                          <option value="Referido">Referido</option>
-                          <option value="Llamada">Llamada</option>
-                          <option value="Otro">Otro</option>
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
-                          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                          </svg>
+                          className="w-full bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg py-2.5 px-4 text-sm text-slate-800 font-medium transition-all"
+                          required
+                        />
+                      </div>
+
+                      {/* TELÉFONO */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
+                        <div className="relative flex gap-2">
+                          <div className="relative flex-1">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input
+                              name="phone"
+                              value={formData.phone}
+                              onChange={handleChange}
+                              placeholder="600..."
+                              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg text-sm text-slate-800 font-medium transition-all"
+                            />
+                          </div>
+                          {formData.phone && (
+                            <a
+                              href={whatsappUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2.5 bg-[#006c4a] text-white rounded-lg hover:bg-[#006c4a]/90 transition-all active:scale-95 shadow-md flex items-center justify-center shrink-0"
+                              title="Contactar por WhatsApp"
+                            >
+                              <MessageCircle size={18} />
+                            </a>
+                          )}
                         </div>
                       </div>
-                    </div>
 
-                    {/* Row 3: FECHA DE ALTA & ESTADO ACTUAL */}
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FECHA DE ALTA</label>
-                      <div className="relative mt-1">
+                      {/* CORREO ELECTRÓNICO */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
+                        <input
+                          name="email"
+                          value={formData.email}
+                          onChange={handleChange}
+                          className="w-full bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg py-2.5 px-4 text-sm text-slate-800 font-medium transition-all"
+                        />
+                      </div>
+
+                      {/* ORIGEN DEL CONTACTO */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Origen del Contacto</label>
+                        <div className="relative group/source">
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                            {(() => {
+                              const src = (formData.source || '').toLowerCase();
+                              if (src.includes('idealista')) return <img src="/idealista.png" className="w-4 h-4 object-contain rounded-sm" alt="" />;
+                              if (src.includes('web') || src.includes('google')) return <Globe className="text-blue-500" size={16} />;
+                              if (src.includes('social') || src.includes('redes') || src.includes('insta')) return <Smartphone className="text-purple-500" size={16} />;
+                              if (src.includes('referido')) return <Users className="text-emerald-500" size={16} />;
+                              if (src.includes('llamada')) return <Phone className="text-amber-500" size={16} />;
+                              return <Compass className="text-slate-400" size={16} />;
+                            })()}
+                          </div>
+                          <select
+                            name="source"
+                            value={formData.source}
+                            onChange={handleChange}
+                            className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg text-sm text-slate-800 font-medium transition-all appearance-none cursor-pointer"
+                          >
+                            <option value="Idealista">Idealista</option>
+                            <option value="Web">Web</option>
+                            <option value="Google">Google</option>
+                            <option value="Redes Sociales">Redes Sociales</option>
+                            <option value="Referido">Referido</option>
+                            <option value="Llamada">Llamada</option>
+                            <option value="Otro">Otro</option>
+                          </select>
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
+                            <ChevronDown size={16} className="text-slate-400" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* FECHA DE ALTA */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Fecha de Alta</label>
                         <input
                           type="date"
                           name="created_at_date"
                           value={formData.created_at_date}
                           onChange={handleChange}
-                          className="w-full px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all"
+                          className="w-full bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg py-2.5 px-4 text-sm text-slate-800 font-medium transition-all"
                         />
                       </div>
-                    </div>
 
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ESTADO ACTUAL</label>
-                      <div className="relative mt-1">
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
-                          <span className={`w-2.5 h-2.5 rounded-full ${statusCfg.dot}`} />
-                        </div>
-                        <select
-                          name="status"
-                          value={formData.status}
-                          onChange={handleChange}
-                          className="w-full pl-9 pr-10 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 border border-slate-100 focus:bg-white focus:border-emerald-500 cursor-pointer transition-all appearance-none"
-                        >
-                          <option value="new">Nuevo</option>
-                          <option value="contacted">Contactado</option>
-                          <option value="qualified">Cualificado</option>
-                          <option value="visiting">Visitando</option>
-                          <option value="proposal">Propuesta</option>
-                          <option value="negotiation">Negociación</option>
-                          <option value="closed">Venta realizada</option>
-                          <option value="lost">Perdido</option>
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
-                          <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                          </svg>
+                      {/* ESTADO ACTUAL */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Estado Actual</label>
+                        <div className="relative">
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                            <span className={`w-2.5 h-2.5 rounded-full ${statusCfg.dot}`} />
+                          </div>
+                          <select
+                            name="status"
+                            value={formData.status}
+                            onChange={handleChange}
+                            className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg text-sm text-slate-800 font-medium transition-all appearance-none cursor-pointer"
+                          >
+                            <option value="new">Nuevo</option>
+                            <option value="contacted">Contactado</option>
+                            <option value="qualified">Cualificado</option>
+                            <option value="visiting">Visitando</option>
+                            <option value="proposal">Propuesta</option>
+                            <option value="negotiation">Negociación</option>
+                            <option value="closed">Venta realizada</option>
+                            <option value="lost">Perdido</option>
+                          </select>
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
+                            <ChevronDown size={16} className="text-slate-400" />
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Row 4: INTERESADO EN & NEWSLETTERS */}
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">INTERESADO EN</label>
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {INTERESTED_OPTIONS.map(option => {
-                          const isSelected = formData.interested_in.split(', ').includes(option.value);
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              onClick={() => handleInterestedInToggle(option.value)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                                isSelected 
-                                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm' 
-                                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                              }`}
-                            >
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                        {formData.interested_in === '' && (
-                          <span className="text-[10px] text-slate-400 italic ml-1 self-center">Sin especificar</span>
-                        )}
+                      {/* INTERESADO EN */}
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Interesado en</label>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {INTERESTED_OPTIONS.map(option => {
+                            const isSelected = formData.interested_in.split(', ').includes(option.value);
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => handleInterestedInToggle(option.value)}
+                                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                                  isSelected
+                                    ? 'bg-[#006c4a] text-white border-[#006c4a] shadow-sm'
+                                    : 'bg-white text-slate-500 border-slate-200 hover:border-[#006c4a] hover:text-[#006c4a]'
+                                }`}
+                              >
+                                {option.label}
+                              </button>
+                            );
+                          })}
+                          {formData.interested_in === '' && (
+                            <span className="text-[10px] text-slate-400 italic ml-1 self-center">Sin especificar</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">NEWSLETTERS</label>
-                      <div className="mt-1 px-4 py-2 bg-slate-50 rounded-lg flex items-center justify-between border border-transparent">
-                        <span className="text-sm font-medium text-slate-700">Suscrito a Correos</span>
+                      {/* NEWSLETTERS */}
+                      <div className="md:col-span-2 flex items-center justify-between p-4 bg-slate-50 border border-slate-200/60 rounded-lg shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <Mail className="text-[#006c4a]" size={20} />
+                          <span className="text-sm font-semibold text-slate-700">Suscrito a Newsletters</span>
+                        </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
                             type="checkbox"
@@ -681,330 +681,458 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                             checked={formData.is_subscribed}
                             onChange={(e) => setFormData({ ...formData, is_subscribed: e.target.checked })}
                           />
-                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006c4a]"></div>
                         </label>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="flex flex-col flex-1 min-h-[120px]">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Notas Internas</label>
-                    <textarea name="notes" value={formData.notes} onChange={handleChange} className="w-full mt-1 px-4 py-2.5 bg-slate-50 rounded-lg outline-none text-sm font-medium text-slate-700 resize-none border border-slate-100 focus:bg-white focus:border-emerald-500 transition-all flex-1" placeholder="Escribe detalles importantes..." />
-                  </div>
-
-
-
-                  <div className="flex items-center justify-end pt-4 mt-auto">
-                    <button type="submit" disabled={loading} className="px-6 py-2.5 bg-emerald-600 text-white font-semibold text-sm rounded-lg flex items-center gap-2 shadow-md hover:bg-emerald-700 transition-all active:scale-95">
-                      {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Guardar cambios
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* COLUMNA DERECHA: AGENDA (CONECTADA A LA TABLA AGENDA) */}
-              <div className="bg-slate-50 rounded-2xl p-6 text-slate-900 shadow-sm flex flex-col h-full border border-slate-200 lg:min-h-0">
-                <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-emerald-600">
-                  <CalendarIcon size={16} /> Agenda de Acciones
-                </h3>
-
-                {/* Formulario Inline Compacto */}
-                <div className="grid grid-cols-1 gap-2 mb-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                  <div className="flex gap-2">
-                    <select
-                      value={newTask.type}
-                      onChange={(e) => setNewTask({ ...newTask, type: e.target.value })}
-                      className="bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-700"
-                    >
-                      <option value="Llamada">Llamada</option>
-                      <option value="Email">Email</option>
-                      <option value="WhatsApp">WhatsApp</option>
-                      <option value="Visita">Visita</option>
-                      <option value="Reunión">Reunión</option>
-                    </select>
-                    <input
-                      type="date"
-                      value={newTask.date}
-                      onChange={(e) => setNewTask({ ...newTask, date: e.target.value })}
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-700"
-                    />
-                    <input
-                      type="time"
-                      value={newTask.time}
-                      onChange={(e) => setNewTask({ ...newTask, time: e.target.value })}
-                      className="w-20 bg-slate-50 border border-slate-200 rounded-lg text-[11px] p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-700"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder={editingTaskId ? "Editando tarea..." : "Nueva tarea pendiente..."}
-                      value={newTask.title}
-                      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-lg text-xs p-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-900 placeholder-slate-400"
-                    />
-                    
-                    {newTask.type === 'Llamada' && (
-                      <div className="flex bg-slate-50 border border-slate-200 rounded-lg p-0.5">
-                        <button
-                          type="button"
-                          onClick={() => setNewTask({ ...newTask, call_attended: true })}
-                          className={`px-2 py-1 text-[10px] rounded-md font-bold transition-all ${newTask.call_attended === true ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                          Atendida
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const currentTitle = newTask.title || 'Llamada no atendida';
-                            // 1. Guardar la llamada actual como completada
-                            const currentTaskData = { 
-                              ...newTask, 
-                              call_attended: false, 
-                              title: currentTitle,
-                              completed: true 
-                            };
-                            setNewTask(currentTaskData);
-                            await saveTask(currentTaskData);
-
-                            // 2. Generar nueva tarea de seguimiento
-                            const followUp = getFollowUpTime();
-                            const nextTaskData = {
-                              type: 'Llamada',
-                              title: `Re-intento: ${currentTitle.replace('Re-intento: ', '')}`,
-                              date: followUp.date,
-                              time: followUp.time,
-                              call_attended: null,
-                              completed: false
-                            };
-                            await saveTask(nextTaskData);
-                          }}
-                          className={`px-2 py-1 text-[10px] rounded-md font-bold transition-all ${newTask.call_attended === false ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                          No atendida
-                        </button>
+                      {/* NOTAS INTERNAS */}
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Notas Internas</label>
+                        <textarea
+                          name="notes"
+                          value={formData.notes}
+                          onChange={handleChange}
+                          rows={4}
+                          className="w-full mt-1 px-4 py-2.5 bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg text-sm text-slate-800 font-medium transition-all resize-none"
+                          placeholder="Añade detalles relevantes sobre el cliente..."
+                        />
                       </div>
-                    )}
-                    {editingTaskId && (
+                    </form>
+
+                    {/* GUARDAR CAMBIOS */}
+                    <div className="mt-6 pt-6 border-t border-slate-100 flex justify-end">
                       <button
-                        onClick={() => {
-                          setEditingTaskId(null);
-                          setNewTask({ 
-                            type: 'Llamada', 
-                            title: '', 
-                            date: new Date().toISOString().slice(0, 10), 
-                            time: getCurrentTime(), 
-                            call_attended: null 
-                          });
-                        }}
-                        className="bg-slate-100 px-3 rounded-lg hover:bg-slate-200 transition-colors text-slate-500"
-                        title="Cancelar edición"
+                        onClick={handleUpdate}
+                        disabled={loading}
+                        className="bg-[#006c4a] hover:bg-[#006c4a]/90 text-white px-6 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-md shadow-emerald-700/10"
                       >
-                        <RotateCcw size={16} />
+                        {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                        Guardar cambios
                       </button>
-                    )}
-                    <button
-                      onClick={() => saveTask()}
-                      className={`${editingTaskId ? 'bg-[#1a5c38] hover:bg-[#134228]' : 'bg-emerald-600 hover:bg-emerald-500'} px-4 text-white rounded-lg transition-colors shadow-sm active:scale-95`}
-                    >
-                      {editingTaskId ? <Save size={18} /> : <Plus size={18} />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Lista de Tareas */}
-                <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
-                  {tasks.length === 0 && (
-                    <div className="text-center py-10 opacity-50">
-                      <CalendarIcon size={32} className="mx-auto mb-2 text-slate-300" />
-                      <p className="text-xs text-slate-500 italic">No hay tareas para este cliente.</p>
                     </div>
-                  )}
-                  {Object.entries(
-                    tasks.reduce((acc, task) => {
-                      if (!acc[task.type]) acc[task.type] = [];
-                      acc[task.type].push(task);
-                      return acc;
-                    }, {} as Record<string, typeof tasks>)
-                  ).map(([type, typeTasks]) => (
-                    <div key={type} className="mb-5 last:mb-0">
-                      <button 
-                        type="button"
-                        onClick={() => toggleGroup(type)}
-                        className="w-full flex items-center justify-between group mb-2 hover:bg-slate-50 p-1.5 -ml-1.5 rounded transition-colors"
-                      >
-                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{type}</h4>
-                        <div className="text-slate-300 group-hover:text-emerald-500 transition-colors mr-1">
-                          {collapsedGroups[type] ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                        </div>
-                      </button>
-                      {!collapsedGroups[type] && (
-                        <div className="space-y-2">
-                          {typeTasks.map((task) => {
-                    const dateObj = new Date(task.due_date);
-                    return (
-                      <div key={task.id} className={`group flex items-center justify-between p-2.5 rounded-lg border transition-all ${task.completed ? 'bg-slate-50 border-transparent opacity-50' : 'bg-white border-slate-200 hover:border-emerald-200 shadow-sm'}`}>
-                        <div className="flex items-center gap-3">
-                          <button onClick={() => toggleTaskStatus(task)} className={`transition-transform hover:scale-110 ${task.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-emerald-500'}`}>
-                            {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
-                          </button>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1 ${
-                                task.type === 'Llamada' ? 'bg-blue-100 text-blue-700' :
-                                task.type === 'WhatsApp' ? 'bg-emerald-100 text-emerald-700' :
-                                task.type === 'Visita' ? 'bg-purple-100 text-purple-700' :
-                                task.type === 'Email' ? 'bg-amber-100 text-amber-700' :
-                                'bg-slate-100 text-slate-700'
-                              }`}>
-                                {task.type === 'Llamada' && <Phone size={10} />}
-                                {task.type === 'WhatsApp' && <Smartphone size={10} />}
-                                {task.type === 'Visita' && <CalendarIcon size={10} />}
-                                {task.type === 'Email' && <Mail size={10} />}
-                                {task.type === 'Reunión' && <Users size={10} />}
-                                {task.type}
-                              </span>
-                              {(() => {
-                                const title = task.title || '';
-                                const isEnvio = title.startsWith('Envío Email:') || title.startsWith('Envío WhatsApp:');
-                                const colonIndex = title.indexOf(':');
+                  </div>
 
-                                if (isEnvio && colonIndex !== -1) {
-                                  const prefix = title.substring(0, colonIndex + 1);
-                                  const docs = title.substring(colonIndex + 1).trim();
+                  {/* COLUMNA DERECHA: AGENDA */}
+                  <div className="lg:col-span-5 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col h-full">
+                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-6 flex items-center gap-2 text-[#006c4a]">
+                      <CalendarIcon size={16} /> Agenda de Acciones
+                    </h3>
 
-                                  if (docs) {
-                                    const isExpanded = !!expandedTasks[task.id];
-                                    return (
-                                      <div className="flex flex-col gap-1">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <p className={`text-sm font-bold ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>
-                                            {prefix}
-                                          </p>
-                                          <button
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              toggleTaskExpand(task.id);
-                                            }}
-                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-500 font-bold transition-all active:scale-95 border border-slate-200"
-                                          >
-                                            <span>{isExpanded ? 'Ocultar archivos' : 'Ver archivos'}</span>
-                                            {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                                          </button>
-                                        </div>
-                                        {isExpanded && (
-                                          <div className="mt-1 pl-2 border-l-2 border-emerald-500 text-xs text-slate-500 font-medium py-1 animate-in slide-in-from-top-1 duration-200">
-                                            <ul className="list-disc list-inside space-y-0.5">
-                                              {docs.split(',').map((doc, idx) => (
-                                                <li key={idx} className="truncate max-w-md">{doc.trim()}</li>
-                                              ))}
-                                            </ul>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  }
-                                }
-
-                                return (
-                                  <p className={`text-sm font-bold ${task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'}`}>
-                                    {title}
-                                  </p>
-                                );
-                              })()}
-                            </div>
-                            <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
-                              {dateObj.toLocaleDateString()} • {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              {task.call_attended !== null && task.type === 'Llamada' && (
-                                <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${task.call_attended ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                  {task.call_attended ? 'ATENDIDA' : 'NO ATENDIDA'}
-                                </span>
-                              )}
-                              {task.type === 'Email' && (() => {
-                                const tracking = emailTracking.find((t) => {
-                                  if (task.tracking_id) return t.id === task.tracking_id;
-                                  const taskTime = new Date(task.due_date).getTime();
-                                  const trackingTime = new Date(t.created_at).getTime();
-                                  return Math.abs(taskTime - trackingTime) < 15000;
-                                });
-                                
-                                if (!tracking) return null;
-                                
-                                const isOpened = tracking.status === 'opened' || tracking.opens_count > 0;
-                                const opensLabel = tracking.opens_count > 1 ? ` (${tracking.opens_count})` : '';
-                                
-                                return (
-                                  <div className="flex items-center gap-1 ml-1">
-                                    <span 
-                                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                                        isOpened 
-                                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' 
-                                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                      } transition-colors cursor-help`}
-                                      title={
-                                        isOpened 
-                                          ? `Abierto${opensLabel}. Última apertura: ${new Date(tracking.last_opened_at || tracking.first_opened_at || tracking.created_at).toLocaleString()}`
-                                          : 'Recibido pero aún no abierto.'
-                                      }
-                                    >
-                                      {isOpened ? 'ABIERTO' : 'ENVIADO'}
-                                      {opensLabel}
-                                    </span>
-                                    {!isOpened && lead.phone && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const firstName = (lead.name || '').split(' ')[0];
-                                          const hour = new Date().getHours();
-                                          const greeting = hour < 14 ? 'Buenos días' : 'Buenas tardes';
-                                          const message = `${greeting}, ${firstName}:\nSoy Juan Herrero, de Terravall, inmobiliaria comercializadora de Finca Mirapinos. Le escribo para confirmar si pudo recibir el dossier informativo de la promoción que le enviamos hace unos días. Si no es así, le agradecería que revisase su carpeta de correo no deseado (SPAM); en caso de que siga sin localizarlo, por favor háganoslo saber y se lo haré llegar de inmediato. Quedo a su entera disposición para resolver cualquier duda que pueda tener sobre la promoción.\nUn cordial saludo,\nJuan Herrero\nwww.mirapinos.com`;
-                                          
-                                          const cleanPhone = (lead.phone || '').replace(/\D/g, '');
-                                          const phoneWithCode = cleanPhone.startsWith('34') ? cleanPhone : '34' + cleanPhone;
-                                          window.open(`https://wa.me/${phoneWithCode}?text=${encodeURIComponent(message)}`, '_blank');
-                                        }}
-                                        className="p-1 rounded-full hover:bg-emerald-100 text-emerald-600 transition-colors shadow-sm bg-white border border-emerald-100"
-                                        title="Enviar WhatsApp de seguimiento"
-                                      >
-                                        <MessageCircle size={10} />
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => startEditingTask(task)}
-                            className="p-1.5 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600 transition-colors"
-                            title="Editar"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            onClick={() => deleteTask(task.id)}
-                            className="p-1.5 hover:bg-slate-100 rounded text-slate-400 hover:text-red-600 transition-colors"
-                            title="Borrar"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                    {/* Formulario Inline Compacto */}
+                    <div className="grid grid-cols-1 gap-2 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200/60 shadow-sm">
+                      <div className="flex gap-2">
+                        <select
+                          value={newTask.type}
+                          onChange={(e) => setNewTask({ ...newTask, type: e.target.value })}
+                          className="bg-white border border-slate-200 rounded-lg text-xs font-medium p-2 outline-none focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 text-slate-700 appearance-none pr-6 relative"
+                        >
+                          <option value="Llamada">Llamada</option>
+                          <option value="Email">Email</option>
+                          <option value="WhatsApp">WhatsApp</option>
+                          <option value="Visita">Visita</option>
+                          <option value="Reunión">Reunión</option>
+                        </select>
+                        <input
+                          type="date"
+                          value={newTask.date}
+                          onChange={(e) => setNewTask({ ...newTask, date: e.target.value })}
+                          className="flex-1 bg-white border border-slate-200 rounded-lg text-xs p-2 outline-none focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 text-slate-700"
+                        />
+                        <input
+                          type="time"
+                          value={newTask.time}
+                          onChange={(e) => setNewTask({ ...newTask, time: e.target.value })}
+                          className="w-20 bg-white border border-slate-200 rounded-lg text-xs p-2 outline-none focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 text-slate-700"
+                        />
                       </div>
-                    );
-                  })}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder={editingTaskId ? "Editando tarea..." : "Nueva tarea pendiente..."}
+                          value={newTask.title}
+                          onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                          className="flex-1 bg-white border border-slate-200 rounded-lg text-xs p-2 outline-none focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 text-slate-900 placeholder-slate-400"
+                        />
+                        {newTask.type === 'Llamada' && (
+                          <div className="flex bg-white border border-slate-200 rounded-lg p-0.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setNewTask({ ...newTask, call_attended: true })}
+                              className={`px-2 py-1 text-[10px] rounded-md font-bold transition-all ${
+                                newTask.call_attended === true
+                                  ? 'bg-[#006c4a] text-white shadow-sm'
+                                  : 'text-slate-400 hover:text-slate-600'
+                              }`}
+                            >
+                              Atendida
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const currentTitle = newTask.title || 'Llamada no atendida';
+                                const currentTaskData = {
+                                  ...newTask,
+                                  call_attended: false,
+                                  title: currentTitle,
+                                  completed: true,
+                                };
+                                setNewTask(currentTaskData);
+                                await saveTask(currentTaskData);
+
+                                const followUp = getFollowUpTime();
+                                const nextTaskData = {
+                                  type: 'Llamada',
+                                  title: `Re-intento: ${currentTitle.replace('Re-intento: ', '')}`,
+                                  date: followUp.date,
+                                  time: followUp.time,
+                                  call_attended: null,
+                                  completed: false,
+                                };
+                                await saveTask(nextTaskData);
+                              }}
+                              className={`px-2 py-1 text-[10px] rounded-md font-bold transition-all ${
+                                newTask.call_attended === false
+                                  ? 'bg-red-500 text-white shadow-sm'
+                                  : 'text-slate-400 hover:text-slate-600'
+                              }`}
+                            >
+                              No atendida
+                            </button>
+                          </div>
+                        )}
+                        {editingTaskId && (
+                          <button
+                            onClick={() => {
+                              setEditingTaskId(null);
+                              setNewTask({
+                                type: 'Llamada',
+                                title: '',
+                                date: new Date().toISOString().slice(0, 10),
+                                time: getCurrentTime(),
+                                call_attended: null,
+                              });
+                            }}
+                            className="bg-white border border-slate-200 px-2.5 rounded-lg hover:bg-slate-50 transition-colors text-slate-500"
+                            title="Cancelar edición"
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => saveTask()}
+                          className={`${
+                            editingTaskId
+                              ? 'bg-[#005137] hover:bg-[#002114]'
+                              : 'bg-[#006c4a] hover:bg-[#005137]'
+                          } px-4 text-white rounded-lg transition-colors shadow-sm active:scale-95 flex items-center justify-center`}
+                        >
+                          {editingTaskId ? <Save size={18} /> : <Plus size={18} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Lista de Tareas */}
+                    <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1 max-h-[350px]">
+                      {tasks.length === 0 && (
+                        <div className="text-center py-10 opacity-50">
+                          <CalendarIcon size={32} className="mx-auto mb-2 text-slate-300" />
+                          <p className="text-xs text-slate-500 italic">No hay tareas para este cliente.</p>
                         </div>
                       )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+                      {Object.entries(
+                        tasks.reduce((acc, task) => {
+                          if (!acc[task.type]) acc[task.type] = [];
+                          acc[task.type].push(task);
+                          return acc;
+                        }, {} as Record<string, typeof tasks>)
+                      ).map(([type, typeTasks]) => (
+                        <div key={type} className="mb-5 last:mb-0">
+                          <button
+                            type="button"
+                            onClick={() => toggleGroup(type)}
+                            className="w-full flex items-center justify-between group mb-2 hover:bg-slate-50 p-1.5 -ml-1.5 rounded transition-colors"
+                          >
+                            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                              {type}
+                            </h4>
+                            <div className="text-slate-300 group-hover:text-[#006c4a] transition-colors mr-1">
+                              {collapsedGroups[type] ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                            </div>
+                          </button>
+                          {!collapsedGroups[type] && (
+                            <div className="space-y-2">
+                              {typeTasks.map((task) => {
+                                const dateObj = new Date(task.due_date);
+                                return (
+                                  <div
+                                    key={task.id}
+                                    className={`group flex items-center justify-between p-2.5 rounded-lg border transition-all ${
+                                      task.completed
+                                        ? 'bg-slate-50 border-transparent opacity-50'
+                                        : 'bg-white border-slate-200 hover:border-emerald-200 shadow-sm'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <button
+                                        onClick={() => toggleTaskStatus(task)}
+                                        className={`transition-transform hover:scale-110 ${
+                                          task.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-[#006c4a]'
+                                        }`}
+                                      >
+                                        {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                                      </button>
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                          <span
+                                            className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                                              task.type === 'Llamada'
+                                                ? 'bg-blue-100 text-blue-700'
+                                                : task.type === 'WhatsApp'
+                                                ? 'bg-emerald-100 text-emerald-700'
+                                                : task.type === 'Visita'
+                                                ? 'bg-purple-100 text-purple-700'
+                                                : task.type === 'Email'
+                                                ? 'bg-amber-100 text-amber-700'
+                                                : 'bg-slate-100 text-slate-700'
+                                            }`}
+                                          >
+                                            {task.type === 'Llamada' && <Phone size={10} />}
+                                            {task.type === 'WhatsApp' && <Smartphone size={10} />}
+                                            {task.type === 'Visita' && <CalendarIcon size={10} />}
+                                            {task.type === 'Email' && <Mail size={10} />}
+                                            {task.type === 'Reunión' && <Users size={10} />}
+                                            {task.type}
+                                          </span>
+                                          {(() => {
+                                            const title = task.title || '';
+                                            const isEnvio =
+                                              title.startsWith('Envío Email:') || title.startsWith('Envío WhatsApp:');
+                                            const colonIndex = title.indexOf(':');
 
-            </div>
+                                            if (isEnvio && colonIndex !== -1) {
+                                              const prefix = title.substring(0, colonIndex + 1);
+                                              const docs = title.substring(colonIndex + 1).trim();
+
+                                              if (docs) {
+                                                const isExpanded = !!expandedTasks[task.id];
+                                                return (
+                                                  <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                      <p
+                                                        className={`text-sm font-bold ${
+                                                          task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'
+                                                        }`}
+                                                      >
+                                                        {prefix}
+                                                      </p>
+                                                      <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          toggleTaskExpand(task.id);
+                                                        }}
+                                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-500 font-bold transition-all active:scale-95 border border-slate-200"
+                                                      >
+                                                        <span>{isExpanded ? 'Ocultar' : 'Ver'}</span>
+                                                        {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                                                      </button>
+                                                    </div>
+                                                    {isExpanded && (
+                                                      <div className="mt-1 pl-2 border-l-2 border-emerald-500 text-xs text-slate-500 font-medium py-1 animate-in slide-in-from-top-1 duration-200">
+                                                        <ul className="list-disc list-inside space-y-0.5">
+                                                          {docs.split(',').map((doc, idx) => (
+                                                            <li key={idx} className="truncate max-w-xs">
+                                                              {doc.trim()}
+                                                            </li>
+                                                          ))}
+                                                        </ul>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                );
+                                              }
+                                            }
+
+                                            return (
+                                              <p
+                                                className={`text-sm font-bold ${
+                                                  task.completed ? 'text-emerald-600 opacity-70' : 'text-slate-800'
+                                                }`}
+                                              >
+                                                {title}
+                                              </p>
+                                            );
+                                          })()}
+                                        </div>
+                                        <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
+                                          {dateObj.toLocaleDateString()} •{' '}
+                                          {dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                          {task.call_attended !== null && task.type === 'Llamada' && (
+                                            <span
+                                              className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                                task.call_attended ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                                              }`}
+                                            >
+                                              {task.call_attended ? 'ATENDIDA' : 'NO ATENDIDA'}
+                                            </span>
+                                          )}
+                                          {task.type === 'Email' && (() => {
+                                            const tracking = emailTracking.find((t) => {
+                                              if (task.tracking_id) return t.id === task.tracking_id;
+                                              const taskTime = new Date(task.due_date).getTime();
+                                              const trackingTime = new Date(t.created_at).getTime();
+                                              return Math.abs(taskTime - trackingTime) < 15000;
+                                            });
+
+                                            if (!tracking) return null;
+
+                                            const isOpened = tracking.opens_count > 0;
+                                            const opensLabel = tracking.opens_count > 1 ? ` (${tracking.opens_count})` : '';
+
+                                            return (
+                                              <div className="flex items-center gap-1 ml-1">
+                                                <span
+                                                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                                    isOpened
+                                                      ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                                  } transition-colors cursor-help`}
+                                                  title={
+                                                    isOpened
+                                                      ? `Abierto${opensLabel}. Última apertura: ${new Date(
+                                                          tracking.last_opened_at || tracking.first_opened_at || tracking.created_at
+                                                        ).toLocaleString()}`
+                                                      : 'Recibido pero aún no abierto.'
+                                                  }
+                                                >
+                                                  {isOpened ? 'ABIERTO' : 'ENVIADO'}
+                                                  {opensLabel}
+                                                </span>
+                                                {!isOpened && lead.phone && (
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      const firstName = (lead.name || '').split(' ')[0];
+                                                      const hour = new Date().getHours();
+                                                      const greeting = hour < 14 ? 'Buenos días' : 'Buenas tardes';
+                                                      const message = `${greeting}, ${firstName}:\nSoy Juan Herrero, de Terravall, inmobiliaria comercializadora de Finca Mirapinos. Le escribo para confirmar si pudo recibir el dossier informativo de la promoción que le enviamos hace unos días. Si no es así, le agradecería que revisase su carpeta de correo no deseado (SPAM); en caso de que siga sin localizarlo, por favor háganoslo saber y se lo haré llegar de inmediato. Quedo a su entera disposición para resolver cualquier duda que pueda tener sobre la promoción.\nUn cordial saludo,\nJuan Herrero\nwww.mirapinos.com`;
+
+                                                      const cleanPhone = (lead.phone || '').replace(/\D/g, '');
+                                                      const phoneWithCode = cleanPhone.startsWith('34') ? cleanPhone : '34' + cleanPhone;
+                                                      window.open(
+                                                        `https://wa.me/${phoneWithCode}?text=${encodeURIComponent(message)}`,
+                                                        '_blank'
+                                                      );
+                                                    }}
+                                                    className="p-1 rounded-full hover:bg-emerald-100 text-emerald-600 transition-colors shadow-sm bg-white border border-emerald-100"
+                                                    title="Enviar WhatsApp de seguimiento"
+                                                  >
+                                                    <MessageCircle size={10} />
+                                                  </button>
+                                                )}
+                                              </div>
+                                            );
+                                          })()}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                        onClick={() => startEditingTask(task)}
+                                        className="p-1.5 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600 transition-colors"
+                                        title="Editar"
+                                      >
+                                        <Pencil size={14} />
+                                      </button>
+                                      <button
+                                        onClick={() => deleteTask(task.id)}
+                                        className="p-1.5 hover:bg-slate-100 rounded text-slate-400 hover:text-red-600 transition-colors"
+                                        title="Borrar"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* BENTO STATS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-6 border-t border-slate-200 mt-6">
+                  {/* Visitas a Inmuebles */}
+                  <div className="bg-white p-6 rounded-xl border border-slate-200/60 shadow-sm flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="p-2 bg-emerald-50 text-[#006c4a] rounded-lg">
+                        <Compass size={18} />
+                      </div>
+                      <span className="text-[#006c4a] font-bold text-xs">+12%</span>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-extrabold text-slate-900 leading-tight">142</div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Visitas a Inmuebles</div>
+                    </div>
+                  </div>
+
+                  {/* Favoritos Guardados */}
+                  <div className="bg-white p-6 rounded-xl border border-slate-200/60 shadow-sm flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="p-2 bg-emerald-50 text-[#006c4a] rounded-lg">
+                        <Zap size={18} />
+                      </div>
+                      <span className="bg-emerald-100 text-[#006c4a] px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider">New</span>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-extrabold text-slate-900 leading-tight">8</div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Favoritos Guardados</div>
+                    </div>
+                  </div>
+
+                  {/* Presupuesto Estimado */}
+                  <div className="bg-white p-6 rounded-xl border border-slate-200/60 shadow-sm flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="p-2 bg-emerald-50 text-[#006c4a] rounded-lg">
+                        <span className="font-bold text-[#006c4a] text-sm">€</span>
+                      </div>
+                      <span className="text-red-500 font-bold text-xs">-2%</span>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-extrabold text-slate-900 leading-tight">
+                        {lead.value 
+                          ? (lead.value >= 1000000 
+                              ? `${(lead.value / 1000000).toFixed(1)}M` 
+                              : lead.value >= 1000 
+                                ? `${Math.round(lead.value / 1000)}k` 
+                                : lead.value.toString())
+                          : '450k'}
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Presupuesto Estimado</div>
+                    </div>
+                  </div>
+
+                  {/* Potencial de Venta */}
+                  <div className="bg-white p-6 rounded-xl border border-slate-200/60 shadow-sm flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="p-2 bg-emerald-50 text-[#006c4a] rounded-lg">
+                        <CheckCircle2 size={18} />
+                      </div>
+                      <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider">VIP</span>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-extrabold text-slate-900 leading-tight">Score 85</div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Potencial de Venta</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
             ) : (
               <div className="p-6 overflow-y-auto flex-1">
                 <SaleTab lead={lead} onLeadUpdate={async (updates) => {
@@ -1040,3 +1168,16 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     </>
   );
 }
+
+const getAvatarStyle = (name: string) => {
+  const colors = [
+    'bg-emerald-100 text-emerald-800 border-emerald-200/50',
+    'bg-blue-100 text-blue-800 border-blue-200/50',
+    'bg-purple-100 text-purple-800 border-purple-200/50',
+    'bg-amber-100 text-amber-800 border-amber-200/50',
+    'bg-rose-100 text-rose-800 border-rose-200/50'
+  ];
+  let sum = 0;
+  for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
+  return colors[sum % colors.length];
+};
