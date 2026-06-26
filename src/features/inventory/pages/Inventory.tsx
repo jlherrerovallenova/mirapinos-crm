@@ -21,14 +21,15 @@ import MortgageSimulatorModal from '../components/MortgageSimulatorModal';
 import { useDialog } from '../../../context/DialogContext';
 import { inventoryService } from '../api/inventoryService';
 import type { Property } from '../api/inventoryService';
-import { PROPERTY_STATUS } from '../../../config/constants';
-import type { PropertyStatus } from '../../../config/constants';
+import { PROPERTY_STATUS, PROPERTY_MODELS } from '../../../config/constants';
+import type { PropertyStatus, PropertyModel } from '../../../config/constants';
 
 export default function Inventory() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [stateFilter, setStateFilter] = useState<PropertyStatus | ''>(PROPERTY_STATUS.DISPONIBLE);
+  const [modelFilter, setModelFilter] = useState<PropertyModel | ''>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const { showAlert } = useDialog();
@@ -75,7 +76,8 @@ export default function Inventory() {
     const numberMatch = (p.numero_vivienda || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSearch = modelMatch || numberMatch;
     const matchesState = stateFilter === '' || p.estado_vivienda === stateFilter;
-    return matchesSearch && matchesState;
+    const matchesModel = modelFilter === '' || (p.modelo || '').toUpperCase() === modelFilter;
+    return matchesSearch && matchesState && matchesModel;
   });
 
   const handleExportPDF = async () => {
@@ -316,7 +318,20 @@ export default function Inventory() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="relative w-full md:w-64">
+          <div className="relative w-full md:w-52">
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <select
+              value={modelFilter}
+              onChange={(e) => setModelFilter(e.target.value as PropertyModel | '')}
+              className="w-full pl-12 pr-8 py-2 bg-white border border-slate-200 rounded-lg outline-none appearance-none cursor-pointer text-sm font-bold text-slate-700 shadow-sm"
+            >
+              <option value="">Cualquier Modelo</option>
+              {PROPERTY_MODELS.map(model => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+          </div>
+          <div className="relative w-full md:w-52">
             <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <select
               value={stateFilter}
