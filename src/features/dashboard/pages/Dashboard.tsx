@@ -6,7 +6,8 @@ import {
   Clock,
   Calendar,
   Search,
-  Plus
+  Plus,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useDialog } from '../../../context/DialogContext';
@@ -170,26 +171,24 @@ export default function Dashboard() {
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
 
       {/* CABECERA CON CTAs RÁPIDOS */}
-      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Panel de Control</h1>
-            <p className="text-slate-500 text-xs font-medium">Hola {session?.user.email?.split('@')[0]}, resumen de actividad.</p>
-          </div>
-          <div className="flex gap-3 w-full md:w-auto">
-            <button
-              onClick={() => navigate('/agenda?create=true')}
-              className="flex-1 sm:flex-none bg-white text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
-            >
-              <Calendar size={16} /> Nueva Tarea
-            </button>
-            <button
-              onClick={() => navigate('/leads?create=true')}
-              className="flex-1 sm:flex-none bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
-            >
-              <Plus size={16} /> Nuevo Cliente
-            </button>
-          </div>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+        <div>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Panel de Control</h2>
+          <p className="text-slate-500 text-sm mt-1">Hola {session?.user.email?.split('@')[0]}, bienvenido de nuevo. Aquí tienes un resumen de la actividad hoy.</p>
+        </div>
+        <div className="flex gap-3 w-full md:w-auto">
+          <button
+            onClick={() => navigate('/agenda?create=true')}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+          >
+            <Calendar size={16} className="text-slate-500" /> Nueva Tarea
+          </button>
+          <button
+            onClick={() => navigate('/leads?create=true')}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#006c4a] text-white font-bold text-xs rounded-lg shadow-md hover:bg-[#005137] transition-all"
+          >
+            <Plus size={16} /> Nuevo Cliente
+          </button>
         </div>
       </div>
 
@@ -199,86 +198,90 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
         {/* WIDGET: AGENDA DE ACCIONES */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[400px]">
-          <div className="p-6 border-b border-slate-100 flex flex-col gap-4 bg-slate-50/50">
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)] border border-slate-200 overflow-hidden flex flex-col min-h-[400px]">
+          <div className="p-6 border-b border-slate-100 flex flex-col gap-4 bg-white">
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <Clock size={18} className="text-emerald-500" />
-                Agenda de Acciones
-              </h3>
+              <div className="flex items-center gap-3">
+                <Calendar className="text-[#006c4a]" size={18} />
+                <h3 className="font-bold text-slate-900 text-sm tracking-tight">Agenda de Acciones</h3>
+              </div>
               <button
                 onClick={() => navigate('/agenda')}
-                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors bg-emerald-50 px-3 py-1.5 rounded-full"
+                className="text-xs font-bold text-[#006c4a] hover:underline transition-all"
               >
                 VER CALENDARIO
               </button>
             </div>
 
             {/* PESTAÑAS (TABS) */}
-            <div className="flex gap-2 p-1 bg-slate-100 rounded-lg w-full sm:w-fit">
-              <button
-                onClick={() => setActiveTab('futuras')}
-                className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeTab === 'futuras'
-                  ? 'bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+            <div className="p-1.5 bg-slate-50 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-100">
+              <div className="flex bg-white p-1 rounded-lg border border-slate-200 w-fit">
+                <button
+                  onClick={() => setActiveTab('futuras')}
+                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    activeTab === 'futuras'
+                      ? 'bg-[#006c4a] text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
-              >
-                Próximas
-              </button>
-              <button
-                onClick={() => setActiveTab('caducadas')}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeTab === 'caducadas'
-                  ? 'bg-white text-red-600 shadow-sm ring-1 ring-slate-200'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                >
+                  Próximas
+                </button>
+                <button
+                  onClick={() => setActiveTab('caducadas')}
+                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
+                    activeTab === 'caducadas'
+                      ? 'bg-[#006c4a] text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
-              >
-                Caducadas
-                {overdueCount > 0 && (
-                  <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full select-none">
+                >
+                  Caducadas
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                    activeTab === 'caducadas' ? 'bg-white text-[#006c4a]' : 'bg-red-50 text-red-600 font-bold'
+                  }`}>
                     {overdueCount}
                   </span>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab('sinActividad')}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeTab === 'sinActividad'
-                  ? 'bg-white text-orange-600 shadow-sm ring-1 ring-slate-200'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                </button>
+                <button
+                  onClick={() => setActiveTab('sinActividad')}
+                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
+                    activeTab === 'sinActividad'
+                      ? 'bg-[#006c4a] text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
-              >
-                Sin Actividad
-                {noActivityLeads.length > 0 && (
-                  <span className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full select-none">
+                >
+                  Sin Actividad
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                    activeTab === 'sinActividad' ? 'bg-white text-[#006c4a]' : 'bg-slate-100 text-slate-600 font-bold'
+                  }`}>
                     {noActivityLeads.length}
                   </span>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab('correos')}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeTab === 'correos'
-                  ? 'bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                </button>
+                <button
+                  onClick={() => setActiveTab('correos')}
+                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
+                    activeTab === 'correos'
+                      ? 'bg-[#006c4a] text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
-              >
-                Correos
-                {emails.length > 0 && (
-                  <span className="bg-indigo-500 text-white text-[10px] px-1.5 py-0.5 rounded-full select-none">
+                >
+                  Correos
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                    activeTab === 'correos' ? 'bg-white text-[#006c4a]' : 'bg-indigo-100 text-indigo-700 font-bold'
+                  }`}>
                     {emails.length}
                   </span>
-                )}
-              </button>
-            </div>
-
-            {/* BUSCADOR DE CLIENTE */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                type="text"
-                placeholder={activeTab === 'correos' ? "Buscar por cliente o asunto..." : "Buscar por cliente o tarea..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700"
-              />
+                </button>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input
+                  type="text"
+                  placeholder={activeTab === 'correos' ? "Buscar por cliente o asunto..." : "Buscar por cliente o tarea..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-4 py-1.5 border border-slate-200 rounded-lg text-xs w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700 bg-white"
+                />
+              </div>
             </div>
           </div>
 
@@ -310,58 +313,62 @@ export default function Dashboard() {
 
         {/* BARRA LATERAL: LEADS Y ACCESOS */}
         <div className="space-y-8">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h3 className="font-bold text-slate-800 text-sm">Clientes Recientes</h3>
-              <button onClick={() => navigate('/leads')} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 bg-white border border-slate-200 px-2 py-1 rounded shadow-sm">
+          <div className="bg-white rounded-xl shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)] border border-slate-200 overflow-hidden">
+            <div className="p-6 border-b border-slate-150 flex justify-between items-center bg-white">
+              <h3 className="font-bold text-slate-950 text-sm tracking-tight">Clientes Recientes</h3>
+              <button onClick={() => navigate('/leads')} className="text-[10px] font-bold text-slate-500 hover:text-slate-900 uppercase tracking-wider">
                 VER TODOS
               </button>
             </div>
-            <div className="p-4 space-y-3">
+            <div className="p-6 space-y-4">
               {recentLeads.map((lead) => (
                 <div
                   key={lead.id}
                   onClick={() => navigate(`/leads?search=${encodeURIComponent(lead.name)}`)}
-                  className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group"
+                  className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group"
                 >
-                  <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs border border-slate-200 group-hover:bg-white group-hover:border-emerald-200 transition-colors">
-                    {lead.name.substring(0, 2).toUpperCase()}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-xs border border-slate-200 group-hover:bg-emerald-50 group-hover:text-[#006c4a] group-hover:border-emerald-200 transition-colors">
+                      {lead.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-xs leading-none group-hover:text-[#006c4a] transition-colors">{lead.name}</h4>
+                      <span className="text-[10px] text-slate-400 font-medium mt-1 block">{lead.source || 'Sin origen'}</span>
+                    </div>
                   </div>
-                  <div className="overflow-hidden">
-                    <p className="text-xs font-bold text-slate-800 truncate group-hover:text-emerald-700 transition-colors">{lead.name}</p>
-                    <p className="text-[10px] text-slate-500 truncate">{lead.source || 'Sin origen'}</p>
-                  </div>
+                  <ChevronRight size={16} className="text-slate-400 opacity-60 group-hover:translate-x-0.5 transition-transform" />
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-              <h3 className="font-bold text-slate-800 text-sm">Accesos Rápidos</h3>
-            </div>
-            <div className="p-5 space-y-3">
-              <button
-                onClick={() => navigate('/leads')}
-                className="w-full py-3 bg-slate-900 text-white rounded-lg text-xs font-bold shadow hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
-              >
-                <Users size={14} /> Gestionar Clientes
-              </button>
-              <div className="grid grid-cols-2 gap-3">
+          <div className="bg-[#131b2e] p-6 rounded-xl shadow-lg relative overflow-hidden text-white">
+            <div className="relative z-10">
+              <h3 className="font-bold text-sm tracking-tight text-white mb-4">Accesos Rápidos</h3>
+              <div className="space-y-3">
                 <button
-                  onClick={() => navigate('/inventory')}
-                  className="w-full py-3 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                  onClick={() => navigate('/leads')}
+                  className="w-full py-3 bg-[#006c4a] text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 hover:bg-[#005137] transition-all shadow-md"
                 >
-                  <Clock size={14} /> Inventario
+                  <Users size={14} /> Gestionar Clientes
                 </button>
-                <button
-                  onClick={() => navigate('/agenda')}
-                  className="w-full py-3 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
-                >
-                  <Calendar size={14} /> Agenda
-                </button>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => navigate('/inventory')}
+                    className="py-3 bg-white/10 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 hover:bg-white/20 transition-all border border-white/10"
+                  >
+                    <Clock size={14} /> Inventario
+                  </button>
+                  <button
+                    onClick={() => navigate('/agenda')}
+                    className="py-3 bg-white/10 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 hover:bg-white/20 transition-all border border-white/10"
+                  >
+                    <Calendar size={14} /> Agenda
+                  </button>
+                </div>
               </div>
             </div>
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#006c4a]/20 rounded-full blur-3xl"></div>
           </div>
         </div>
       </div>
