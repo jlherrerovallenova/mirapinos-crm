@@ -1,8 +1,8 @@
 // src/components/leads/CreateLeadModal.tsx
 import { useState } from 'react';
 import { X, Loader2, AlertCircle, Sparkles, Phone, Compass, Globe, Smartphone, Users } from 'lucide-react';
-import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
+import { leadsService } from '../api/leadsService';
 
 interface Props {
   isOpen: boolean;
@@ -43,12 +43,12 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
     if (!email && !phone) return false;
     try {
       if (email) {
-        const { data, error } = await supabase.from('leads').select('id').eq('email', email).limit(1);
-        if (!error && data && data.length > 0) return true;
+        const isDuplicate = await leadsService.checkEmailDuplicate(email);
+        if (isDuplicate) return true;
       }
       if (phone) {
-        const { data, error } = await supabase.from('leads').select('id').eq('phone', phone).limit(1);
-        if (!error && data && data.length > 0) return true;
+        const isDuplicate = await leadsService.checkPhoneDuplicate(phone);
+        if (isDuplicate) return true;
       }
       return false;
     } catch (err) {

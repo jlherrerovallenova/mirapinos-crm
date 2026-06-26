@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
+import { agendaService } from '../api/agendaService';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -96,62 +97,19 @@ export default function Agenda() {
     if (!session) return;
     setLoading(true);
     try {
-      // Consulta a 'agenda' trayendo el nombre del cliente relacionado
-      let query = supabase
-        .from('agenda')
-        .select('*, leads(name)', { count: 'exact' })
-        .order('due_date', { ascending: true });
+      const { data, count } = await agendaService.fetchItems({
+        filterStatus,
+        selectedAgentId,
+        currentUserId: session.user?.id,
+        isAdmin: profile?.role === 'admin',
+        viewMode,
+        currentDate,
+        page,
+        itemsPerPage: ITEMS_PER_PAGE
+      });
 
-      if (filterStatus === 'pending') query = query.eq('completed', false);
-      if (filterStatus === 'completed') query = query.eq('completed', true);
-
-      // Aplicar filtro de usuario/agente
-      if (profile?.role === 'admin') {
-        if (selectedAgentId !== 'all') {
-          query = query.eq('user_id', selectedAgentId);
-        }
-      } else {
-        if (session?.user?.id) {
-          query = query.eq('user_id', session.user.id);
-        }
-      }
-
-      let data, count, error;
-
-      if (viewMode === 'calendar') {
-        // Obtenemos un rango amplio que cubra todo el mes visible en el grid
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
-        const firstDay = new Date(year, month - 1, 20).toISOString();
-        const lastDay = new Date(year, month + 1, 10).toISOString();
-        
-        query = query.gte('due_date', firstDay).lte('due_date', lastDay);
-        const res = await query;
-        data = res.data;
-        count = res.count;
-        error = res.error;
-      } else {
-        // Paginado para la lista
-        const from = (page - 1) * ITEMS_PER_PAGE;
-        const to = from + ITEMS_PER_PAGE - 1;
-        
-        const res = await query.range(from, to);
-        data = res.data;
-        count = res.count;
-        error = res.error;
-      }
-
-      if (error) throw error;
-
-      // Mapeamos los datos para asegurar compatibilidad de tipos si leads es array o objeto
-      const formattedData = (data || []).map(item => ({
-        ...(item as any),
-        leads: Array.isArray((item as any).leads) ? (item as any).leads[0] : (item as any).leads
-      })) as AgendaItem[];
-
-      setItems(formattedData);
+      setItems(data);
       if (count !== null) setTotalItems(count);
-
     } catch (error) {
       console.error('Error fetching agenda:', error);
     } finally {
@@ -161,8 +119,12 @@ export default function Agenda() {
 
   const toggleStatus = async (item: AgendaItem) => {
     const newStatus = !item.completed;
-    await (supabase as any).from('agenda').update({ completed: newStatus }).eq('id', item.id);
-    fetchAgenda();
+    try {
+      await agendaService.toggleStatus(item.id, newStatus);
+      fetchAgenda();
+    } catch (error) {
+      console.error('Error toggling status:', error);
+    }
   };
 
   const deleteItem = async (id: number) => {
@@ -174,8 +136,7 @@ export default function Agenda() {
     });
     if (!confirmed) return;
     try {
-      const { error } = await supabase.from('agenda').delete().eq('id', id);
-      if (error) throw error;
+      await agendaService.deleteItem(id);
       fetchAgenda();
     } catch (error) {
       await showAlert({ title: 'Error', message: 'No se pudo eliminar la tarea' });

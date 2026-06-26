@@ -9,6 +9,7 @@ import {
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
 import { useDialog } from '../../../context/DialogContext';
+import { agendaService } from '../../agenda/api/agendaService';
 import EmailComposerModal from './EmailComposerModal';
 import { useDocuments } from '../../../hooks/useDocuments';
 import type { Database } from '../../../types/supabase';
@@ -155,13 +156,12 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
   // Cargar tareas de la tabla agenda filtrando por ID del cliente y su seguimiento de email
   async function fetchTasks() {
-    const { data: agendaData } = await supabase
-      .from('agenda')
-      .select('*')
-      .eq('lead_id', lead.id)
-      .order('due_date', { ascending: true });
-
-    if (agendaData) setTasks(agendaData);
+    try {
+      const { data: agendaData } = await agendaService.fetchItems({ leadId: lead.id });
+      setTasks(agendaData);
+    } catch (err) {
+      console.error("Error al cargar tareas:", err);
+    }
 
     try {
       const { data: trackingData } = await supabase
@@ -288,8 +288,12 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
       cancelText: 'Cancelar'
     });
     if (!confirmed) return;
-    const { error } = await supabase.from('agenda').delete().eq('id', id);
-    if (!error) fetchTasks();
+    try {
+      await agendaService.deleteItem(id);
+      fetchTasks();
+    } catch (err) {
+      console.error("Error al eliminar tarea:", err);
+    }
   };
 
   const startEditingTask = (task: AgendaItem) => {

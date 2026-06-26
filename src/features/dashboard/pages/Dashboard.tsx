@@ -23,8 +23,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useDialog } from '../../../context/DialogContext';
-import { supabase } from '../../../lib/supabase';
 import type { Database } from '../../../types/supabase';
+import { dashboardService } from '../api/dashboardService';
 
 // --- TIPOS ---
 type AgendaItem = Database['public']['Tables']['agenda']['Row'] & {
@@ -86,89 +86,23 @@ export default function Dashboard() {
     setLoading(true);
     try {
       // 1. CARGA DE LEADS Y ESTADÍSTICAS
-      const leadsResponse = await supabase.from('leads').select('source');
-      const recentResponse = await supabase
-        .from('leads')
-        .select('id, name, source, created_at')
-        .order('created_at', { ascending: false })
-        .limit(5);
+      const statsData = await dashboardService.getLeadsStats();
+      setStats(statsData);
 
-      if (leadsResponse.data) {
-        const total = leadsResponse.data.length;
-        const sourceCounts: Record<string, number> = {};
-        leadsResponse.data.forEach((lead: any) => {
-          const source = lead.source ? lead.source.trim() : 'Desconocido';
-          sourceCounts[source] = (sourceCounts[source] || 0) + 1;
-        });
-        const sortedSources = Object.entries(sourceCounts)
-          .map(([name, count]) => ({
-            name,
-            count,
-            percentage: total > 0 ? Math.round((count / total) * 100) : 0
-          }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 3);
-        setStats({ totalLeads: total, topSources: sortedSources });
-      }
+      const recentLeadsData = await dashboardService.getRecentLeads(5);
+      setRecentLeads(recentLeadsData);
 
-      if (recentResponse.data) {
-        setRecentLeads(recentResponse.data);
-      }
-
-      // 2. CARGA DE AGENDA (Aprovechando la relación Foreign Key)
-      // Traemos más de 20 por si hay muchas caducadas mezcladas con futuras
-      const { data: agendaData, error: agendaError } = await supabase
-        .from('agenda')
-        .select('*, leads(name)')
-        .eq('completed', false)
-        .order('due_date', { ascending: true });
-
-      if (agendaError) {
-        console.error("Error fetching agenda:", agendaError);
-      } else if (agendaData) {
-        const formattedData = (agendaData || []).map((item: any) => ({
-          ...item,
-          leads: Array.isArray(item.leads) ? item.leads[0] : item.leads
-        })) as AgendaItem[];
-
-        setAgenda(formattedData);
-      }
+      // 2. CARGA DE AGENDA
+      const agendaData = await dashboardService.getPendingAgenda();
+      setAgenda(agendaData);
 
       // 3. CARGA DE CLIENTES SIN ACTIVIDAD
-      // Obtenemos leads y sus IDs de agenda para filtrar los que no tienen nada
-      const { data: noActivityData, error: noActError } = await supabase
-        .from('leads')
-        .select('id, name, source, created_at, agenda(id)');
-
-      if (!noActError && noActivityData) {
-        const filtered = noActivityData
-          .filter((l: any) => !l.agenda || l.agenda.length === 0)
-          .map((l: any) => ({
-            id: l.id,
-            name: l.name,
-            source: l.source,
-            created_at: l.created_at
-          }))
-          .slice(0, 50); // Mostramos los 50 más antiguos o relevantes
-        setNoActivityLeads(filtered);
-      }
+      const noActivityData = await dashboardService.getNoActivityLeads(50);
+      setNoActivityLeads(noActivityData);
 
       // 4. CARGA DE SEGUIMIENTO DE EMAILS
-      const { data: emailData, error: emailError } = await supabase
-        .from('email_tracking')
-        .select('*, leads(name, phone)')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (emailError) {
-        console.error("Error fetching email tracking:", emailError);
-      } else if (emailData) {
-        const formattedEmails = (emailData || []).map((item: any) => ({
-          ...item,
-          leads: Array.isArray(item.leads) ? item.leads[0] : item.leads
-        })) as EmailTrackingItem[];
-        setEmails(formattedEmails);
-      }
+      const emailData = await dashboardService.getEmailTracking(50);
+      setEmails(emailData);
 
     } catch (error) {
       console.error("Error general cargando dashboard:", error);
@@ -216,12 +150,7 @@ export default function Dashboard() {
       setAgenda(prev => prev.filter(t => t.id !== task.id));
     }
     try {
-      const { error } = await supabase
-        .from('agenda')
-        // @ts-ignore: Tipado complejo entre joins causa fallos de inferencia
-        .update({ completed: newStatus })
-        .eq('id', task.id);
-      if (error) throw error;
+      await dashboardService.toggleAgendaStatus(task.id, newStatus);
     } catch (error) {
       console.error("Error actualizando tarea:", error);
       loadDashboardData();
@@ -238,8 +167,7 @@ export default function Dashboard() {
     if (!confirmed) return;
     setAgenda(prev => prev.filter(t => t.id !== id));
     try {
-      const { error } = await supabase.from('agenda').delete().eq('id', id);
-      if (error) throw error;
+      await dashboardService.deleteAgendaItem(id);
     } catch (error) {
       console.error("Error eliminando tarea:", error);
       await showAlert({ title: 'Error', message: 'No se pudo eliminar la tarea' });
