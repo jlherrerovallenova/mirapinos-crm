@@ -36,7 +36,7 @@ interface Props {
   onUpdate: (deleted?: boolean) => void;
 }
 
-import { useUpdateLead, useDeleteLead } from '../hooks/useLeads';
+import { useUpdateLead } from '../hooks/useLeads';
 
 export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const { session, profile } = useAuth();
@@ -48,7 +48,6 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
 
   // Mutations
   const updateMutation = useUpdateLead();
-  const deleteMutation = useDeleteLead();
   const [loading, setLoading] = useState(false); // Mantener para el estado local de guardado de tareas o procesos largos
 
   // Tareas de la agenda

@@ -1,7 +1,8 @@
 // src/pages/Settings.tsx
 import React, { useState } from 'react';
 import { Settings as SettingsIcon } from 'lucide-react';
-import SettingsSidebar, { SettingsTab } from '../components/SettingsSidebar';
+import SettingsSidebar from '../components/SettingsSidebar';
+import type { SettingsTab } from '../components/SettingsSidebar';
 import SettingsProfileTab from '../components/SettingsProfileTab';
 import SettingsIntegrationsTab from '../components/SettingsIntegrationsTab';
 import SettingsHousingTab from '../components/SettingsHousingTab';
