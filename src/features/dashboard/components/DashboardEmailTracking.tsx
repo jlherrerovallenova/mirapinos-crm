@@ -17,9 +17,15 @@ interface DashboardEmailTrackingProps {
   filteredEmails: EmailTrackingItem[];
   searchQuery: string;
   loading: boolean;
+  emailFilter?: 'all' | 'unopened';
 }
 
-export default function DashboardEmailTracking({ filteredEmails, searchQuery, loading }: DashboardEmailTrackingProps) {
+export default function DashboardEmailTracking({ 
+  filteredEmails, 
+  searchQuery, 
+  loading, 
+  emailFilter = 'all' 
+}: DashboardEmailTrackingProps) {
   const navigate = useNavigate();
 
   const formatDateTime = (dateString: string) => {
@@ -31,14 +37,25 @@ export default function DashboardEmailTracking({ filteredEmails, searchQuery, lo
   };
 
   if (filteredEmails.length === 0 && !loading) {
+    let title = 'Sin correos';
+    let subtitle = 'No se ha enviado ningún correo todavía';
+
+    if (searchQuery) {
+      title = 'No hay coincidencias';
+      subtitle = 'Prueba con otro cliente o asunto';
+    } else if (emailFilter === 'unopened') {
+      title = '¡Todo al día!';
+      subtitle = 'Todos los correos enviados han sido abiertos por los clientes';
+    }
+
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-in fade-in">
         <Mail size={48} className="mb-4 opacity-20 text-indigo-500" />
         <p className="text-sm font-medium text-slate-600">
-          {searchQuery ? 'No hay coincidencias' : 'Sin correos'}
+          {title}
         </p>
         <p className="text-xs opacity-60">
-          {searchQuery ? 'Prueba con otro cliente o asunto' : 'No se ha enviado ningún correo todavía'}
+          {subtitle}
         </p>
       </div>
     );

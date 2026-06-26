@@ -67,6 +67,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'futuras' | 'caducadas' | 'sinActividad' | 'correos'>('futuras');
   const [noActivityLeads, setNoActivityLeads] = useState<RecentLead[]>([]);
   const [emails, setEmails] = useState<EmailTrackingItem[]>([]);
+  const [emailFilter, setEmailFilter] = useState<'all' | 'unopened'>('all');
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -126,7 +127,15 @@ export default function Dashboard() {
     const matchesSearch =
       email.leads?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       email.subject?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
+    
+    if (!matchesSearch) return false;
+
+    if (emailFilter === 'unopened') {
+      const isOpened = email.status === 'opened' || email.opens_count > 0;
+      if (isOpened) return false;
+    }
+
+    return true;
   });
 
   // Contador para el badge de tareas caducadas
@@ -272,15 +281,27 @@ export default function Dashboard() {
                   </span>
                 </button>
               </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                <input
-                  type="text"
-                  placeholder={activeTab === 'correos' ? "Buscar por cliente o asunto..." : "Buscar por cliente o tarea..."}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-4 py-1.5 border border-slate-200 rounded-lg text-xs w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700 bg-white"
-                />
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                {activeTab === 'correos' && (
+                  <select
+                    value={emailFilter}
+                    onChange={(e) => setEmailFilter(e.target.value as 'all' | 'unopened')}
+                    className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-semibold text-slate-700 bg-white shadow-sm cursor-pointer"
+                  >
+                    <option value="all">Todos los correos</option>
+                    <option value="unopened">Sin abrir</option>
+                  </select>
+                )}
+                <div className="relative flex-1 md:flex-none">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input
+                    type="text"
+                    placeholder={activeTab === 'correos' ? "Buscar por cliente o asunto..." : "Buscar por cliente o tarea..."}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-4 py-1.5 border border-slate-200 rounded-lg text-xs w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700 bg-white"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -297,6 +318,7 @@ export default function Dashboard() {
                 filteredEmails={filteredEmails}
                 searchQuery={searchQuery}
                 loading={loading}
+                emailFilter={emailFilter}
               />
             ) : (
               <DashboardAgenda
