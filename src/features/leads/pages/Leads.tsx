@@ -11,8 +11,6 @@ import {
   MessageCircle,
   Filter,
   ChevronLeft,
-  ChevronsLeft,
-  ChevronsRight,
   FilterX,
   ArrowUp,
   ArrowDown,
@@ -45,18 +43,25 @@ const STATUS_LABELS: Record<string, string> = {
   lost: 'Perdido',
 };
 
-const STATUS_CONFIG: Record<string, { dot: string; pill: string; border: string }> = {
-  new:         { dot: 'bg-blue-400',    pill: 'bg-blue-50 text-blue-700 border border-blue-200',       border: 'border-l-blue-400' },
-  contacted:   { dot: 'bg-purple-400',  pill: 'bg-purple-50 text-purple-700 border border-purple-200', border: 'border-l-purple-400' },
-  qualified:   { dot: 'bg-emerald-400', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200', border: 'border-l-emerald-400' },
-  visiting:    { dot: 'bg-cyan-400',    pill: 'bg-cyan-50 text-cyan-700 border border-cyan-200',       border: 'border-l-cyan-400' },
-  proposal:    { dot: 'bg-amber-400',   pill: 'bg-amber-50 text-amber-700 border border-amber-200',   border: 'border-l-amber-400' },
-  negotiation: { dot: 'bg-orange-400',  pill: 'bg-orange-50 text-orange-700 border border-orange-200', border: 'border-l-orange-400' },
-  closed:      { dot: 'bg-indigo-400',   pill: 'bg-indigo-50 text-indigo-700 border border-indigo-200',  border: 'border-l-indigo-400' },
-  lost:        { dot: 'bg-red-400',     pill: 'bg-red-50 text-red-700 border border-red-200',         border: 'border-l-red-400' },
+const STATUS_CONFIG: Record<string, { dot: string; pill: string }> = {
+  new:         { dot: 'bg-blue-500',    pill: 'bg-blue-50 text-blue-700 border border-blue-100' },
+  contacted:   { dot: 'bg-slate-400',   pill: 'bg-slate-50 text-slate-600 border border-slate-200' },
+  qualified:   { dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-100' },
+  visiting:    { dot: 'bg-cyan-500',    pill: 'bg-cyan-50 text-cyan-700 border border-cyan-100' },
+  proposal:    { dot: 'bg-amber-500',   pill: 'bg-amber-50 text-amber-700 border border-amber-100' },
+  negotiation: { dot: 'bg-orange-500',  pill: 'bg-orange-50 text-orange-700 border border-orange-100' },
+  closed:      { dot: 'bg-indigo-500',  pill: 'bg-indigo-50 text-indigo-700 border border-indigo-100' },
+  lost:        { dot: 'bg-red-500',     pill: 'bg-red-50 text-red-700 border border-red-100' },
 };
 
-// getAvatarColor is no longer used
+const getAvatarStyle = (name: string) => {
+  const firstChar = name.trim().charAt(0).toUpperCase();
+  if ('AEIOU'.includes(firstChar)) return 'bg-indigo-50 text-indigo-700 border-indigo-100';
+  if ('BCDFG'.includes(firstChar)) return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+  if ('HJKLMN'.includes(firstChar)) return 'bg-purple-50 text-purple-700 border-purple-100';
+  if ('PQRSTW'.includes(firstChar)) return 'bg-amber-50 text-amber-700 border-amber-100';
+  return 'bg-slate-50 text-slate-700 border-slate-200';
+};
 
 const getStatusBadge = (status: Lead['status']) => {
   const cfg = STATUS_CONFIG[status || 'new'] || STATUS_CONFIG['new'];
@@ -224,93 +229,87 @@ export default function Leads() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
 
-      {/* CABECERA UNIFICADA Y STICKY */}
-      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
-        
-        {/* Título y Acciones */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-          <div>
-            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Clientes</h1>
-            <p className="text-slate-500 text-sm mt-1">
-              {totalLeads} prospectos {hasActiveFilters && `(filtrados)`}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="px-5 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 shrink-0 flex-1 md:flex-none justify-center"
-            >
-              <UserPlus size={18} /> <span className="inline">Nuevo Cliente</span>
-            </button>
-          </div>
+      {/* CABECERA DE LA PÁGINA */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Mis Clientes</h2>
+          <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">
+            <span className="inline-block w-2.5 h-2.5 bg-[#006c4a] rounded-full shrink-0"></span>
+            {totalLeads} prospectos activos en cartera
+          </p>
         </div>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="bg-[#006c4a] hover:bg-[#005137] text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0 flex-1 md:flex-none justify-center"
+        >
+          <UserPlus size={18} />
+          Nuevo Cliente
+        </button>
+      </div>
 
-        {/* Filtros y Buscador */}
-        <div className="flex flex-col lg:flex-row gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-          <div className="relative flex-1 w-full group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={18} />
-            <input
-              type="text"
-              placeholder="Buscar por nombre, email o teléfono..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none shadow-sm"
-              value={searchTerm}
-              onChange={handleSearch}
-            />
+      {/* SECCIÓN DE FILTROS */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[280px] group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#006c4a] transition-colors" size={16} />
+          <input
+            type="text"
+            placeholder="Buscar por nombre, email o teléfono..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#006c4a]/10 focus:border-[#006c4a] focus:bg-white transition-all shadow-sm"
+            value={searchTerm}
+            onChange={handleSearch}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <div className="relative flex-1 sm:flex-none">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+            <select
+              value={statusFilter}
+              onChange={handleStatusChange}
+              className="pl-9 pr-8 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-colors shadow-sm cursor-pointer outline-none appearance-none w-full sm:w-auto"
+            >
+              <option value="">Todos los Estados</option>
+              <option value="new">Nuevos</option>
+              <option value="contacted">Contactados</option>
+              <option value="qualified">Cualificados</option>
+              <option value="visiting">Visitando</option>
+              <option value="proposal">Propuesta</option>
+              <option value="negotiation">Negociación</option>
+              <option value="closed">Venta realizada</option>
+              <option value="lost">Perdidos</option>
+            </select>
           </div>
 
-          <div className="flex w-full lg:w-auto gap-3">
-            <div className="relative flex-1 lg:w-48">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <select
-                value={statusFilter}
-                onChange={handleStatusChange}
-                className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none appearance-none shadow-sm cursor-pointer text-slate-700"
-              >
-                <option value="">Todos los Estados</option>
-                <option value="new">Nuevos</option>
-                <option value="contacted">Contactados</option>
-                <option value="qualified">Cualificados</option>
-                <option value="visiting">Visitando</option>
-                <option value="proposal">Propuesta</option>
-                <option value="negotiation">Negociación</option>
-                <option value="closed">Venta realizada</option>
-                <option value="lost">Perdidos</option>
-              </select>
-            </div>
-
-            <div className="relative flex-1 lg:w-48">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <select
-                value={sourceFilter}
-                onChange={handleSourceChange}
-                className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none appearance-none shadow-sm cursor-pointer text-slate-700"
-              >
-                <option value="">Cualquier Origen</option>
-                <option value="Idealista">Idealista</option>
-                <option value="Web">Web</option>
-                <option value="Google">Google</option>
-                <option value="Redes Sociales">Redes Sociales</option>
-                <option value="Referido">Referido</option>
-                <option value="Llamada">Llamada</option>
-                <option value="Otro">Otro</option>
-              </select>
-            </div>
-
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="p-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors shadow-sm flex items-center justify-center shrink-0"
-                title="Limpiar filtros"
-              >
-                <FilterX size={18} />
-              </button>
-            )}
+          <div className="relative flex-1 sm:flex-none">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+            <select
+              value={sourceFilter}
+              onChange={handleSourceChange}
+              className="pl-9 pr-8 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-colors shadow-sm cursor-pointer outline-none appearance-none w-full sm:w-auto"
+            >
+              <option value="">Cualquier Origen</option>
+              <option value="Idealista">Idealista</option>
+              <option value="Web">Web</option>
+              <option value="Google">Google</option>
+              <option value="Redes Sociales">Redes Sociales</option>
+              <option value="Referido">Referido</option>
+              <option value="Llamada">Llamada</option>
+              <option value="Otro">Otro</option>
+            </select>
           </div>
+
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="p-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors shadow-sm flex items-center justify-center shrink-0 border border-red-100"
+              title="Limpiar filtros"
+            >
+              <FilterX size={16} />
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px] flex flex-col relative z-10">
+      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden min-h-[500px] flex flex-col relative z-10">
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center py-20 text-slate-400 gap-4">
             <Loader2 className="animate-spin" size={40} />
@@ -334,7 +333,7 @@ export default function Leads() {
           </div>
         ) : (
           <div className="flex-1">
-            <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 hidden md:grid">
+            <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200/50 hidden md:grid">
               <div
                 className={`col-span-3 flex items-center gap-1 cursor-pointer select-none transition-colors ${sortField === 'name' ? 'text-slate-700' : 'hover:text-slate-600'}`}
                 onClick={() => handleSort('name')}
@@ -356,15 +355,14 @@ export default function Leads() {
             </div>
 
             {leads.map((lead) => {
-              const cfg = STATUS_CONFIG[lead.status || 'new'] || STATUS_CONFIG['new'];
               return (
                 <div
                   key={lead.id}
                   onClick={() => setSelectedLead(lead)}
-                  className={`grid grid-cols-1 md:grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group border-b border-slate-100 border-l-4 ${cfg.border} hover:bg-slate-50/80 transition-all duration-150`}
+                  className="grid grid-cols-1 md:grid-cols-12 gap-4 px-6 py-4 items-center cursor-pointer group border-b border-slate-100 hover:bg-slate-50/80 hover:translate-x-1 transition-all duration-200"
                 >
                   <div className="md:col-span-3 flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm border border-emerald-100 shrink-0">
+                    <div className={`w-10 h-10 rounded-xl font-bold flex items-center justify-center shrink-0 border ${getAvatarStyle(lead.name || '')}`}>
                       {lead.name?.substring(0, 2).toUpperCase() || 'CL'}
                     </div>
                     <div className="min-w-0 flex items-center">
@@ -395,8 +393,8 @@ export default function Leads() {
                     {(() => {
                       const src = (lead.source || 'Directo').toLowerCase();
                       if (src.includes('idealista')) return (
-                        <div className="flex items-center gap-1 bg-white border border-[#E1FF01]/30 p-1 rounded-md shadow-sm" title="Idealista">
-                          <img src="/idealista.png" className="w-5 h-5 rounded-sm object-contain" alt="Idealista" />
+                        <div className="flex items-center gap-1 bg-[#85f8c4]/35 text-[#005137] border border-[#85f8c4] px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm" title="Idealista">
+                          id
                         </div>
                       );
                       if (src.includes('web') || src.includes('google')) return <div title={lead.source || 'Web'} className="p-1.5 bg-blue-50 rounded-lg text-blue-600"><Globe size={14} /></div>;
@@ -418,8 +416,8 @@ export default function Leads() {
                   </div>
 
                   <div className="hidden md:flex md:col-span-1 items-center justify-start gap-1 pl-2">
-                    <button onClick={(e) => { e.stopPropagation(); openComposer(lead, 'whatsapp'); }} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="WhatsApp"><MessageCircle size={15} /></button>
-                    <button onClick={(e) => { e.stopPropagation(); openComposer(lead, 'email'); }} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Email"><Mail size={15} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); openComposer(lead, 'whatsapp'); }} className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors flex items-center justify-center shrink-0" title="WhatsApp"><MessageCircle size={15} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); openComposer(lead, 'email'); }} className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors flex items-center justify-center shrink-0" title="Email"><Mail size={15} /></button>
                     <ChevronRight size={15} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
                   </div>
                 </div>
@@ -429,44 +427,86 @@ export default function Leads() {
         )}
 
         {totalLeads > 0 && (
-          <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+          <div className="p-4 border-t border-slate-200/60 bg-slate-50/50 flex items-center justify-between">
             <span className="text-xs text-slate-500 font-medium text-center md:text-left">
-              Mostrando {leads.length} de {totalLeads} leads
+              Mostrando {leads.length} de {totalLeads} prospectos
             </span>
 
-            <div className="flex items-center gap-1 md:gap-2">
-              <button
-                onClick={() => setPage(1)}
-                disabled={page === 1}
-                className="p-1.5 md:p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-              >
-                <ChevronsLeft size={16} />
-              </button>
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-1.5 md:p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 disabled:opacity-30 transition-colors"
               >
                 <ChevronLeft size={16} />
               </button>
 
-              <span className="text-[10px] md:text-xs font-bold text-slate-700 px-1 md:px-2 whitespace-nowrap">
-                {page} / {totalPages || 1}
-              </span>
+              {/* Renderizar números de páginas */}
+              {(() => {
+                const pages = [];
+                const maxVisible = 3;
+                let start = Math.max(1, page - 1);
+                let end = Math.min(totalPages, start + maxVisible - 1);
+
+                if (end - start < maxVisible - 1) {
+                  start = Math.max(1, end - maxVisible + 1);
+                }
+
+                for (let i = start; i <= end; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => setPage(i)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${
+                        page === i
+                          ? 'bg-[#006c4a] text-white shadow-sm shadow-[#006c4a]/10'
+                          : 'hover:bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+
+                return (
+                  <>
+                    {start > 1 && (
+                      <>
+                        <button
+                          onClick={() => setPage(1)}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${
+                            page === 1 ? 'bg-[#006c4a] text-white' : 'hover:bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          1
+                        </button>
+                        {start > 2 && <span className="px-1 text-slate-400 text-xs">...</span>}
+                      </>
+                    )}
+                    {pages}
+                    {end < totalPages && (
+                      <>
+                        {end < totalPages - 1 && <span className="px-1 text-slate-400 text-xs">...</span>}
+                        <button
+                          onClick={() => setPage(totalPages)}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${
+                            page === totalPages ? 'bg-[#006c4a] text-white' : 'hover:bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {totalPages}
+                        </button>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
 
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="p-1.5 md:p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 disabled:opacity-30 transition-colors"
               >
                 <ChevronRight size={16} />
-              </button>
-              <button
-                onClick={() => setPage(totalPages)}
-                disabled={page >= totalPages}
-                className="p-1.5 md:p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-              >
-                <ChevronsRight size={16} />
               </button>
             </div>
           </div>
