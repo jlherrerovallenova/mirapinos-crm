@@ -12,28 +12,15 @@ import {
   FileText,
   CreditCard,
   Calculator,
-  X,
   Trash2
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { supabase } from '../../../lib/supabase';
 import CreatePropertyModal from '../components/CreatePropertyModal';
+import MortgageSimulatorModal from '../components/MortgageSimulatorModal';
 import { useDialog } from '../../../context/DialogContext';
-
-interface Property {
-  id: string;
-  modelo: string;
-  numero_vivienda: string;
-  superficie_parcela: number;
-  superficie_util: number;
-  superficie_construida: number;
-  habitaciones: number;
-  banos: number;
-  precio: number;
-  estado_vivienda?: string;
-  created_at: string;
-}
+import { inventoryService } from '../api/inventoryService';
+import type { Property } from '../api/inventoryService';
 
 export default function Inventory() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -47,11 +34,6 @@ export default function Inventory() {
   const [isExporting, setIsExporting] = useState(false);
   const [isMortgageModalOpen, setIsMortgageModalOpen] = useState(false);
   const [selectedPropertyForMortgage, setSelectedPropertyForMortgage] = useState<Property | null>(null);
-
-  // Estados para el Simulador
-  const [interestRate, setInterestRate] = useState(3.5);
-  const [years, setYears] = useState(30);
-  const [downPayment, setDownPayment] = useState(20); // Porcentaje
 
   const formatSurface = (num: number) => {
     return new Intl.NumberFormat('es-ES', { 
@@ -76,22 +58,8 @@ export default function Inventory() {
   const fetchProperties = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('inventory')
-        .select('*')
-        .order('numero_vivienda', { ascending: true });
-
-      if (error) throw error;
-
-      // Orden numérico manual
-      const sortedData = (data as Property[] || []).sort((a, b) => {
-        const numA = parseInt(a.numero_vivienda);
-        const numB = parseInt(b.numero_vivienda);
-        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-        return a.numero_vivienda.localeCompare(b.numero_vivienda, undefined, { numeric: true });
-      });
-
-      setProperties(sortedData);
+      const data = await inventoryService.fetchProperties();
+      setProperties(data);
     } catch (error) {
       console.error('Error fetching inventory:', error);
     } finally {
@@ -296,147 +264,12 @@ export default function Inventory() {
     }
   };
 
-  const handleExportMortgagePDF = async (property: Property, rate: number, termYears: number, downPaymentPct: number) => {
-    try {
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 20;
-      const contentWidth = pageWidth - (margin * 2);
-      
-      const emeraldPrimary = [5, 150, 105];
-      const slateDark = [15, 23, 42];
-      const slateLight = [100, 116, 139];
-      const grayUltraLight = [248, 250, 252];
-
-      const formatLocalCurrency = (num: number) => new Intl.NumberFormat('es-ES', { 
-        style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2
-      }).format(num || 0);
-
-      const addHeaderStyle = (title: string, subtitle: string) => {
-        doc.setFillColor(slateDark[0], slateDark[1], slateDark[2]);
-        doc.rect(0, 0, pageWidth, 45, 'F');
-        doc.setTextColor(255);
-        doc.setFontSize(22);
-        doc.setFont('helvetica', 'bold');
-        doc.text(title, margin, 25);
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(160);
-        doc.text(subtitle, margin, 34);
-        doc.setFillColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-        doc.rect(margin, 38, 40, 1.5, 'F');
-      };
-
-      const principal = property.precio * (1 - downPaymentPct / 100);
-      const monthlyRate = (rate / 100) / 12;
-      const numberOfPayments = termYears * 12;
-      const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
-
-      // --- PÁGINA 1: HIPOTECA ---
-      addHeaderStyle('PLAN DE FINANCIACIÓN', `SIMULACIÓN HIPOTECARIA | Viv. No. ${property.numero_vivienda} | ${new Date().toLocaleDateString('es-ES')}`);
-      let currentY = 60;
-
-      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
-      doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-      doc.text('DATOS DE LA OPERACIÓN', margin, currentY);
-      currentY += 10;
-      autoTable(doc, {
-        startY: currentY,
-        head: [['Parámetro', 'Valor']],
-        body: [
-          ['Precio Venta', formatLocalCurrency(property.precio)],
-          ['Entrada Solicitada', formatLocalCurrency(property.precio * (downPaymentPct / 100))],
-          ['Capital a Financiar', formatLocalCurrency(principal)],
-          ['Tipo Interés Aplicado', `${rate.toFixed(2)} %`],
-          ['Plazo del Préstamo', `${termYears} años`],
-        ],
-        theme: 'plain', styles: { fontSize: 10, cellPadding: 5 },
-        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-        headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42] },
-        didParseCell: (data) => {
-          if (data.section === 'head' && data.column.index === 1) {
-            data.cell.styles.halign = 'right';
-          }
-        }
-      });
-
-      currentY = (doc as any).lastAutoTable.finalY + 20;
-      doc.setFillColor(grayUltraLight[0], grayUltraLight[1], grayUltraLight[2]);
-      doc.roundedRect(margin, currentY, contentWidth, 35, 4, 4, 'FD');
-      doc.setTextColor(slateLight[0], slateLight[1], slateLight[2]);
-      doc.setFontSize(10); doc.text('MENSUALIDAD ESTIMADA', pageWidth / 2, currentY + 12, { align: 'center' });
-      doc.setTextColor(emeraldPrimary[0], emeraldPrimary[1], emeraldPrimary[2]);
-      doc.setFontSize(28); doc.text(formatLocalCurrency(monthlyPayment), pageWidth / 2, currentY + 26, { align: 'center' });
-
-      doc.setFontSize(8); doc.setTextColor(150);
-      doc.text("Página 1 de 2 | Documento de carácter informativo.", pageWidth / 2, pageHeight - 10, { align: 'center' });
-
-      // --- PÁGINA 2: GASTOS DE COMPRAVENTA ---
-      doc.addPage();
-      addHeaderStyle('GASTOS DE COMPRAVENTA', 'Resumen de impuestos y gastos asociados a la adquisición.');
-      
-      currentY = 60;
-      const ajdAmount = property.precio * 0.015;
-      const notaryAmount = property.precio * 0.005;
-      const registryAmount = property.precio * 0.003;
-      const gestoriaAmount = 450;
-      const tasacionAmount = 400;
-      const totalExpenses = ajdAmount + notaryAmount + registryAmount + gestoriaAmount + tasacionAmount;
-
-      doc.setTextColor(slateDark[0], slateDark[1], slateDark[2]);
-      doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-      doc.text('GASTOS ASOCIADOS A LA OPERACIÓN', margin, currentY);
-
-      currentY += 10;
-      autoTable(doc, {
-        startY: currentY,
-        head: [['Concepto', 'Base / Tipo', 'Importe']],
-        body: [
-          ['I.T.P / A.J.D', '1.50 %', formatLocalCurrency(ajdAmount)],
-          ['Notaría (Estimado)', 'Aranceles', formatLocalCurrency(notaryAmount)],
-          ['Registro de la Propiedad', 'Aranceles', formatLocalCurrency(registryAmount)],
-          ['Gestoría Técnica', 'Fijo', formatLocalCurrency(gestoriaAmount)],
-          ['Tasación Oficial', 'Fijo Est.', formatLocalCurrency(tasacionAmount)],
-        ],
-        theme: 'striped',
-        styles: { fontSize: 10, cellPadding: 6 },
-        headStyles: { fillColor: [15, 23, 42], textColor: 255 },
-        columnStyles: { 2: { halign: 'right', fontStyle: 'bold' } },
-        didParseCell: (data) => {
-          if (data.section === 'head' && data.column.index === 2) {
-            data.cell.styles.halign = 'right';
-          }
-        }
-      });
-
-      currentY = (doc as any).lastAutoTable.finalY + 15;
-      doc.setFillColor(slateDark[0], slateDark[1], slateDark[2]);
-      doc.roundedRect(margin, currentY, contentWidth, 20, 3, 3, 'F');
-      doc.setTextColor(255); doc.setFontSize(12);
-      doc.text('TOTAL GASTOS COMPRAVENTA (ESTIMADOS)', margin + 8, currentY + 12.5);
-      doc.setFontSize(14); doc.text(formatLocalCurrency(totalExpenses), margin + contentWidth - 8, currentY + 12.5, { align: 'right' });
-
-      doc.setFontSize(8); doc.setTextColor(150);
-      doc.text("Página 2 de 2 | FINCA MIRAPINOS - www.mirapinos.com", pageWidth / 2, pageHeight - 10, { align: 'center' });
-
-      const fileName = `Simulacion_hipotecaria_Mirapinos_Chalet_n_${property.numero_vivienda}.pdf`;
-      doc.save(fileName);
-    } catch (e) { console.error(e); }
-  };
-
-
   const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
 
   const confirmDelete = async () => {
     if (!propertyToDelete) return;
     try {
-      const { error } = await supabase
-        .from('inventory')
-        .delete()
-        .eq('id', propertyToDelete.id);
-
-      if (error) throw error;
+      await inventoryService.deleteProperty(propertyToDelete.id);
       fetchProperties();
       setPropertyToDelete(null);
     } catch (error) {
@@ -605,54 +438,14 @@ export default function Inventory() {
       )}
 
       {isMortgageModalOpen && selectedPropertyForMortgage && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden">
-            <div className="bg-emerald-600 p-6 flex justify-between items-center text-white">
-              <div><h3 className="text-xl font-bold">Simulador Hipotecario</h3><p className="text-emerald-50 text-xs">Viv. #{selectedPropertyForMortgage.numero_vivienda}</p></div>
-              <button onClick={() => setIsMortgageModalOpen(false)}><X size={24} /></button>
-            </div>
-            <div className="p-8 space-y-6 text-right">
-              <div className="grid grid-cols-2 gap-6">
-                <div><label className="text-[10px] font-black text-slate-400 block mb-1">PRECIO</label><div className="p-3 bg-slate-50 rounded-2xl font-bold text-slate-800">{formatCurrency(selectedPropertyForMortgage.precio)}</div></div>
-                <div><label className="text-[10px] font-black text-slate-400 block mb-1">ENTRADA (%)</label><input type="number" max="100" value={downPayment} onChange={(e) => setDownPayment(Math.min(100, Number(e.target.value)))} className="w-full p-3 border rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500/20 text-right outline-none" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div><label className="text-[10px] font-black text-slate-400 block mb-1">INTERÉS (%)</label><input type="number" step="0.1" max="20" value={interestRate} onChange={(e) => setInterestRate(Math.min(20, Number(e.target.value)))} className="w-full p-3 border rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500/20 text-right outline-none" /></div>
-                <div><label className="text-[10px] font-black text-slate-400 block mb-1">PLAZO (AÑOS)</label><input type="number" max="40" value={years} onChange={(e) => setYears(Math.min(40, Number(e.target.value)))} className="w-full p-3 border rounded-2xl font-bold focus:ring-2 focus:ring-emerald-500/20 text-right outline-none" /></div>
-              </div>
-              <div className="pt-6 border-t flex flex-col items-center">
-                <p className="text-slate-500 text-sm mb-2">Cuota mensual estimada</p>
-                <div className="bg-emerald-50 px-8 py-4 rounded-3xl text-4xl font-black text-emerald-700">
-                  {(() => {
-                    const principal = selectedPropertyForMortgage.precio * (1 - downPayment / 100);
-                    const monthlyRate = (interestRate / 100) / 12;
-                    const numberOfPayments = years * 12;
-                    const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
-                    return formatCurrency(monthlyPayment || 0);
-                  })()}
-                </div>
-                <div className="mt-6 p-4 bg-slate-50 rounded-2xl w-full space-y-2 text-right">
-                  <div className="flex justify-between flex-row-reverse text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    <span>Capital a financiar:</span>
-                    <span className="text-slate-900">{formatCurrency(selectedPropertyForMortgage.precio * (1 - downPayment/100))}</span>
-                  </div>
-                  <div className="flex justify-between flex-row-reverse text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    <span>Entrada ({downPayment}%):</span>
-                    <span className="text-slate-900">{formatCurrency(selectedPropertyForMortgage.precio * (downPayment/100))}</span>
-                  </div>
-                  <div className="pt-2 border-t border-slate-200 mt-2">
-                    <div className="flex justify-between flex-row-reverse text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
-                      <span>Notaría, Registro, Gestoría (est.):</span>
-                      <span>{formatCurrency((selectedPropertyForMortgage.precio * 0.0065) + 450)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <button onClick={() => handleExportMortgagePDF(selectedPropertyForMortgage, interestRate, years, downPayment)} className="w-full py-4 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 flex items-center justify-center gap-2"><FileText size={20} />Generar PDF</button>
-              <button onClick={() => setIsMortgageModalOpen(false)} className="w-full py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl">Cerrar</button>
-            </div>
-          </div>
-        </div>
+        <MortgageSimulatorModal
+          isOpen={isMortgageModalOpen}
+          onClose={() => {
+            setIsMortgageModalOpen(false);
+            setSelectedPropertyForMortgage(null);
+          }}
+          property={selectedPropertyForMortgage}
+        />
       )}
 
       {propertyToDelete && (

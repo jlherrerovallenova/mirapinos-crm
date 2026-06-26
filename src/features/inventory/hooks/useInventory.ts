@@ -1,9 +1,6 @@
-// src/hooks/useInventory.ts
+// src/features/inventory/hooks/useInventory.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../../lib/supabase';
-import type { Database } from '../../../types/supabase';
-
-type PropertyInfo = Database['public']['Tables']['inventory']['Row'];
+import { inventoryService } from '../api/inventoryService';
 
 /**
  * Hook para obtener el listado del Inventario 
@@ -12,13 +9,7 @@ export function useInventory() {
     return useQuery({
         queryKey: ['inventory'],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from('inventory')
-                .select('*')
-                .order('numero_vivienda', { ascending: true }); // Por defecto ordenado por Nº Vivienda
-
-            if (error) throw new Error(error.message);
-            return data as PropertyInfo[];
+            return await inventoryService.fetchProperties();
         },
     });
 }
@@ -30,9 +21,8 @@ export function useDeleteProperty() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (id: number) => {
-            const { error } = await supabase.from('inventory').delete().eq('id', id);
-            if (error) throw new Error(error.message);
+        mutationFn: async (id: string) => {
+            await inventoryService.deleteProperty(id);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory'] });
