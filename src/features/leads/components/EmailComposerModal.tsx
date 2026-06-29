@@ -338,7 +338,7 @@ export default function EmailComposerModal({
         const pixelHtml = trackingId ? `<img src="${supabaseUrl}/functions/v1/track-pixel?tracking_id=${trackingId}" width="1" height="1" alt="" style="display:none;" />` : '';
 
         // Construimos el cuerpo HTML con el nuevo diseño profesional Mirapinos
-        const logoUrl = `${window.location.origin}/logo-mirapinos.png`;
+        const logoUrl = 'https://raw.githubusercontent.com/jlherrerovallenova/mirapinos-crm/main/public/logo-mirapinos.png';
         const htmlFullMessage = `
           <!DOCTYPE html>
           <html>
