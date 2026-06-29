@@ -270,10 +270,14 @@ export default function EmailComposerModal({
                           <table cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
                             <tr>
                               <!-- Icon -->
-                              <td style="width: 38px; vertical-align: middle;">
-                                <div style="width: 36px; height: 36px; background-color: ${wrapperBg}; border: 1px solid ${wrapperBorder}; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: ${wrapperColor}; text-align: center; line-height: 36px; font-family: Arial, sans-serif;">
-                                  ${fileText}
-                                </div>
+                              <td style="width: 36px; vertical-align: middle; padding: 0;">
+                                <table cellpadding="0" cellspacing="0" border="0" style="width: 36px; height: 36px; background-color: ${wrapperBg}; border: 1px solid ${wrapperBorder}; border-radius: 6px; text-align: center; border-collapse: collapse;">
+                                  <tr>
+                                    <td align="center" valign="middle" style="font-size: 10px; font-weight: 800; color: ${wrapperColor}; text-align: center; vertical-align: middle; line-height: 36px; padding: 0; font-family: Arial, sans-serif;">
+                                      ${fileText}
+                                    </td>
+                                  </tr>
+                                </table>
                               </td>
                               <!-- File Name & Meta -->
                               <td style="padding-left: 12px; vertical-align: middle; text-align: left;">
