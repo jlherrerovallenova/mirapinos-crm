@@ -26,7 +26,7 @@ interface Props {
   leadName: string;
   leadEmail: string | null;
   leadPhone: string | null;
-  availableDocs: { name: string; url: string; category?: string }[];
+  availableDocs: { name: string; url: string; category?: string; metadata?: { size?: number; mimetype?: string } }[];
   onSentSuccess?: () => void;
   initialMethod?: 'email' | 'whatsapp';
   initialSubject?: string;
@@ -65,28 +65,43 @@ export default function EmailComposerModal({
     initialMessage || `${greeting}, ${leadName.split(' ')[0]}:\n\nTal como comentamos en nuestra última conversación, le envío la documentación comercial actualizada sobre la promoción Finca Mirapinos.\n\nLe agradecería que me confirmara la recepción de los archivos. Asimismo, me pongo a su disposición para coordinar una reunión o llamada si precisa cualquier aclaración adicional sobre el proyecto.\n\nAtentamente,`
   );
 
-  const [selectedDocs, setSelectedDocs] = useState<{ name: string; url: string; category?: string }[]>([]);
+  const [selectedDocs, setSelectedDocs] = useState<{ name: string; url: string; category?: string; metadata?: { size?: number; mimetype?: string } }[]>([]);
 
   if (!isOpen) return null;
 
   // Genera la firma dinámica con los datos del comercial que envía
   const getSignatureHtml = (): string => {
     return `
-      <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-        <table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif;">
-          <tr>
-            <td style="padding-right: 16px; border-right: 3px solid #1a5c38; vertical-align: middle;">
-              <div style="font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 4px; letter-spacing: 0.02em;">TERRAVALL</div>
-              <div style="font-size: 14px; font-weight: 700; color: #1a5c38; letter-spacing: 0.05em;">FINCA MIRAPINOS</div>
-            </td>
-            <td style="padding-left: 16px; vertical-align: middle;">
-              <div style="font-size: 13px; color: #475569; margin-bottom: 4px;">📍 Plaza Mayor 8, 1ºA &middot; Valladolid</div>
-              <div style="font-size: 13px; color: #475569; margin-bottom: 4px;">📞 983 34 21 32</div>
-              <div style="font-size: 13px; color: #475569;">🌐 <a href="https://www.mirapinos.com" style="color: #1a5c38; text-decoration: none;">www.mirapinos.com</a></div>
-            </td>
-          </tr>
-        </table>
-      </div>
+      <table cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse; margin-top: 32px; font-family: Arial, sans-serif;">
+        <tr>
+          <td style="width: 50%; vertical-align: middle; padding: 0;">
+            <div style="font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: 0.02em; margin: 0;">TERRAVALL</div>
+            <div style="display: block; margin-top: 4px;">
+              <span style="width: 24px; height: 2px; background-color: #006c4a; margin-right: 8px; display: inline-block; vertical-align: middle;"></span>
+              <span style="font-size: 11px; font-weight: 800; color: #006c4a; letter-spacing: 0.05em; text-transform: uppercase; vertical-align: middle; display: inline-block;">Finca Mirapinos</span>
+            </div>
+          </td>
+          <td style="width: 50%; text-align: right; vertical-align: middle; padding: 0;">
+            <div style="display: inline-block; text-align: left;">
+              <!-- Location -->
+              <div style="font-size: 12px; color: #475569; font-weight: 500; margin-bottom: 4px;">
+                <span style="margin-right: 6px;">📍</span>
+                <span>Plaza Mayor 8, 1ºA &middot; Valladolid</span>
+              </div>
+              <!-- Phone -->
+              <div style="font-size: 12px; color: #475569; font-weight: 500; margin-bottom: 4px;">
+                <span style="margin-right: 6px;">📞</span>
+                <a href="tel:983342132" style="color: #475569; text-decoration: none;">983 34 21 32</a>
+              </div>
+              <!-- Web -->
+              <div style="font-size: 12px; color: #006c4a; font-weight: 600;">
+                <span style="margin-right: 6px; color: #006c4a;">🌐</span>
+                <a href="https://www.mirapinos.com" target="_blank" style="color: #006c4a; text-decoration: none;">www.mirapinos.com</a>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </table>
     `;
   };
 
@@ -178,7 +193,12 @@ export default function EmailComposerModal({
         .from('documents')
         .getPublicUrl(filePath);
 
-      const newDoc = { name: file.name, url: publicUrl, category: 'Archivo Externo' };
+      const newDoc = { 
+        name: file.name, 
+        url: publicUrl, 
+        category: 'Archivo Externo',
+        metadata: { size: file.size, mimetype: file.type }
+      };
       setSelectedDocs(prev => [...prev, newDoc]);
     } catch (error: any) {
       console.error('Error subiendo archivo:', error);
@@ -201,15 +221,106 @@ export default function EmailComposerModal({
           return;
         }
 
-        const htmlDocs = selectedDocs.length > 0
-          ? `
-            <div style="margin: 28px 0; background: #f8fafb; border-left: 4px solid #1a5c38; border-radius: 0 8px 8px 0; padding: 16px 20px;">
-              <div style="font-size: 11px; font-weight: 700; color: #1a5c38; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;">📎 Documentos adjuntos</div>
-              ${selectedDocs.map(d =>
-                `<div style="margin-bottom: 6px;"><a href="${d.url}" style="color: #1a5c38; font-size: 13px; font-weight: 600; text-decoration: underline;">${d.name}</a></div>`
-              ).join('')}
-            </div>`
-          : '';
+        const formatFileSize = (bytes?: number): string => {
+          if (!bytes) return 'N/A';
+          if (bytes < 1024) return `${bytes} B`;
+          if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+          return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+        };
+
+        const getFileTypeLabel = (name: string): string => {
+          const ext = name.split('.').pop()?.toLowerCase();
+          if (ext === 'pdf') return 'PDF DOCUMENT';
+          if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) return 'IMAGE FILE';
+          if (['doc', 'docx'].includes(ext || '')) return 'WORD DOCUMENT';
+          if (['xls', 'xlsx'].includes(ext || '')) return 'EXCEL SPREADSHEET';
+          return 'FILE';
+        };
+
+        let htmlDocs = '';
+        if (selectedDocs.length > 0) {
+          let rowsHtml = '';
+          for (let i = 0; i < selectedDocs.length; i += 2) {
+            const doc1 = selectedDocs[i];
+            const doc2 = selectedDocs[i + 1];
+
+            const renderCard = (d?: typeof selectedDocs[0]) => {
+              if (!d) return '<td style="width: 50%; padding: 8px;"></td>';
+              
+              const isPdf = d.name.toLowerCase().endsWith('.pdf');
+              const isImg = /\.(jpe?g|png|gif|webp)$/i.test(d.name);
+              
+              const wrapperBg = isPdf ? '#fef2f2' : (isImg ? '#f0fdf4' : '#f8fafc');
+              const wrapperBorder = isPdf ? '#fca5a5' : (isImg ? '#86efac' : '#e2e8f0');
+              const wrapperColor = isPdf ? '#dc2626' : (isImg ? '#16a34a' : '#64748b');
+              
+              const fileText = isPdf ? 'PDF' : (isImg ? 'IMG' : 'DOC');
+              const actionIcon = isPdf ? '📥' : '👁️';
+
+              const fileType = getFileTypeLabel(d.name);
+              const fileSize = formatFileSize(d.metadata?.size);
+              const metaText = fileSize !== 'N/A' ? `${fileSize} • ${fileType}` : fileType;
+
+              return `
+                <td style="width: 50%; padding: 8px; vertical-align: top;">
+                  <a href="${d.url}" target="_blank" style="text-decoration: none; display: block;">
+                    <table cellpadding="0" cellspacing="0" border="0" style="width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; font-family: Arial, sans-serif;">
+                      <tr>
+                        <td style="padding: 12px 14px; vertical-align: middle;">
+                          <table cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                            <tr>
+                              <!-- Icon -->
+                              <td style="width: 38px; vertical-align: middle;">
+                                <div style="width: 36px; height: 36px; background-color: ${wrapperBg}; border: 1px solid ${wrapperBorder}; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: ${wrapperColor}; text-align: center; line-height: 36px; font-family: Arial, sans-serif;">
+                                  ${fileText}
+                                </div>
+                              </td>
+                              <!-- File Name & Meta -->
+                              <td style="padding-left: 12px; vertical-align: middle; text-align: left;">
+                                <div style="font-size: 13px; font-weight: bold; color: #1e293b; line-height: 1.3; margin: 0; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                  ${d.name}
+                                </div>
+                                <div style="font-size: 9px; font-weight: 600; color: #64748b; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em;">
+                                  ${metaText}
+                                </div>
+                              </td>
+                              <!-- Action Icon -->
+                              <td style="width: 24px; text-align: right; vertical-align: middle; font-size: 14px; color: #64748b;">
+                                ${actionIcon}
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </a>
+                </td>
+              `;
+            };
+
+            rowsHtml += `
+              <tr>
+                ${renderCard(doc1)}
+                ${renderCard(doc2)}
+              </tr>
+            `;
+          }
+
+          htmlDocs = `
+            <div style="margin: 28px 0; background: #f8fafb; border-radius: 12px; padding: 20px 20px; border: 1px solid #f1f5f9;">
+              <table cellpadding="0" cellspacing="0" border="0" style="width: 100%; font-family: Arial, sans-serif;">
+                <tr>
+                  <td style="padding: 0 8px 12px 8px; font-size: 11px; font-weight: 700; color: #006c4a; letter-spacing: 0.08em; text-transform: uppercase;">
+                    <span style="margin-right: 6px;">📎</span> DOCUMENTOS ADJUNTOS
+                  </td>
+                </tr>
+              </table>
+              <table cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+                ${rowsHtml}
+              </table>
+            </div>
+          `;
+        }
 
         // Insertamos en email_tracking para obtener el tracking_id
         const { data: trackingRecord, error: trackingError } = await (supabase as any)
@@ -227,35 +338,37 @@ export default function EmailComposerModal({
         const pixelHtml = trackingId ? `<img src="${supabaseUrl}/functions/v1/track-pixel?tracking_id=${trackingId}" width="1" height="1" alt="" style="display:none;" />` : '';
 
         // Construimos el cuerpo HTML con el nuevo diseño profesional Mirapinos
+        const logoUrl = `${window.location.origin}/logo-mirapinos.png`;
         const htmlFullMessage = `
           <!DOCTYPE html>
           <html>
-          <body style="margin:0; padding:0; background-color:#f0f4f0;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f0;">
+          <body style="margin:0; padding:0; background-color:#f3f4f6; font-family: Arial, sans-serif;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
               <tr>
-                <td align="center" style="padding: 32px 16px;">
-                  <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                <td align="center" style="padding: 40px 16px;">
+                  <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.05);">
 
                     <!-- ENCABEZADO MIRAPINOS -->
                     <tr>
-                      <td style="background-color:#ffffff; padding: 24px 40px; text-align:center; border-bottom: 3px solid #1a5c38;">
-                        <img src="https://www.mirapinos.com/wp-content/uploads/2025/07/LOGO1.png" alt="MIRAPINOS" height="60" style="height: 60px; width: auto; display: block; margin: 0 auto;" />
+                      <td style="background-color:#ffffff; padding: 32px 40px 24px 40px; text-align:center; border-bottom: 2px solid #006c4a;">
+                        <img src="${logoUrl}" alt="— F I N C A — MIRAPINOS" height="52" style="height: 52px; width: auto; display: block; margin: 0 auto;" />
                       </td>
                     </tr>
 
                     <!-- CUERPO -->
                     <tr>
-                      <td style="padding: 36px 40px; font-family: Arial, sans-serif; font-size: 15px; line-height: 1.7; color: #334155;">
+                      <td style="padding: 40px 48px; font-family: Arial, sans-serif; font-size: 15px; line-height: 1.65; color: #334155; text-align: left;">
                         ${message.replace(/\n/g, '<br>')}
                         ${htmlDocs}
+                        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 32px 0 24px 0;" />
                         ${getSignatureHtml()}
                       </td>
                     </tr>
 
                     <!-- PIE -->
                     <tr>
-                      <td style="background-color:#1a5c38; padding: 24px 40px; text-align: center;">
-                        <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: 700; color: #ffffff; letter-spacing: 0.1em; text-transform: uppercase;">MIRAPINOS, CASAS DE CAMPO</div>
+                      <td style="background-color:#006c4a; padding: 16px 40px; text-align: center;">
+                        <div style="font-family: Arial, sans-serif; font-size: 11px; font-weight: 700; color: #ffffff; letter-spacing: 0.2em; text-transform: uppercase;">MIRAPINOS, CASAS DE CAMPO</div>
                       </td>
                     </tr>
 

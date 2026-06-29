@@ -50,7 +50,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'sale'>('info');
   const { data: rawDocs = [] } = useDocuments();
-  const availableDocs = rawDocs.filter(d => d.url).map(d => ({ name: d.name, url: d.url!, category: d.category }));
+  const availableDocs = rawDocs.filter(d => d.url).map(d => ({ name: d.name, url: d.url!, category: d.category, metadata: d.metadata }));
 
   // Mutations
   const updateMutation = useUpdateLead();

@@ -79,7 +79,7 @@ export default function Leads() {
   const { data: rawDocs = [] } = useDocuments();
   const availableDocs = rawDocs
     .filter(doc => doc.url)
-    .map(doc => ({ name: doc.name, url: doc.url!, category: doc.category }));
+    .map(doc => ({ name: doc.name, url: doc.url!, category: doc.category, metadata: doc.metadata }));
 
   // Estados de Búsqueda y Filtros sincronizados con la URL
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
