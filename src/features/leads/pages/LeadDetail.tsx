@@ -27,8 +27,7 @@ const STATUS_OPTIONS = [
   { value: 'new', label: 'Nuevo' },
   { value: 'contacted', label: 'Contactado' },
   { value: 'qualified', label: 'Cualificado' },
-  { value: 'proposal', label: 'Propuesta Enviada' },
-  { value: 'negotiation', label: 'En Negociación' },
+  { value: 'visiting', label: 'Visitando' },
   { value: 'closed', label: 'Venta realizada' },
   { value: 'lost', label: 'Perdido' },
 ];
@@ -123,6 +122,9 @@ export default function LeadDetail() {
   const handleStatusChange = async (newStatus: string) => {
     if (!lead) return;
     setCurrentStatus(newStatus);
+    if (newStatus !== 'closed' && activeTab === 'sale') {
+      setActiveTab('info');
+    }
     setSavingStatus(true);
     try {
       const { error } = await (supabase as any)
@@ -239,8 +241,20 @@ export default function LeadDetail() {
           Información y Agenda
         </button>
         <button
-          onClick={() => setActiveTab('sale')}
-          className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'sale' ? 'text-emerald-600 border-emerald-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`}
+          onClick={() => {
+            if (currentStatus === 'closed') {
+              setActiveTab('sale');
+            }
+          }}
+          disabled={currentStatus !== 'closed'}
+          className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors ${
+            currentStatus !== 'closed'
+              ? 'text-slate-300 border-transparent cursor-not-allowed opacity-50'
+              : activeTab === 'sale'
+              ? 'text-emerald-600 border-emerald-600'
+              : 'text-slate-500 border-transparent hover:text-slate-800'
+          }`}
+          title={currentStatus !== 'closed' ? "El expediente de venta solo está disponible para clientes con estado 'Venta realizada'" : ""}
         >
           Expediente de Venta
         </button>

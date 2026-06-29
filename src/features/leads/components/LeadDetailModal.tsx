@@ -181,7 +181,11 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   }, [lead.id, fetchTasks]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'status' && value !== 'closed' && activeTab === 'sale') {
+      setActiveTab('info');
+    }
   };
 
   const handleInterestedInToggle = (option: string) => {
@@ -386,24 +390,24 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   return (
     <>
       <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-        <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200">
+        <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden h-[680px] max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200">
 
           {/* HEADER oscuro con avatar de color y botones de acción rápida */}
-          <div className="px-8 py-6 bg-[#131b2e] flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 relative">
+          <div className="px-8 py-3.5 bg-[#131b2e] flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 relative">
             <div className="flex items-center gap-6">
-              <div className={`w-20 h-20 rounded-full flex items-center justify-center font-bold text-2xl border-4 border-[#131b2e] ring-2 ring-emerald-500/30 shrink-0 ${getAvatarStyle(formData.name)}`}>
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg border-4 border-[#131b2e] ring-2 ring-emerald-500/30 shrink-0 ${getAvatarStyle(formData.name)}`}>
                 {formData.name.substring(0, 2).toUpperCase() || 'CL'}
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-3 mb-1">
-                  <h2 className="text-2xl font-bold text-white leading-tight">{formData.name}</h2>
+                  <h2 className="text-xl font-bold text-white leading-tight">{formData.name}</h2>
                   <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusCfg.pill}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
                     {statusCfg.label}
                   </span>
                 </div>
                 <p className="text-slate-400 text-xs font-medium mt-0.5">Ficha del Cliente</p>
-                <div className="flex flex-wrap gap-2 mt-3">
+                <div className="flex flex-wrap gap-2 mt-2">
                   {/* WHATSAPP */}
                   <button
                     type="button"
@@ -411,7 +415,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       setComposerConfig({ method: 'whatsapp' });
                       setIsEmailModalOpen(true);
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#006c4a] hover:bg-[#006c4a]/90 text-white rounded-lg transition-all text-xs font-semibold uppercase tracking-wider shadow-sm"
+                    className="flex items-center gap-2 px-4 py-2 border border-white/20 hover:bg-white/10 text-white rounded-lg transition-all text-xs font-semibold uppercase tracking-wider"
                   >
                     <MessageCircle size={14} />
                     <span>WhatsApp</span>
@@ -479,10 +483,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           </div>
 
           {/* TABS */}
-          <div className="flex gap-8 border-b border-slate-200 px-8 bg-white pt-4">
+          <div className="flex gap-8 border-b border-slate-200 px-8 bg-white pt-2.5">
             <button
               onClick={() => setActiveTab('info')}
-              className={`pb-4 font-bold border-b-2 text-sm transition-all ${
+              className={`pb-2.5 font-bold border-b-2 text-sm transition-all ${
                 activeTab === 'info'
                   ? 'text-[#006c4a] border-[#006c4a]'
                   : 'text-slate-500 border-transparent hover:text-[#006c4a]'
@@ -491,12 +495,20 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
               Información y Agenda
             </button>
             <button
-              onClick={() => setActiveTab('sale')}
-              className={`pb-4 font-bold border-b-2 text-sm transition-all ${
-                activeTab === 'sale'
+              onClick={() => {
+                if (formData.status === 'closed') {
+                  setActiveTab('sale');
+                }
+              }}
+              disabled={formData.status !== 'closed'}
+              className={`pb-2.5 font-bold border-b-2 text-sm transition-all ${
+                formData.status !== 'closed'
+                  ? 'text-slate-300 border-transparent cursor-not-allowed opacity-50'
+                  : activeTab === 'sale'
                   ? 'text-[#006c4a] border-[#006c4a]'
                   : 'text-slate-500 border-transparent hover:text-[#006c4a]'
               }`}
+              title={formData.status !== 'closed' ? "El expediente de venta solo está disponible para clientes con estado 'Venta realizada'" : ""}
             >
               Expediente de Venta
             </button>
@@ -505,30 +517,30 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           {/* CONTENIDO PRINCIPAL */}
           <div className="flex-1 overflow-y-auto lg:overflow-hidden bg-slate-50 flex flex-col min-h-0">
             {activeTab === 'info' ? (
-              <div className="p-8 flex-1 overflow-y-auto custom-scrollbar space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              <div className="p-5 flex-1 overflow-y-auto custom-scrollbar space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
                   
                   {/* COLUMNA IZQUIERDA: FORMULARIO */}
-                  <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-6 text-[#006c4a]">
+                  <div className="lg:col-span-7 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-4 text-[#006c4a]">
                       Información Personal
                     </h3>
-                    <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
                       
                       {/* NOMBRE COMPLETO */}
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nombre Completo</label>
                         <input
                           name="name"
                           value={formData.name}
                           onChange={handleChange}
-                          className="w-full bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg py-2.5 px-4 text-sm text-slate-800 font-medium transition-all"
+                          className="w-full bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg py-1.5 px-3 text-sm text-slate-800 font-medium transition-all"
                           required
                         />
                       </div>
 
                       {/* TELÉFONO */}
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
                         <div className="relative flex gap-2">
                           <div className="relative flex-1">
@@ -538,7 +550,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                               value={formData.phone}
                               onChange={handleChange}
                               placeholder="600..."
-                              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg text-sm text-slate-800 font-medium transition-all"
+                              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg text-sm text-slate-800 font-medium transition-all"
                             />
                           </div>
                           {formData.phone && (
@@ -546,7 +558,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                               href={whatsappUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-2.5 bg-[#006c4a] text-white rounded-lg hover:bg-[#006c4a]/90 transition-all active:scale-95 shadow-md flex items-center justify-center shrink-0"
+                              className="p-2 bg-[#006c4a] text-white rounded-lg hover:bg-[#006c4a]/90 transition-all active:scale-95 shadow-md flex items-center justify-center shrink-0"
                               title="Contactar por WhatsApp"
                             >
                               <MessageCircle size={18} />
@@ -556,18 +568,18 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </div>
 
                       {/* CORREO ELECTRÓNICO */}
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
                         <input
                           name="email"
                           value={formData.email}
                           onChange={handleChange}
-                          className="w-full bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg py-2.5 px-4 text-sm text-slate-800 font-medium transition-all"
+                          className="w-full bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg py-1.5 px-3 text-sm text-slate-800 font-medium transition-all"
                         />
                       </div>
 
                       {/* ORIGEN DEL CONTACTO */}
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Origen del Contacto</label>
                         <div className="relative group/source">
                           <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
@@ -585,7 +597,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                             name="source"
                             value={formData.source}
                             onChange={handleChange}
-                            className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg text-sm text-slate-800 font-medium transition-all appearance-none cursor-pointer"
+                            className="w-full pl-9 pr-10 py-1.5 bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg text-sm text-slate-800 font-medium transition-all appearance-none cursor-pointer"
                           >
                             <option value="Idealista">Idealista</option>
                             <option value="Web">Web</option>
@@ -602,19 +614,19 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </div>
 
                       {/* FECHA DE ALTA */}
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Fecha de Alta</label>
                         <input
                           type="date"
                           name="created_at_date"
                           value={formData.created_at_date}
                           onChange={handleChange}
-                          className="w-full bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg py-2.5 px-4 text-sm text-slate-800 font-medium transition-all"
+                          className="w-full bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg py-1.5 px-3 text-sm text-slate-800 font-medium transition-all"
                         />
                       </div>
 
                       {/* ESTADO ACTUAL */}
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Estado Actual</label>
                         <div className="relative">
                           <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
@@ -624,14 +636,12 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                             name="status"
                             value={formData.status}
                             onChange={handleChange}
-                            className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg text-sm text-slate-800 font-medium transition-all appearance-none cursor-pointer"
+                            className="w-full pl-9 pr-10 py-1.5 bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg text-sm text-slate-800 font-medium transition-all appearance-none cursor-pointer"
                           >
                             <option value="new">Nuevo</option>
                             <option value="contacted">Contactado</option>
                             <option value="qualified">Cualificado</option>
                             <option value="visiting">Visitando</option>
-                            <option value="proposal">Propuesta</option>
-                            <option value="negotiation">Negociación</option>
                             <option value="closed">Venta realizada</option>
                             <option value="lost">Perdido</option>
                           </select>
@@ -642,9 +652,9 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </div>
 
                       {/* INTERESADO EN */}
-                      <div className="md:col-span-2 space-y-2">
+                      <div className="md:col-span-2 space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Interesado en</label>
-                        <div className="flex flex-wrap gap-2 mt-1">
+                        <div className="flex flex-wrap gap-2 mt-0.5">
                           {INTERESTED_OPTIONS.map(option => {
                             const isSelected = formData.interested_in.split(', ').includes(option.value);
                             return (
@@ -652,7 +662,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                                 key={option.value}
                                 type="button"
                                 onClick={() => handleInterestedInToggle(option.value)}
-                                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                                className={`px-4 py-1 rounded-full text-xs font-bold transition-all border ${
                                   isSelected
                                     ? 'bg-[#006c4a] text-white border-[#006c4a] shadow-sm'
                                     : 'bg-white text-slate-500 border-slate-200 hover:border-[#006c4a] hover:text-[#006c4a]'
@@ -669,9 +679,9 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </div>
 
                       {/* NEWSLETTERS */}
-                      <div className="md:col-span-2 flex items-center justify-between p-4 bg-slate-50 border border-slate-200/60 rounded-lg shadow-sm">
+                      <div className="md:col-span-2 flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/60 rounded-lg shadow-sm">
                         <div className="flex items-center gap-3">
-                          <Mail className="text-[#006c4a]" size={20} />
+                          <Mail className="text-[#006c4a]" size={18} />
                           <span className="text-sm font-semibold text-slate-700">Suscrito a Newsletters</span>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
@@ -686,25 +696,25 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </div>
 
                       {/* NOTAS INTERNAS */}
-                      <div className="md:col-span-2 space-y-2">
+                      <div className="md:col-span-2 space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Notas Internas</label>
                         <textarea
                           name="notes"
                           value={formData.notes}
                           onChange={handleChange}
-                          rows={4}
-                          className="w-full mt-1 px-4 py-2.5 bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg text-sm text-slate-800 font-medium transition-all resize-none"
+                          rows={2}
+                          className="w-full mt-0.5 px-4 py-1.5 bg-slate-50 border-slate-200/80 focus:bg-white focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 rounded-lg text-sm text-slate-800 font-medium transition-all resize-none"
                           placeholder="Añade detalles relevantes sobre el cliente..."
                         />
                       </div>
                     </form>
 
                     {/* GUARDAR CAMBIOS */}
-                    <div className="mt-6 pt-6 border-t border-slate-100 flex justify-end">
+                    <div className="mt-3.5 pt-3.5 border-t border-slate-100 flex justify-end">
                       <button
                         onClick={handleUpdate}
                         disabled={loading}
-                        className="bg-[#006c4a] hover:bg-[#006c4a]/90 text-white px-6 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-md shadow-emerald-700/10"
+                        className="bg-[#006c4a] hover:bg-[#006c4a]/90 text-white px-6 py-2 rounded-lg font-semibold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-md shadow-emerald-700/10"
                       >
                         {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                         Guardar cambios
@@ -713,13 +723,13 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   </div>
 
                   {/* COLUMNA DERECHA: AGENDA */}
-                  <div className="lg:col-span-5 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col h-full">
-                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-6 flex items-center gap-2 text-[#006c4a]">
+                  <div className="lg:col-span-5 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col h-full">
+                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-[#006c4a]">
                       <CalendarIcon size={16} /> Agenda de Acciones
                     </h3>
 
                     {/* Formulario Inline Compacto */}
-                    <div className="grid grid-cols-1 gap-2 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200/60 shadow-sm">
+                    <div className="grid grid-cols-1 gap-2 mb-3 bg-slate-50 p-3 rounded-xl border border-slate-200/60 shadow-sm">
                       <div className="flex gap-2">
                         <select
                           value={newTask.type}
@@ -832,7 +842,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     </div>
 
                     {/* Lista de Tareas */}
-                    <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1 max-h-[350px]">
+                    <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1 max-h-[290px]">
                       {tasks.length === 0 && (
                         <div className="text-center py-10 opacity-50">
                           <CalendarIcon size={32} className="mx-auto mb-2 text-slate-300" />

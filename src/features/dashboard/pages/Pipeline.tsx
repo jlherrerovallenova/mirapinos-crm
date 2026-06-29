@@ -6,7 +6,8 @@ import {
   Globe,
   Smartphone,
   Users,
-  HelpCircle
+  HelpCircle,
+  Kanban
 } from 'lucide-react';
 import { useLeads, useUpdateLead } from '../../leads/hooks/useLeads';
 import type { Database } from '../../../types/supabase';
@@ -19,8 +20,6 @@ const COLUMNS = [
   { id: 'contacted', title: 'Contactados', color: 'border-purple-400', bg: 'bg-purple-50/50', text: 'text-purple-700' },
   { id: 'qualified', title: 'Cualificados', color: 'border-emerald-400', bg: 'bg-emerald-50/50', text: 'text-emerald-700' },
   { id: 'visiting', title: 'Visitando', color: 'border-cyan-400', bg: 'bg-cyan-50/50', text: 'text-cyan-700' },
-  { id: 'proposal', title: 'Propuesta', color: 'border-amber-400', bg: 'bg-amber-50/50', text: 'text-amber-700' },
-  { id: 'negotiation', title: 'Negociación', color: 'border-orange-400', bg: 'bg-orange-50/50', text: 'text-orange-700' },
   { id: 'closed', title: 'Ganados', color: 'border-slate-800', bg: 'bg-slate-100', text: 'text-slate-800' },
 ];
 
@@ -100,16 +99,22 @@ export default function Pipeline() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500 overflow-hidden">
-      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30 mb-8">
-        <div className="flex justify-between md:items-center gap-4">
+    <div className="flex flex-col h-[calc(100vh-160px)] animate-in fade-in duration-500 max-w-[1600px] mx-auto w-full gap-6 pb-10 overflow-hidden">
+      
+      {/* Header Section (Stitch Redesign) */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+            <Kanban size={36} className="text-[#006c4a]" />
+          </div>
           <div>
-            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Fases de Venta</h1>
-            <p className="text-slate-500 text-xs font-medium">Arrastra las tarjetas para avanzar de fase.</p>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Fases de Venta</h2>
+            <p className="text-slate-500 text-xs font-semibold mt-1">Arrastra las tarjetas para avanzar de fase.</p>
           </div>
-          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-3 py-2 rounded-lg border border-slate-100 hidden sm:block">
-            Pipeline Activo: <span className="text-slate-900 ml-1">{leads.length}</span>
-          </div>
+        </div>
+
+        <div className="text-[10px] font-black uppercase tracking-widest text-[#006c4a] bg-emerald-500/10 px-3 py-2 rounded-xl border border-emerald-500/10 self-start md:self-auto shrink-0">
+          Fases de Venta Activas: <span className="text-slate-800 ml-1">{leads.length}</span>
         </div>
       </div>
 

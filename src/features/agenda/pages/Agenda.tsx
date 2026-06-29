@@ -128,83 +128,89 @@ export default function Agenda() {
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Agenda Global</h1>
-            <p className="text-slate-500 text-xs font-medium">Organización y seguimiento de tareas diarias.</p>
+    <div className="flex flex-col animate-in fade-in duration-500 max-w-[1600px] mx-auto w-full gap-6 pb-10">
+      
+      {/* Header Section (Stitch Redesign) */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+            <CalendarIcon size={36} className="text-[#006c4a]" />
           </div>
-          <div className="flex flex-wrap gap-3 items-center">
-            {/* Selector de Vista */}
-            <div className="flex bg-slate-100 rounded-xl p-1 shadow-inner border border-slate-200/50">
-              <button
-                onClick={() => setViewMode('calendar')}
-                className={`p-2 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold ${viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                title="Vista Calendario"
-              >
-                <CalendarIcon size={16} />
-                <span className="hidden sm:inline">Calendario</span>
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                title="Vista Listado"
-              >
-                <List size={16} />
-                <span className="hidden sm:inline">Listado</span>
-              </button>
-            </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Agenda Global</h2>
+            <p className="text-slate-500 text-xs font-semibold mt-1">Organización y seguimiento de tareas diarias.</p>
+          </div>
+        </div>
 
-            {/* Filtros de Estado */}
-            <div className="flex bg-slate-50 rounded-xl border border-slate-200 overflow-hidden p-1 shadow-inner">
-              <button
-                onClick={() => { setFilterStatus('pending'); setPage(1); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterStatus === 'pending' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Pendientes
-              </button>
-              <button
-                onClick={() => { setFilterStatus('completed'); setPage(1); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterStatus === 'completed' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Completadas
-              </button>
-              <button
-                onClick={() => { setFilterStatus('all'); setPage(1); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterStatus === 'all' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Todas
-              </button>
-            </div>
-
-            {/* Filtro por Asesor (solo Administradores) */}
-            {profile?.role === 'admin' && (
-              <select
-                value={selectedAgentId}
-                onChange={(e) => {
-                  setSelectedAgentId(e.target.value);
-                  setPage(1);
-                }}
-                className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-sm"
-              >
-                <option value="all">👥 Todos los asesores</option>
-                {agents.map((agent) => (
-                  <option key={agent.id} value={agent.id}>
-                    👤 {agent.full_name || agent.email}
-                  </option>
-                ))}
-              </select>
-            )}
-
+        <div className="flex flex-wrap gap-3 items-center self-start md:self-auto shrink-0">
+          {/* Selector de Vista (Stitch Redesign) */}
+          <div className="flex bg-slate-100 rounded-xl p-1 shadow-sm border border-slate-200/30">
             <button
-              onClick={() => { setSelectedCellDate(undefined); setIsCreateModalOpen(true); }}
-              className="px-5 py-2.5 bg-slate-900 text-white font-bold rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 text-xs"
+              onClick={() => setViewMode('calendar')}
+              className={`p-2 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold ${viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              title="Vista Calendario"
             >
-              <Plus size={18} /> Nueva Tarea
+              <CalendarIcon size={14} />
+              <span className="hidden sm:inline">Calendario</span>
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              title="Vista Listado"
+            >
+              <List size={14} />
+              <span className="hidden sm:inline">Listado</span>
             </button>
           </div>
+
+          {/* Filtros de Estado */}
+          <div className="flex bg-slate-100 rounded-xl p-1 shadow-sm border border-slate-200/30">
+            <button
+              onClick={() => { setFilterStatus('pending'); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterStatus === 'pending' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Pendientes
+            </button>
+            <button
+              onClick={() => { setFilterStatus('completed'); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterStatus === 'completed' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Completadas
+            </button>
+            <button
+              onClick={() => { setFilterStatus('all'); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterStatus === 'all' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Todas
+            </button>
+          </div>
+
+          {/* Filtro por Asesor (solo Administradores) */}
+          {profile?.role === 'admin' && (
+            <select
+              value={selectedAgentId}
+              onChange={(e) => {
+                setSelectedAgentId(e.target.value);
+                setPage(1);
+              }}
+              className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-sm"
+            >
+              <option value="all">👥 Todos los asesores</option>
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  👤 {agent.full_name || agent.email}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <button
+            onClick={() => { setSelectedCellDate(undefined); setIsCreateModalOpen(true); }}
+            className="bg-[#006c4a] hover:bg-[#005137] text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0"
+          >
+            <Plus size={16} />
+            <span>Nueva Tarea</span>
+          </button>
         </div>
       </div>
 

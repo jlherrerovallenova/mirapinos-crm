@@ -282,72 +282,89 @@ export default function Inventory() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Inventario de Viviendas</h1>
-            <p className="text-slate-500 text-xs font-medium">Gestión profesional del catálogo de activos.</p>
+    <div className="flex flex-col animate-in fade-in duration-500 max-w-[1600px] mx-auto w-full gap-6 pb-10">
+      
+      {/* Header Section (Stitch Redesign) */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+            <Home size={36} className="text-[#006c4a]" />
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto">
-            <button
-              onClick={handleExportPDF}
-              disabled={loading || isExporting || filteredProperties.length === 0}
-              className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 disabled:opacity-50"
-            >
-              {isExporting ? <Loader2 className="animate-spin text-emerald-600" size={16} /> : <FileText size={16} className="text-red-500" />}
-              {isExporting ? 'Generando...' : 'Exportar PDF'}
-            </button>
-            <button
-              onClick={() => { setEditingProperty(null); setIsModalOpen(true); }}
-              className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-lg transition-all active:scale-95 shadow-emerald-500/20"
-            >
-              <Plus size={16} /> Añadir Propiedad
-            </button>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Inventario de Viviendas</h2>
+            <p className="text-slate-500 text-xs font-semibold mt-1">Gestión profesional del catálogo de activos.</p>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4 items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-          <div className="relative flex-1 w-full group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={18} />
-            <input
-              type="text"
-              placeholder="Buscar por modelo o número de vivienda..."
-              className="w-full pl-12 pr-4 py-2 bg-white border border-slate-200 rounded-lg outline-none transition-all text-sm font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500/20 shadow-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="relative w-full md:w-52">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <select
-              value={modelFilter}
-              onChange={(e) => setModelFilter(e.target.value as PropertyModel | '')}
-              className="w-full pl-12 pr-8 py-2 bg-white border border-slate-200 rounded-lg outline-none appearance-none cursor-pointer text-sm font-bold text-slate-700 shadow-sm"
-            >
-              <option value="">Cualquier Modelo</option>
-              {PROPERTY_MODELS.map(model => (
-                <option key={model} value={model}>{model}</option>
-              ))}
-            </select>
-          </div>
-          <div className="relative w-full md:w-52">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <select
-              value={stateFilter}
-              onChange={(e) => setStateFilter(e.target.value as PropertyStatus | '')}
-              className="w-full pl-12 pr-8 py-2 bg-white border border-slate-200 rounded-lg outline-none appearance-none cursor-pointer text-sm font-bold text-slate-700 shadow-sm"
-            >
-              <option value="">Cualquier Estado</option>
-              {Object.values(PROPERTY_STATUS).map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
-          </div>
+        <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto self-start md:self-auto shrink-0">
+          <button
+            onClick={handleExportPDF}
+            disabled={loading || isExporting || filteredProperties.length === 0}
+            className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 disabled:opacity-50"
+          >
+            {isExporting ? <Loader2 className="animate-spin text-emerald-600" size={16} /> : <FileText size={16} className="text-red-500" />}
+            <span>{isExporting ? 'Generando...' : 'Exportar PDF'}</span>
+          </button>
+          <button
+            onClick={() => { setEditingProperty(null); setIsModalOpen(true); }}
+            className="bg-[#006c4a] hover:bg-[#005137] text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md active:scale-95 shadow-emerald-500/10"
+          >
+            <Plus size={16} />
+            <span>Añadir Propiedad</span>
+          </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden">
+      {/* Table Container (Stitch Design) */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+        <div className="px-6 py-4 bg-white border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Catálogo de Activos</span>
+          
+          <div className="flex flex-col md:flex-row items-center gap-3 flex-1 max-w-2xl justify-end w-full">
+            {/* Search Input (Stitch Design) */}
+            <div className="relative w-full md:flex-1 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl transition-all">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <input
+                type="text"
+                placeholder="Buscar por modelo o Nº de vivienda..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-12 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white transition-all text-xs font-semibold text-slate-700 placeholder-slate-400"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[9px] font-bold text-slate-400 bg-slate-200/80 px-1.5 py-0.5 rounded">⌘K</span>
+            </div>
+
+            {/* Model Filter */}
+            <div className="relative w-full md:w-44 shrink-0">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+              <select
+                value={modelFilter}
+                onChange={(e) => setModelFilter(e.target.value as PropertyModel | '')}
+                className="w-full pl-8 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl outline-none appearance-none cursor-pointer text-xs font-bold text-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                <option value="">Cualquier Modelo</option>
+                {PROPERTY_MODELS.map(model => (
+                  <option key={model} value={model}>{model}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* State Filter */}
+            <div className="relative w-full md:w-44 shrink-0">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+              <select
+                value={stateFilter}
+                onChange={(e) => setStateFilter(e.target.value as PropertyStatus | '')}
+                className="w-full pl-8 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl outline-none appearance-none cursor-pointer text-xs font-bold text-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                <option value="">Cualquier Estado</option>
+                {Object.values(PROPERTY_STATUS).map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 className="animate-spin text-emerald-600" size={40} />
@@ -358,13 +375,13 @@ export default function Inventory() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-24">Viv.</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-32">Modelo</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Parcela / Útil</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Hab / Baños</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-24">Nº</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-40">Modelo</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-56">Parcela / Sup. Útil</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-44">Hab / Baños</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-32">Precio</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-40">Estado</th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-right w-48">Acciones</th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest text-center w-48">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -402,7 +419,7 @@ export default function Inventory() {
                       }`}>{property.estado_vivienda || PROPERTY_STATUS.DISPONIBLE}</span>
                     </td>
                     <td className="px-6 py-5">
-                      <div className="flex justify-end gap-1 px-1">
+                      <div className="flex justify-center gap-1 px-1">
                         <button 
                           onClick={() => handleGeneratePaymentPlan(property)} 
                           className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" 

@@ -7,7 +7,8 @@ import {
   Calendar,
   Search,
   Plus,
-  ChevronRight
+  ChevronRight,
+  LayoutDashboard
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useDialog } from '../../../context/DialogContext';
@@ -177,15 +178,20 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+    <div className="flex flex-col animate-in fade-in duration-500 max-w-[1600px] mx-auto w-full gap-6 pb-10">
 
       {/* CABECERA CON CTAs RÁPIDOS */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-        <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Panel de Control</h2>
-          <p className="text-slate-500 text-sm mt-1">Hola {session?.user.email?.split('@')[0]}, bienvenido de nuevo. Aquí tienes un resumen de la actividad hoy.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+            <LayoutDashboard size={36} className="text-[#006c4a]" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Panel de Control</h2>
+            <p className="text-slate-500 text-xs font-semibold mt-1">Hola {session?.user.email?.split('@')[0]}, bienvenido de nuevo. Aquí tienes un resumen de la actividad hoy.</p>
+          </div>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
+        <div className="flex gap-3 w-full md:w-auto self-start md:self-auto">
           <button
             onClick={() => navigate('/agenda?create=true')}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-50 transition-colors shadow-sm"

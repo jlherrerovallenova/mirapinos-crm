@@ -21,7 +21,8 @@ import {
   Download,
   ArrowUpRight,
   Target,
-  FileText
+  FileText,
+  BarChart3
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -514,52 +515,57 @@ export default function Stats() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="flex flex-col animate-in fade-in duration-500 max-w-[1600px] mx-auto w-full gap-6 pb-10">
+      
+      {/* Header Section (Stitch Redesign) */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+            <BarChart3 size={36} className="text-[#006c4a]" />
+          </div>
           <div>
-            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Estadísticas y Análisis</h1>
-            <p className="text-slate-500 text-xs font-medium">Análisis de rendimiento y adquisición de clientes.</p>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Estadísticas y Análisis</h2>
+            <p className="text-slate-500 text-xs font-semibold mt-1">Análisis de rendimiento y adquisición de clientes.</p>
           </div>
-          
-          <div className="flex gap-2">
-            <select 
-              value={timeRange} 
-              onChange={(e) => setTimeRange(e.target.value as any)}
-              className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-sm"
-            >
-              <option value="6m">Últimos 6 meses</option>
-              <option value="12m">Últimos 12 meses</option>
-              <option value="all">Histórico total</option>
-            </select>
-            <button 
-              onClick={handleGenerateAcquisitionReport}
-              disabled={loading || rawLeads.length === 0}
-              className="bg-emerald-600 border border-emerald-600 px-3 py-2 rounded-xl text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-bold shadow-sm"
-              title="Generar y Descargar Informe de Adquisición PDF"
-            >
-              <FileText size={18} className="text-white" />
-              Informe Adquisición
-            </button>
-            <button 
-              onClick={handleDownloadPDF}
-              disabled={loading || rawLeads.length === 0}
-              className="bg-white border border-slate-200 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-bold shadow-sm"
-              title="Descargar Informe PDF (Horizontal)"
-            >
-              <FileText size={18} className="text-red-500" />
-              PDF
-            </button>
-            <button 
-              onClick={handleDownload}
-              disabled={loading || rawLeads.length === 0}
-              className="bg-white border border-slate-200 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-bold shadow-sm"
-              title="Descargar CSV"
-            >
-              <Download size={18} className="text-emerald-500" />
-              CSV
-            </button>
-          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto shrink-0">
+          <select 
+            value={timeRange} 
+            onChange={(e) => setTimeRange(e.target.value as any)}
+            className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-sm"
+          >
+            <option value="6m">Últimos 6 meses</option>
+            <option value="12m">Últimos 12 meses</option>
+            <option value="all">Histórico total</option>
+          </select>
+          <button 
+            onClick={handleGenerateAcquisitionReport}
+            disabled={loading || rawLeads.length === 0}
+            className="bg-[#006c4a] hover:bg-[#005137] text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            title="Generar y Descargar Informe de Adquisición PDF"
+          >
+            <FileText size={16} className="text-white" />
+            <span>Informe Adquisición</span>
+          </button>
+          <button 
+            onClick={handleDownloadPDF}
+            disabled={loading || rawLeads.length === 0}
+            className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            title="Descargar Informe PDF (Horizontal)"
+          >
+            <FileText size={16} className="text-red-500" />
+            <span>PDF</span>
+          </button>
+          <button 
+            onClick={handleDownload}
+            disabled={loading || rawLeads.length === 0}
+            className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            title="Descargar CSV"
+          >
+            <Download size={16} className="text-emerald-500" />
+            <span>CSV</span>
+          </button>
         </div>
       </div>
 

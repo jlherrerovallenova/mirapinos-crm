@@ -227,22 +227,27 @@ export default function Leads() {
   const totalPages = Math.ceil(totalLeads / ITEMS_PER_PAGE);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="flex flex-col animate-in fade-in duration-500 max-w-[1600px] mx-auto w-full gap-6 pb-10">
 
       {/* CABECERA DE LA PÁGINA */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div>
-          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Mis Clientes</h2>
-          <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">
-            <span className="inline-block w-2.5 h-2.5 bg-[#006c4a] rounded-full shrink-0"></span>
-            {totalLeads} prospectos activos en cartera
-          </p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+            <Users size={36} className="text-[#006c4a]" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Mis Clientes</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-lg font-black text-[#006c4a]">{totalLeads}</span>
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">prospectos activos en cartera</span>
+            </div>
+          </div>
         </div>
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="bg-[#006c4a] hover:bg-[#005137] text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0 flex-1 md:flex-none justify-center"
+          className="bg-[#006c4a] hover:bg-[#005137] text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0 flex-1 md:flex-none justify-center self-start md:self-auto"
         >
-          <UserPlus size={18} />
+          <UserPlus size={16} />
           Nuevo Cliente
         </button>
       </div>
@@ -272,8 +277,6 @@ export default function Leads() {
               <option value="contacted">Contactados</option>
               <option value="qualified">Cualificados</option>
               <option value="visiting">Visitando</option>
-              <option value="proposal">Propuesta</option>
-              <option value="negotiation">Negociación</option>
               <option value="closed">Venta realizada</option>
               <option value="lost">Perdidos</option>
             </select>
