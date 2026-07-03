@@ -69,6 +69,12 @@ export interface Database {
           property_id: string | null
           sale_status: string | null
           auth_user_id: string | null
+          feedback_sent: boolean | null
+          feedback_sent_at: string | null
+          feedback_rating: string | null
+          feedback_comment: string | null
+          feedback_responded_at: string | null
+          survey_data: Json | null
         }
         Insert: {
           id?: string
@@ -98,6 +104,12 @@ export interface Database {
           property_id?: string | null
           sale_status?: string | null
           auth_user_id?: string | null
+          feedback_sent?: boolean | null
+          feedback_sent_at?: string | null
+          feedback_rating?: string | null
+          feedback_comment?: string | null
+          feedback_responded_at?: string | null
+          survey_data?: Json | null
         }
         Update: {
           id?: string
@@ -128,6 +140,12 @@ export interface Database {
           property_id?: string | null
           sale_status?: string | null
           auth_user_id?: string | null
+          feedback_sent?: boolean | null
+          feedback_sent_at?: string | null
+          feedback_rating?: string | null
+          feedback_comment?: string | null
+          feedback_responded_at?: string | null
+          survey_data?: Json | null
         }
       }
       inventory: {

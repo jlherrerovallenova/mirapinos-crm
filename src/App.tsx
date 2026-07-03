@@ -20,6 +20,8 @@ const NewsletterEditor = lazy(() => import('./features/newsletters/pages/Newslet
 const Stats = lazy(() => import('./features/dashboard/pages/Stats'));
 const Sales = lazy(() => import('./features/sales/pages/Sales'));
 const ClientPortal = lazy(() => import('./features/client-portal/pages/ClientPortal'));
+const FeedbackResponse = lazy(() => import('./features/surveys/pages/FeedbackResponse'));
+const SurveyResults = lazy(() => import('./features/surveys/pages/SurveyResults'));
 
 const PageLoader = () => (
   <div className="w-full h-[60vh] flex flex-col items-center justify-center">
@@ -58,6 +60,7 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/feedback" element={<Suspense fallback={<PageLoader />}><FeedbackResponse /></Suspense>} />
       
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
@@ -72,6 +75,7 @@ function App() {
           <Route path="/newsletters/:id" element={<Suspense fallback={<PageLoader />}><NewsletterEditor /></Suspense>} />
           <Route path="/stats" element={<Suspense fallback={<PageLoader />}><Stats /></Suspense>} />
           <Route path="/sales" element={<Suspense fallback={<PageLoader />}><Sales /></Suspense>} />
+          <Route path="/surveys" element={<Suspense fallback={<PageLoader />}><SurveyResults /></Suspense>} />
         </Route>
       </Route>
 

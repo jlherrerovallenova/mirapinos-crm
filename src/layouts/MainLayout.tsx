@@ -22,7 +22,8 @@ import {
   AlertTriangle, 
   Clock,
   BarChart3,
-  BadgeDollarSign
+  BadgeDollarSign,
+  MessageSquareQuote
 } from 'lucide-react';
 import { useAgendaAlerts } from '../features/agenda/hooks/useAgendaAlerts';
 import { useEmailTrackingNotifications } from '../hooks/useEmailTrackingNotifications';
@@ -156,6 +157,7 @@ export default function MainLayout() {
           <SidebarItem to="/sales" icon={<BadgeDollarSign size={18} />} label="Operaciones" active={location.pathname === '/sales'} onClick={closeSidebar} />
 
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6">Gestión</p>
+          <SidebarItem to="/surveys" icon={<MessageSquareQuote size={18} />} label="Encuestas" active={location.pathname.startsWith('/surveys')} onClick={closeSidebar} />
           <SidebarItem to="/newsletters" icon={<Mail size={18} />} label="Newsletters" active={location.pathname.startsWith('/newsletters')} onClick={closeSidebar} />
           <SidebarItem to="/stats" icon={<BarChart3 size={18} />} label="Estadísticas" active={location.pathname === '/stats'} onClick={closeSidebar} />
           <SidebarItem to="/settings" icon={<Settings size={18} />} label="Configuración" active={location.pathname === '/settings'} onClick={closeSidebar} />

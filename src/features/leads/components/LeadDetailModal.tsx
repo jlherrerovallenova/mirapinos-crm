@@ -14,6 +14,7 @@ import EmailComposerModal from './EmailComposerModal';
 import { useDocuments } from '../../../hooks/useDocuments';
 import type { Database } from '../../../types/supabase';
 import SaleTab from './SaleTab';
+import FeedbackEmailModal from '../../surveys/components/FeedbackEmailModal';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 type AgendaItem = Database['public']['Tables']['agenda']['Row'];
@@ -48,7 +49,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const { session, profile } = useAuth();
   const { showAlert, showConfirm } = useDialog();
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'sale'>('info');
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'info' | 'agenda' | 'sale'>('info');
   const { data: rawDocs = [] } = useDocuments();
   const availableDocs = rawDocs.filter(d => d.url).map(d => ({ name: d.name, url: d.url!, category: d.category, metadata: d.metadata }));
 
@@ -461,15 +463,21 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   {/* ENCUESTA */}
                   <button
                     type="button"
-                    onClick={() => {
-                      setComposerConfig({
-                        method: 'email',
-                        subject: 'Encuesta de satisfacción - Mirapinos',
-                        message: `Hola ${formData.name.split(' ')[0]},\n\nNos gustaría conocer tu opinión sobre el servicio recibido. Por favor, dedica unos minutos a completar nuestra encuesta de satisfacción:\n\nhttps://forms.gle/mirapinos-satisfaccion\n\n¡Muchas gracias por tu tiempo!`
-                      });
-                      setIsEmailModalOpen(true);
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 border border-white/20 hover:bg-white/10 text-white rounded-lg transition-all text-xs font-semibold uppercase tracking-wider"
+                    onClick={() => setIsFeedbackModalOpen(true)}
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-all text-xs font-semibold uppercase tracking-wider ${
+                      (lead as any).feedback_rating
+                        ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                        : (lead as any).feedback_sent
+                          ? 'border-amber-500/50 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                          : 'border-white/20 hover:bg-white/10 text-white'
+                    }`}
+                    title={
+                      (lead as any).feedback_rating
+                        ? `Valoración recibida: ${(lead as any).feedback_rating}`
+                        : (lead as any).feedback_sent
+                          ? 'Encuesta enviada, pendiente de respuesta'
+                          : 'Enviar encuesta de satisfacción'
+                    }
                   >
                     <Send size={14} />
                     <span>Encuesta</span>
@@ -492,7 +500,17 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   : 'text-slate-500 border-transparent hover:text-[#006c4a]'
               }`}
             >
-              Información y Agenda
+              Información
+            </button>
+            <button
+              onClick={() => setActiveTab('agenda')}
+              className={`pb-2.5 font-bold border-b-2 text-sm transition-all ${
+                activeTab === 'agenda'
+                  ? 'text-[#006c4a] border-[#006c4a]'
+                  : 'text-slate-500 border-transparent hover:text-[#006c4a]'
+              }`}
+            >
+              Agenda y Acciones
             </button>
             <button
               onClick={() => {
@@ -518,10 +536,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           <div className="flex-1 overflow-y-auto lg:overflow-hidden bg-slate-50 flex flex-col min-h-0">
             {activeTab === 'info' ? (
               <div className="p-5 flex-1 overflow-y-auto custom-scrollbar space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-                  
-                  {/* COLUMNA IZQUIERDA: FORMULARIO */}
-                  <div className="lg:col-span-7 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                <div className="max-w-4xl mx-auto bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
                     <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-4 text-[#006c4a]">
                       Información Personal
                     </h3>
@@ -721,9 +736,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </button>
                     </div>
                   </div>
-
-                  {/* COLUMNA DERECHA: AGENDA */}
-                  <div className="lg:col-span-5 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col h-full">
+                </div>
+            ) : activeTab === 'agenda' ? (
+              <div className="p-5 flex-1 overflow-y-auto custom-scrollbar space-y-4">
+                <div className="max-w-4xl mx-auto bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col h-full min-h-[400px]">
                     <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-[#006c4a]">
                       <CalendarIcon size={16} /> Agenda de Acciones
                     </h3>
@@ -1072,9 +1088,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                         </div>
                       ))}
                     </div>
-                  </div>
                 </div>
-
               </div>
             ) : (
               <div className="p-6 overflow-y-auto flex-1">
@@ -1106,6 +1120,23 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           initialMethod={composerConfig.method}
           initialSubject={composerConfig.subject}
           initialMessage={composerConfig.message}
+        />
+      )}
+
+      {isFeedbackModalOpen && (
+        <FeedbackEmailModal
+          isOpen={isFeedbackModalOpen}
+          onClose={() => setIsFeedbackModalOpen(false)}
+          lead={{
+            id: lead.id,
+            name: lead.name,
+            email: lead.email,
+            source: lead.source
+          }}
+          onSuccess={() => {
+            fetchTasks();
+            onUpdate();
+          }}
         />
       )}
     </>

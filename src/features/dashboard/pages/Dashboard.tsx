@@ -18,6 +18,8 @@ import DashboardStats from '../components/DashboardStats';
 import DashboardAgenda from '../components/DashboardAgenda';
 import DashboardNoActivity from '../components/DashboardNoActivity';
 import DashboardEmailTracking from '../components/DashboardEmailTracking';
+import FeedbackEmailModal from '../../surveys/components/FeedbackEmailModal';
+import { FeedbackListItem } from '../../surveys/components/FeedbackListItem';
 
 // --- TIPOS ---
 type AgendaItem = Database['public']['Tables']['agenda']['Row'] & {
@@ -65,10 +67,13 @@ export default function Dashboard() {
 
   // Estado para la búsqueda del cliente y el tab activo
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'futuras' | 'caducadas' | 'sinActividad' | 'correos'>('futuras');
+  const [activeTab, setActiveTab] = useState<'futuras' | 'caducadas' | 'sinActividad' | 'correos' | 'feedback'>('futuras');
   const [noActivityLeads, setNoActivityLeads] = useState<RecentLead[]>([]);
   const [emails, setEmails] = useState<EmailTrackingItem[]>([]);
   const [emailFilter, setEmailFilter] = useState<'all' | 'unopened'>('all');
+  const [feedbackLeads, setFeedbackLeads] = useState<any[]>([]);
+  const [selectedLeadForFeedback, setSelectedLeadForFeedback] = useState<any | null>(null);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -97,6 +102,10 @@ export default function Dashboard() {
       // 4. CARGA DE SEGUIMIENTO DE EMAILS
       const emailData = await dashboardService.getEmailTracking(50);
       setEmails(emailData);
+
+      // 5. CARGA DE LEADS DE OPINIÓN/FEEDBACK
+      const feedbackData = await dashboardService.getFeedbackLeads();
+      setFeedbackLeads(feedbackData);
 
     } catch (error) {
       console.error("Error general cargando dashboard:", error);
@@ -271,7 +280,7 @@ export default function Dashboard() {
                     {noActivityLeads.length}
                   </span>
                 </button>
-                <button
+                 <button
                   onClick={() => setActiveTab('correos')}
                   className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
                     activeTab === 'correos'
@@ -284,6 +293,21 @@ export default function Dashboard() {
                     activeTab === 'correos' ? 'bg-white text-[#006c4a]' : 'bg-indigo-100 text-indigo-700 font-bold'
                   }`}>
                     {emails.length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('feedback')}
+                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
+                    activeTab === 'feedback'
+                      ? 'bg-[#006c4a] text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Opinión
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                    activeTab === 'feedback' ? 'bg-white text-[#006c4a]' : 'bg-emerald-50 text-emerald-700 font-bold'
+                  }`}>
+                    {feedbackLeads.length}
                   </span>
                 </button>
               </div>
@@ -326,6 +350,28 @@ export default function Dashboard() {
                 loading={loading}
                 emailFilter={emailFilter}
               />
+            ) : activeTab === 'feedback' ? (
+              feedbackLeads.length === 0 ? (
+                <div className="text-center py-12 text-slate-400">
+                  <p className="text-sm font-bold">¡Todo al día!</p>
+                  <p className="text-xs">No hay clientes esperando encuesta de opinión hoy.</p>
+                </div>
+              ) : (
+                <div className="px-6 py-2">
+                  {feedbackLeads
+                    .filter(l => l.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map(lead => (
+                      <FeedbackListItem
+                        key={lead.id}
+                        lead={lead}
+                        onSend={() => {
+                          setSelectedLeadForFeedback(lead);
+                          setIsFeedbackModalOpen(true);
+                        }}
+                      />
+                    ))}
+                </div>
+              )
             ) : (
               <DashboardAgenda
                 filteredAgenda={filteredAgenda}
@@ -400,6 +446,15 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {selectedLeadForFeedback && (
+        <FeedbackEmailModal
+          isOpen={isFeedbackModalOpen}
+          onClose={() => setIsFeedbackModalOpen(false)}
+          lead={selectedLeadForFeedback}
+          onSuccess={loadDashboardData}
+        />
+      )}
     </div>
   );
 }

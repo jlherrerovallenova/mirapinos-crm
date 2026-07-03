@@ -100,5 +100,38 @@ export const dashboardService = {
       .delete()
       .eq('id', id);
     if (error) throw error;
+  },
+
+  async getFeedbackLeads() {
+    let feedbackData: any[] = [];
+    const { data, error } = await supabase
+      .from('leads')
+      .select('id, name, email, source, created_at, status, feedback_sent, feedback_rating, feedback_responded_at')
+      .or('status.in.(visiting,closed),feedback_rating.not.is.null');
+    
+    if (!error && data) {
+      feedbackData = data;
+    } else {
+      const { data: fallbackData } = await supabase
+        .from('leads')
+        .select('id, name, email, source, created_at, status, feedback_sent')
+        .in('status', ['visiting', 'closed'])
+        .eq('feedback_sent', false);
+      feedbackData = fallbackData || [];
+    }
+    const now = new Date();
+    return feedbackData
+      .map((l: any) => {
+        const daysSinceCreated = Math.floor((now.getTime() - new Date(l.created_at).getTime()) / (1000 * 60 * 60 * 24));
+        return { ...l, daysSinceCreated };
+      })
+      .sort((a: any, b: any) => {
+        if (a.feedback_responded_at && b.feedback_responded_at) {
+          return new Date(b.feedback_responded_at).getTime() - new Date(a.feedback_responded_at).getTime();
+        }
+        if (a.feedback_responded_at) return -1;
+        if (b.feedback_responded_at) return 1;
+        return b.daysSinceCreated - a.daysSinceCreated;
+      });
   }
 };
