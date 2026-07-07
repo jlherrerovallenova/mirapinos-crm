@@ -543,12 +543,12 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           {/* CONTENIDO PRINCIPAL */}
           <div className="flex-1 overflow-y-auto lg:overflow-hidden bg-slate-50 flex flex-col min-h-0">
             {activeTab === 'info' ? (
-              <div className="p-5 flex-1 overflow-y-auto custom-scrollbar space-y-4">
-                <div className="max-w-4xl mx-auto bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-4 text-[#006c4a]">
+              <div className="p-4 flex-1 overflow-y-auto custom-scrollbar space-y-4">
+                <div className="max-w-4xl mx-auto bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-2 text-[#006c4a]">
                       Información Personal
                     </h3>
-                    <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                    <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                       
                       {/* NOMBRE COMPLETO */}
                       <div className="space-y-1">
@@ -675,7 +675,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </div>
 
                       {/* INTERESADO EN */}
-                      <div className="md:col-span-2 space-y-1">
+                      <div className="md:col-span-1 space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Interesado en</label>
                         <div className="flex flex-wrap gap-2 mt-0.5">
                           {INTERESTED_OPTIONS.map(option => {
@@ -702,10 +702,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                       </div>
 
                       {/* NEWSLETTERS */}
-                      <div className="md:col-span-2 flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/60 rounded-lg shadow-sm">
-                        <div className="flex items-center gap-3">
-                          <Mail className="text-[#006c4a]" size={18} />
-                          <span className="text-sm font-semibold text-slate-700">Suscrito a Newsletters</span>
+                      <div className="md:col-span-1 flex items-center justify-between p-2 bg-slate-50 border border-slate-200/60 rounded-lg shadow-sm self-end h-[34px]">
+                        <div className="flex items-center gap-2">
+                          <Mail className="text-[#006c4a]" size={16} />
+                          <span className="text-xs font-bold text-slate-700">Newsletters</span>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
@@ -714,7 +714,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                             checked={formData.is_subscribed}
                             onChange={(e) => setFormData({ ...formData, is_subscribed: e.target.checked })}
                           />
-                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006c4a]"></div>
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#006c4a]"></div>
                         </label>
                       </div>
 
@@ -733,7 +733,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     </form>
 
                     {/* GUARDAR CAMBIOS */}
-                    <div className="mt-3.5 pt-3.5 border-t border-slate-100 flex justify-end">
+                    <div className="mt-2 pt-2 border-t border-slate-100 flex justify-end">
                       <button
                         onClick={handleUpdate}
                         disabled={loading}
