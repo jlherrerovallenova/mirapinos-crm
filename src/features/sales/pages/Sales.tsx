@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BadgeDollarSign, Loader2, Calendar, FileText, CheckCircle2, User, Home, Search, AlertCircle, Map, Filter, TrendingUp } from 'lucide-react';
 import { useSales } from '../hooks/useSales';
 import SaleDocumentsModal from '../components/SaleDocumentsModal';
@@ -22,6 +23,7 @@ const STATUS_CONFIG: Record<string, { label: string, color: string, icon: React.
 };
 
 export default function Sales() {
+  const navigate = useNavigate();
   const { data: sales, isLoading } = useSales();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -168,13 +170,19 @@ export default function Sales() {
                       className="hover:bg-slate-50/40 transition-colors group cursor-pointer"
                       onClick={() => setSelectedSaleForDocs(sale as any)}
                     >
-                      <td className="px-6 py-3.5">
+                      <td 
+                        className="px-6 py-3.5"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/leads?open=${sale.lead.id}`);
+                        }}
+                      >
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200/50">
                             <User size={15} className="text-slate-500" />
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900 leading-tight group-hover:text-[#006c4a] transition-colors">{sale.lead.name}</p>
+                            <p className="font-bold text-slate-900 leading-tight hover:text-[#006c4a] hover:underline transition-colors">{sale.lead.name}</p>
                             <p className="text-[11px] text-slate-500 font-medium">{sale.lead.phone || sale.lead.email || 'Sin contacto'}</p>
                           </div>
                         </div>
