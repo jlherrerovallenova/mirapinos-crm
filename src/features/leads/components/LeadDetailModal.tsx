@@ -15,6 +15,7 @@ import { useDocuments } from '../../../hooks/useDocuments';
 import type { Database } from '../../../types/supabase';
 import SaleTab from './SaleTab';
 import FeedbackEmailModal from '../../surveys/components/FeedbackEmailModal';
+import { formatClientName } from '../../../utils/formatName';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 type AgendaItem = Database['public']['Tables']['agenda']['Row'];
@@ -344,9 +345,16 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const normalizedName = formatClientName(formData.name);
+    if (!normalizedName) {
+      showAlert({ title: 'Error', message: 'El nombre es obligatorio.' });
+      return;
+    }
+
     const { created_at_date, ...restData } = formData;
     const finalData = {
       ...restData,
+      name: normalizedName,
       created_at: new Date(`${created_at_date}T12:00:00Z`).toISOString()
     };
 
