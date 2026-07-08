@@ -62,6 +62,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   // Tareas de la agenda
   const [tasks, setTasks] = useState<ExtendedAgendaItem[]>([]);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [editingCommentTaskId, setEditingCommentTaskId] = useState<number | null>(null);
+  const [inlineCommentValue, setInlineCommentValue] = useState<string>('');
   const [emailTracking, setEmailTracking] = useState<EmailTrackingItem[]>([]);
 
   // Estado local para el formulario de nueva tarea
@@ -100,7 +102,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     title: '',
     date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
     time: getCurrentTime(),
-    call_attended: null as boolean | null
+    call_attended: null as boolean | null,
+    comments: ''
   });
 
   const [formData, setFormData] = useState({
@@ -218,6 +221,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     time?: string;
     call_attended?: boolean | null;
     completed?: boolean;
+    comments?: string;
   }
 
   const saveTask = async (overrides?: TaskOverrides) => {
@@ -226,6 +230,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     const taskDate = overrides?.date || newTask.date;
     const taskTime = overrides?.time || newTask.time;
     const taskAttended = overrides?.call_attended !== undefined ? overrides.call_attended : newTask.call_attended;
+    const taskComments = overrides?.comments !== undefined ? overrides.comments : newTask.comments;
     const isCompleted = overrides?.completed !== undefined ? overrides.completed : false;
 
     if (!taskTitle || !session?.user.id) return;
@@ -234,6 +239,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     const dateTimeString = `${taskDate}T${taskTime}:00`;
     const finalDate = new Date(dateTimeString).toISOString();
 
+    const isCommentable = ['Llamada', 'Visita', 'Reunión'].includes(taskType);
+
     const taskData = {
       title: taskTitle,
       type: taskType,
@@ -241,7 +248,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
       lead_id: lead.id,          // Vinculación clave con el cliente
       user_id: session.user.id,  // Vinculación clave con el usuario
       completed: isCompleted,
-      call_attended: taskType === 'Llamada' ? taskAttended : null
+      call_attended: taskType === 'Llamada' ? taskAttended : null,
+      comments: isCommentable && (editingTaskId || overrides?.comments) ? (taskComments || null) : null
     };
 
     setLoading(true);
@@ -253,7 +261,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           .update({
             title: taskData.title,
             type: taskData.type,
-            due_date: finalDate
+            due_date: finalDate,
+            comments: taskData.comments
           })
           .eq('id', editingTaskId);
         if (error) throw error;
@@ -271,7 +280,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
         const googleCalUrl = new URL('https://calendar.google.com/calendar/render');
         googleCalUrl.searchParams.append('action', 'TEMPLATE');
         googleCalUrl.searchParams.append('text', `[${taskData.type}] ${taskData.title}`);
-        googleCalUrl.searchParams.append('details', `Tarea añadida desde Mirapinos CRM.\nCliente vinculado: ${lead.name}`);
+        googleCalUrl.searchParams.append('details', `Tarea añadida desde Mirapinos CRM.\nCliente vinculado: ${lead.name}${taskData.comments ? `\nComentarios: ${taskData.comments}` : ''}`);
         googleCalUrl.searchParams.append('dates', `${formatGoogleDate(parsedDate)}/${formatGoogleDate(endParsedDate)}`);
 
         window.open(googleCalUrl.toString(), '_blank');
@@ -289,7 +298,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
         title: '', 
         date: new Date().toISOString().slice(0, 10), 
         time: getCurrentTime(), 
-        call_attended: null 
+        call_attended: null,
+        comments: ''
       });
       fetchTasks();
 
@@ -298,6 +308,21 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
       await showAlert({ title: 'Error', message: 'Error al guardar la tarea.' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveInlineComment = async (taskId: number) => {
+    try {
+      const { error } = await supabase
+        .from('agenda')
+        .update({ comments: inlineCommentValue || null })
+        .eq('id', taskId);
+      if (error) throw error;
+      setEditingCommentTaskId(null);
+      fetchTasks();
+    } catch (err) {
+      console.error("Error al guardar comentario inline:", err);
+      showAlert({ title: 'Error', message: 'No se pudo guardar el comentario.' });
     }
   };
 
@@ -325,7 +350,8 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
       title: task.title,
       date: dateObj.toISOString().slice(0, 10),
       time: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-      call_attended: task.call_attended ?? null
+      call_attended: task.call_attended ?? null,
+      comments: task.comments || ''
     });
   };
 
@@ -543,12 +569,12 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           {/* CONTENIDO PRINCIPAL */}
           <div className="flex-1 overflow-y-auto lg:overflow-hidden bg-slate-50 flex flex-col min-h-0">
             {activeTab === 'info' ? (
-              <div className="p-4 flex-1 overflow-y-auto custom-scrollbar space-y-4">
-                <div className="max-w-4xl mx-auto bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-2 text-[#006c4a]">
+              <div className="p-2 flex-1 overflow-y-auto custom-scrollbar space-y-3">
+                <div className="w-full bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] mb-1.5 text-[#006c4a]">
                       Información Personal
                     </h3>
-                    <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                    <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1.5">
                       
                       {/* NOMBRE COMPLETO */}
                       <div className="space-y-1">
@@ -733,11 +759,11 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                     </form>
 
                     {/* GUARDAR CAMBIOS */}
-                    <div className="mt-2 pt-2 border-t border-slate-100 flex justify-end">
+                    <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex justify-end">
                       <button
                         onClick={handleUpdate}
                         disabled={loading}
-                        className="bg-[#006c4a] hover:bg-[#006c4a]/90 text-white px-6 py-2 rounded-lg font-semibold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-md shadow-emerald-700/10"
+                        className="bg-[#006c4a] hover:bg-[#006c4a]/90 text-white px-5 py-1.5 rounded-lg font-semibold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-md shadow-emerald-700/10"
                       >
                         {loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                         Guardar cambios
@@ -746,14 +772,14 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                   </div>
                 </div>
             ) : activeTab === 'agenda' ? (
-              <div className="p-5 flex-1 overflow-y-auto custom-scrollbar space-y-4">
-                <div className="max-w-4xl mx-auto bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col h-full min-h-[400px]">
-                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-[#006c4a]">
+              <div className="p-2 flex-1 overflow-y-auto custom-scrollbar space-y-3">
+                <div className="w-full bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex flex-col h-full min-h-[400px]">
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] mb-2.5 flex items-center gap-2 text-[#006c4a]">
                       <CalendarIcon size={16} /> Agenda de Acciones
                     </h3>
 
                     {/* Formulario Inline Compacto */}
-                    <div className="grid grid-cols-1 gap-2 mb-3 bg-slate-50 p-3 rounded-xl border border-slate-200/60 shadow-sm">
+                    <div className="grid grid-cols-1 gap-1.5 mb-2 bg-slate-50 p-2 rounded-lg border border-slate-200/60 shadow-sm">
                       <div className="flex gap-2">
                         <select
                           value={newTask.type}
@@ -844,6 +870,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                                 date: new Date().toISOString().slice(0, 10),
                                 time: getCurrentTime(),
                                 call_attended: null,
+                                comments: ''
                               });
                             }}
                             className="bg-white border border-slate-200 px-2.5 rounded-lg hover:bg-slate-50 transition-colors text-slate-500"
@@ -863,6 +890,18 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                           {editingTaskId ? <Save size={18} /> : <Plus size={18} />}
                         </button>
                       </div>
+                      {editingTaskId && ['Llamada', 'Visita', 'Reunión'].includes(newTask.type) && (
+                        <div className="w-full">
+                          <textarea
+                            placeholder="Comentarios de la acción..."
+                            value={newTask.comments || ''}
+                            onChange={(e) => setNewTask({ ...newTask, comments: e.target.value })}
+                            maxLength={1000}
+                            rows={2}
+                            className="w-full bg-white border border-slate-200 rounded-lg text-xs p-2 outline-none focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 text-slate-900 placeholder-slate-400 resize-y min-h-[44px]"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Lista de Tareas */}
@@ -906,10 +945,10 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                                         : 'bg-white border-slate-200 hover:border-emerald-200 shadow-sm'
                                     }`}
                                   >
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-start gap-3 flex-1 min-w-0">
                                       <button
                                         onClick={() => toggleTaskStatus(task)}
-                                        className={`transition-transform hover:scale-110 ${
+                                        className={`transition-transform hover:scale-110 mt-0.5 ${
                                           task.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-[#006c4a]'
                                         }`}
                                       >
@@ -1069,6 +1108,74 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
                                             );
                                           })()}
                                         </p>
+
+                                        {/* COMENTARIO DIRECTO EN LA TARJETA */}
+                                        {['Llamada', 'Visita', 'Reunión'].includes(task.type) && (
+                                          <div className="mt-1.5 pt-1.5 border-t border-slate-100/60 w-full">
+                                            {editingCommentTaskId === task.id ? (
+                                              <div className="w-full mt-1 space-y-1">
+                                                <textarea
+                                                  placeholder="Escribe un comentario..."
+                                                  value={inlineCommentValue}
+                                                  onChange={(e) => setInlineCommentValue(e.target.value)}
+                                                  onKeyDown={async (e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                      e.preventDefault();
+                                                      await saveInlineComment(task.id);
+                                                    } else if (e.key === 'Escape') {
+                                                      setEditingCommentTaskId(null);
+                                                    }
+                                                  }}
+                                                  maxLength={1000}
+                                                  rows={2}
+                                                  className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:border-[#006c4a] focus:ring-1 focus:ring-[#006c4a]/20 text-slate-800 resize-y min-h-[44px]"
+                                                  autoFocus
+                                                />
+                                                <div className="flex justify-end gap-2">
+                                                  <button
+                                                    onClick={() => setEditingCommentTaskId(null)}
+                                                    className="text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors"
+                                                  >
+                                                    Cancelar
+                                                  </button>
+                                                  <button
+                                                    onClick={() => saveInlineComment(task.id)}
+                                                    className="text-[10px] font-bold text-[#006c4a] hover:text-[#005137] transition-colors"
+                                                  >
+                                                    Guardar
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <div className="flex items-center justify-between w-full">
+                                                {task.comments ? (
+                                                  <p 
+                                                    onClick={() => {
+                                                      setEditingCommentTaskId(task.id);
+                                                      setInlineCommentValue(task.comments || '');
+                                                    }}
+                                                    className="text-[11px] text-slate-600 bg-slate-50/80 px-2 py-1 rounded border border-slate-100 italic cursor-pointer hover:bg-slate-100 hover:border-slate-200 transition-all flex-1 pr-8 relative group/editcomment text-left"
+                                                    title="Haga clic para editar comentario"
+                                                  >
+                                                    <span className="font-semibold text-[9px] text-slate-400 not-italic block uppercase tracking-wider mb-0.5">Comentario:</span>
+                                                    {task.comments}
+                                                    <Pencil size={9} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 opacity-0 group-hover/editcomment:opacity-100 transition-opacity" />
+                                                  </p>
+                                                ) : (
+                                                  <button
+                                                    onClick={() => {
+                                                      setEditingCommentTaskId(task.id);
+                                                      setInlineCommentValue('');
+                                                    }}
+                                                    className="text-[10px] font-bold text-[#006c4a]/70 hover:text-[#006c4a] flex items-center gap-1 transition-colors mt-0.5"
+                                                  >
+                                                    <Plus size={10} /> Añadir comentario
+                                                  </button>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
 

@@ -9,26 +9,9 @@ export type EmailTrackingItem = any;
 
 export const dashboardService = {
   async getLeadsStats() {
-    const { data, error } = await supabase.from('leads').select('source');
+    const { data, error } = await supabase.rpc('get_dashboard_stats');
     if (error) throw error;
-
-    const total = data.length;
-    const sourceCounts: Record<string, number> = {};
-    data.forEach((lead: any) => {
-      const source = lead.source ? lead.source.trim() : 'Desconocido';
-      sourceCounts[source] = (sourceCounts[source] || 0) + 1;
-    });
-
-    const sortedSources = Object.entries(sourceCounts)
-      .map(([name, count]) => ({
-        name,
-        count,
-        percentage: total > 0 ? Math.round((count / total) * 100) : 0
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3);
-
-    return { totalLeads: total, topSources: sortedSources };
+    return data as { totalLeads: number; topSources: { name: string; count: number; percentage: number }[] };
   },
 
   async getRecentLeads(limit = 5) {
@@ -56,20 +39,9 @@ export const dashboardService = {
   },
 
   async getNoActivityLeads(limit = 50) {
-    const { data, error } = await supabase
-      .from('leads')
-      .select('id, name, source, created_at, agenda(id)');
+    const { data, error } = await supabase.rpc('get_no_activity_leads', { p_limit: limit });
     if (error) throw error;
-
-    return (data || [])
-      .filter((l: any) => !l.agenda || l.agenda.length === 0)
-      .map((l: any) => ({
-        id: l.id,
-        name: l.name,
-        source: l.source,
-        created_at: l.created_at
-      }))
-      .slice(0, limit);
+    return (data || []) as { id: string; name: string; source: string | null; created_at: string }[];
   },
 
   async getEmailTracking(limit = 50) {
