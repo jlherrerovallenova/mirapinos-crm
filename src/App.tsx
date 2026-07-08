@@ -1,6 +1,8 @@
 // src/App.tsx
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { supabase } from './lib/supabase';
+import { formatClientName } from './utils/formatName';
 import { useAuth } from './context/AuthContext';
 import { Loader2 } from 'lucide-react';
 import MainLayout from './layouts/MainLayout';
@@ -57,6 +59,41 @@ const ClientRoute = () => {
 };
 
 function App() {
+  const { session } = useAuth();
+
+  useEffect(() => {
+    if (!session) return;
+    const runNormalization = async () => {
+      const alreadyRun = localStorage.getItem('names_normalized_20260707');
+      if (alreadyRun === 'true') return;
+      try {
+        console.log('[Migration] Iniciando normalización de nombres...');
+        const { data: leads, error } = await supabase.from('leads').select('id, name');
+        if (error) throw error;
+        if (!leads || leads.length === 0) {
+          console.log('[Migration] No se encontraron leads.');
+          localStorage.setItem('names_normalized_20260707', 'true');
+          return;
+        }
+        let count = 0;
+        for (const lead of leads) {
+          if (!lead.name) continue;
+          const formatted = formatClientName(lead.name);
+          if (lead.name !== formatted) {
+            console.log(`[Migration] Normalizando: "${lead.name}" -> "${formatted}"`);
+            const { error: updateError } = await supabase.from('leads').update({ name: formatted }).eq('id', lead.id);
+            if (!updateError) count++;
+          }
+        }
+        console.log(`[Migration] Normalización completada. Se transformaron ${count} nombres.`);
+        localStorage.setItem('names_normalized_20260707', 'true');
+      } catch (err) {
+        console.error('[Migration] Error:', err);
+      }
+    };
+    runNormalization();
+  }, [session]);
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

@@ -84,7 +84,7 @@ export default function SurveyResults() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-300">
+    <div className="flex flex-col animate-in fade-in duration-500 max-w-[1600px] mx-auto w-full gap-6 pb-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-[#006c4a] text-xs font-bold uppercase tracking-wider mb-3">

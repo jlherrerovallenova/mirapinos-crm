@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { BadgeDollarSign, Loader2, Calendar, FileText, CheckCircle2, User, Home, Search, AlertCircle, Map, Filter, TrendingUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { BadgeDollarSign, Loader2, Calendar, FileText, CheckCircle2, User, Home, Search, AlertCircle, Map, Filter } from 'lucide-react';
 import { useSales } from '../hooks/useSales';
 import SaleDocumentsModal from '../components/SaleDocumentsModal';
 import type { Database } from '../../../types/supabase';
@@ -22,6 +23,7 @@ const STATUS_CONFIG: Record<string, { label: string, color: string, icon: React.
 };
 
 export default function Sales() {
+  const navigate = useNavigate();
   const { data: sales, isLoading } = useSales();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -50,13 +52,7 @@ export default function Sales() {
   const totalSalesValue = (sales || [])
     .reduce((acc, curr) => acc + (curr.sale_price || 0), 0);
 
-  const totalPipelineValue = (sales || [])
-    .filter(s => s.sale_status !== 'completada')
-    .reduce((acc, curr) => acc + (curr.sale_price || 0), 0);
 
-  const upcomingClosings = (sales || [])
-    .filter(s => s.sale_status === 'escrituracion' || s.sale_status === 'mensualidades')
-    .slice(0, 2);
 
   if (isLoading) {
     return (
@@ -168,13 +164,19 @@ export default function Sales() {
                       className="hover:bg-slate-50/40 transition-colors group cursor-pointer"
                       onClick={() => setSelectedSaleForDocs(sale as any)}
                     >
-                      <td className="px-6 py-3.5">
+                      <td 
+                        className="px-6 py-3.5"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/leads?open=${sale.lead.id}`);
+                        }}
+                      >
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200/50">
                             <User size={15} className="text-slate-500" />
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900 leading-tight group-hover:text-[#006c4a] transition-colors">{sale.lead.name}</p>
+                            <p className="font-bold text-slate-900 leading-tight hover:text-[#006c4a] hover:underline transition-colors">{sale.lead.name}</p>
                             <p className="text-[11px] text-slate-500 font-medium">{sale.lead.phone || sale.lead.email || 'Sin contacto'}</p>
                           </div>
                         </div>
@@ -232,106 +234,6 @@ export default function Sales() {
         <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
           <p>Mostrando {filteredSales.length} de {sales?.length || 0} operaciones</p>
         </div>
-      </div>
-
-      {/* Bento Dashboard Glimpse (Stitch Redesign Bottom Section) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
-        
-        {/* VALOR TOTAL PIPELINE */}
-        <div className="md:col-span-1 bg-[#131b2e] p-6 rounded-2xl text-white relative overflow-hidden group h-48 flex flex-col justify-between shadow-md">
-          <div className="relative z-10">
-            <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">VALOR TOTAL PIPELINE</p>
-            <h4 className="text-3xl font-black mt-2 text-white italic">
-              {totalPipelineValue > 0 ? formatCurrency(totalPipelineValue) : '4.8M €'}
-            </h4>
-          </div>
-          <div className="relative z-10 flex items-center gap-2">
-            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-bold">
-              +12.4% este mes
-            </span>
-          </div>
-          <TrendingUp className="absolute -right-4 -bottom-4 text-white/5 w-40 h-40 group-hover:scale-110 transition-transform duration-500 pointer-events-none" />
-        </div>
-
-        {/* PRÓXIMOS CIERRES */}
-        <div className="md:col-span-2 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex gap-6 items-center">
-          <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">Próximos Cierres</h4>
-            <p className="text-xs text-slate-500 font-medium mb-4">Operaciones en etapa final de firma.</p>
-            
-            <div className="space-y-3">
-              {upcomingClosings.length > 0 ? (
-                upcomingClosings.map((closing, idx) => (
-                  <div key={closing.id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-2 h-2 rounded-full ${idx === 0 ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                      <span className="text-xs font-bold text-slate-800 truncate">
-                        {closing.property.modelo === 'PARCELA' 
-                          ? `Parcela ${closing.property.numero_vivienda}` 
-                          : `Vivienda ${closing.property.numero_vivienda} (${closing.property.modelo})`
-                        } — {closing.lead.name}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-extrabold uppercase bg-emerald-50 border border-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full shrink-0">
-                      {closing.sale_status === 'escrituracion' ? 'Escrituración' : 'Mensualidades'}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <>
-                  <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-xs font-bold text-slate-800">Residencial Mirador - Casa 12 (Beni Gomez)</span>
-                    </div>
-                    <span className="text-[10px] font-extrabold uppercase bg-emerald-50 border border-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Viernes, 10:30h</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-amber-500" />
-                      <span className="text-xs font-bold text-slate-800">Parcela Sector C - Lote 04 (Ivan Alonso)</span>
-                    </div>
-                    <span className="text-[10px] font-extrabold uppercase bg-amber-50 border border-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Lunes, 09:00h</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* SVG Progress Circle (Stitch Design) */}
-          <div className="hidden lg:block w-32 h-32 relative shrink-0">
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-lg font-black text-slate-800">82%</span>
-              <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest">Meta</span>
-            </div>
-            <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 128 128">
-              {/* Background ring */}
-              <circle 
-                className="text-slate-100" 
-                cx="64" 
-                cy="64" 
-                fill="transparent" 
-                r="56" 
-                stroke="currentColor" 
-                strokeWidth="8"
-              />
-              {/* Progress ring */}
-              <circle 
-                className="text-emerald-600" 
-                cx="64" 
-                cy="64" 
-                fill="transparent" 
-                r="56" 
-                stroke="currentColor" 
-                strokeDasharray="351.85" 
-                strokeDashoffset="63.33" 
-                strokeWidth="8"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-        </div>
-
       </div>
 
       {selectedSaleForDocs && (

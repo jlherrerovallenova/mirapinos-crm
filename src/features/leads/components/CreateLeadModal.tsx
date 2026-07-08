@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { X, Loader2, AlertCircle, Sparkles, Phone, Compass, Globe, Smartphone, Users } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { leadsService } from '../api/leadsService';
+import { formatClientName } from '../../../utils/formatName';
 
 interface Props {
   isOpen: boolean;
@@ -98,7 +99,9 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
 
     try {
       if (!user?.id) throw new Error('Sesión de usuario no detectada.');
-      if (!formData.name.trim()) throw new Error('El nombre es obligatorio.');
+      
+      const normalizedName = formatClientName(formData.name);
+      if (!normalizedName) throw new Error('El nombre es obligatorio.');
 
       if (formData.email && !isValidEmail(formData.email)) {
         throw new Error('El formato del correo electrónico no es válido.');
@@ -114,7 +117,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }: Props) {
       }
 
       const payload: any = {
-        name: formData.name,
+        name: normalizedName,
         email: formData.email || null,
         phone: formData.phone || null,
         source: formData.source,
