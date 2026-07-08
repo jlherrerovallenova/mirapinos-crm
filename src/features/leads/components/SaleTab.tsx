@@ -304,6 +304,13 @@ export default function SaleTab({ lead, onLeadUpdate }: Props) {
       if (data) {
         setSale(data);
         await onLeadUpdate({ sale_status: 'reserva', property_id: personalForm.property_id });
+        
+        // Actualizar el estado de la vivienda en el inventario a RESERVADA
+        await supabase
+          .from('inventory')
+          .update({ estado_vivienda: 'RESERVADA' })
+          .eq('id', personalForm.property_id);
+          
         setShowDocModal(true); // Mostrar modal para descargar documentos
       }
     } catch (error: any) {
@@ -340,6 +347,23 @@ export default function SaleTab({ lead, onLeadUpdate }: Props) {
 
     await (supabase as any).from('sales').update({ sale_status: newStatus }).eq('id', sale.id);
     await onLeadUpdate({ sale_status: newStatus });
+    
+    // Actualizar el estado de la vivienda en el inventario según el nuevo estado de venta
+    const statusMapping: Record<string, string> = {
+      reserva: 'RESERVADA',
+      contrato: 'CONTRATO CV',
+      mensualidades: 'CONTRATO CV',
+      escrituracion: 'ESCRITURADA',
+      completada: 'ESCRITURADA'
+    };
+    const propertyStatus = statusMapping[newStatus];
+    if (propertyStatus && sale.property_id) {
+      await supabase
+        .from('inventory')
+        .update({ estado_vivienda: propertyStatus })
+        .eq('id', sale.property_id);
+    }
+    
     setSale(prev => prev ? { ...prev, sale_status: newStatus } : null);
     setLoading(false);
   }
