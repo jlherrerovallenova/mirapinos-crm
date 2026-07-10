@@ -63,12 +63,13 @@ export default function DashboardAgenda({
           <div key={task.id} className="p-4 hover:bg-slate-50 transition-all flex items-center justify-between group bg-white">
             <div className="flex items-center gap-4">
               <button
+                type="button"
                 onClick={() => onToggleTask(task)}
                 className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all shadow-sm bg-white border border-slate-200 text-slate-300 hover:border-emerald-400 hover:text-emerald-500"
               >
                 <Circle size={20} />
               </button>
-
+ 
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className={`text-xs font-medium uppercase tracking-wider px-2 py-0.5 rounded border ${
@@ -93,9 +94,10 @@ export default function DashboardAgenda({
                 </div>
               </div>
             </div>
-
+ 
             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
               <button
+                type="button"
                 onClick={() => onDeleteTask(task.id)}
                 className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
               >

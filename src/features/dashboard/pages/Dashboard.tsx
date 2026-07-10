@@ -133,20 +133,22 @@ export default function Dashboard() {
     return true;
   });
 
-  const filteredEmails = emails.filter(email => {
-    const matchesSearch =
-      email.leads?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.subject?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    if (!matchesSearch) return false;
+  const filteredEmails = emails
+    .filter(email => {
+      const matchesSearch =
+        email.leads?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        email.subject?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      if (!matchesSearch) return false;
 
-    if (emailFilter === 'unopened') {
-      const isOpened = email.status === 'opened' || email.opens_count > 0;
-      if (isOpened) return false;
-    }
+      if (emailFilter === 'unopened') {
+        const isOpened = email.status === 'opened' || email.opens_count > 0;
+        if (isOpened) return false;
+      }
 
-    return true;
-  });
+      return true;
+    })
+    .sort((a, b) => b.opens_count - a.opens_count);
 
   // Contador para el badge de tareas caducadas
   const overdueCount = agenda.filter(task => {
@@ -202,12 +204,14 @@ export default function Dashboard() {
         </div>
         <div className="flex gap-3 w-full md:w-auto self-start md:self-auto">
           <button
+            type="button"
             onClick={() => navigate('/agenda?create=true')}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
           >
             <Calendar size={16} className="text-slate-500" /> Nueva Tarea
           </button>
           <button
+            type="button"
             onClick={() => navigate('/leads?create=true')}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#006c4a] text-white font-bold text-xs rounded-lg shadow-md hover:bg-[#005137] transition-all"
           >
@@ -230,6 +234,7 @@ export default function Dashboard() {
                 <h3 className="font-bold text-slate-900 text-sm tracking-tight">Agenda de Acciones</h3>
               </div>
               <button
+                type="button"
                 onClick={() => navigate('/agenda')}
                 className="text-xs font-bold text-[#006c4a] hover:underline transition-all"
               >
@@ -241,6 +246,7 @@ export default function Dashboard() {
             <div className="p-1.5 bg-slate-50 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-100">
               <div className="flex bg-white p-1 rounded-lg border border-slate-200 w-fit">
                 <button
+                  type="button"
                   onClick={() => setActiveTab('futuras')}
                   className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
                     activeTab === 'futuras'
@@ -251,6 +257,7 @@ export default function Dashboard() {
                   Próximas
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('caducadas')}
                   className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
                     activeTab === 'caducadas'
@@ -266,6 +273,7 @@ export default function Dashboard() {
                   </span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('sinActividad')}
                   className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
                     activeTab === 'sinActividad'
@@ -281,6 +289,7 @@ export default function Dashboard() {
                   </span>
                 </button>
                  <button
+                  type="button"
                   onClick={() => setActiveTab('correos')}
                   className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
                     activeTab === 'correos'
@@ -296,6 +305,7 @@ export default function Dashboard() {
                   </span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('feedback')}
                   className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
                     activeTab === 'feedback'
@@ -390,7 +400,7 @@ export default function Dashboard() {
           <div className="bg-white rounded-xl shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)] border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-150 flex justify-between items-center bg-white">
               <h3 className="font-bold text-slate-950 text-sm tracking-tight">Clientes Recientes</h3>
-              <button onClick={() => navigate('/leads')} className="text-[10px] font-bold text-slate-500 hover:text-slate-900 uppercase tracking-wider">
+              <button type="button" onClick={() => navigate('/leads')} className="text-[10px] font-bold text-slate-500 hover:text-slate-900 uppercase tracking-wider">
                 VER TODOS
               </button>
             </div>
@@ -416,34 +426,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-[#131b2e] p-6 rounded-xl shadow-lg relative overflow-hidden text-white">
-            <div className="relative z-10">
-              <h3 className="font-bold text-sm tracking-tight text-white mb-4">Accesos Rápidos</h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => navigate('/leads')}
-                  className="w-full py-3 bg-[#006c4a] text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 hover:bg-[#005137] transition-all shadow-md"
-                >
-                  <Users size={14} /> Gestionar Clientes
-                </button>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => navigate('/inventory')}
-                    className="py-3 bg-white/10 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 hover:bg-white/20 transition-all border border-white/10"
-                  >
-                    <Clock size={14} /> Inventario
-                  </button>
-                  <button
-                    onClick={() => navigate('/agenda')}
-                    className="py-3 bg-white/10 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 hover:bg-white/20 transition-all border border-white/10"
-                  >
-                    <Calendar size={14} /> Agenda
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#006c4a]/20 rounded-full blur-3xl"></div>
-          </div>
+
         </div>
       </div>
 

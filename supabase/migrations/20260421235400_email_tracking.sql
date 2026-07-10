@@ -15,8 +15,30 @@ CREATE POLICY "Users can manage email tracking"
     ON email_tracking
     FOR ALL
     TO authenticated
-    USING (true)
-    WITH CHECK (true);
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.leads 
+            WHERE leads.id = email_tracking.lead_id AND (
+                leads.assigned_to = auth.uid() OR 
+                EXISTS (
+                    SELECT 1 FROM public.profiles 
+                    WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+                )
+            )
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.leads 
+            WHERE leads.id = lead_id AND (
+                leads.assigned_to = auth.uid() OR 
+                EXISTS (
+                    SELECT 1 FROM public.profiles 
+                    WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+                )
+            )
+        )
+    );
 
 -- Habilitar Supabase Realtime para esta tabla
 ALTER PUBLICATION supabase_realtime ADD TABLE email_tracking;
