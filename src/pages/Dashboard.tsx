@@ -387,112 +387,163 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* TARJETA UNIFICADA DE MÉTRICAS Y CAPTACIÓN */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        {/* Header */}
-        <div className="border-b border-slate-100 pb-4 mb-6">
-          <h3 className="text-base font-bold text-slate-900 tracking-tight">Resumen de Captación y Orígenes</h3>
-          <p className="text-slate-500 text-xs font-semibold mt-0.5">Distribución general de prospectos y rendimiento de canales de entrada.</p>
-        </div>
+      {/* FILA DE CAPTACIÓN Y ACCESOS RÁPIDOS */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+        {/* TARJETA UNIFICADA DE MÉTRICAS Y CAPTACIÓN */}
+        <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          {/* Header */}
+          <div className="border-b border-slate-100 pb-4 mb-6">
+            <h3 className="text-base font-bold text-slate-900 tracking-tight">Resumen de Captación y Orígenes</h3>
+            <p className="text-slate-500 text-xs font-semibold mt-0.5">Distribución general de prospectos y rendimiento de canales de entrada.</p>
+          </div>
 
-        {/* 3 Columns Flex Layout */}
-        <div className="flex flex-col lg:flex-row gap-8 lg:items-center">
-          {/* COLUMNA 1: Total Clientes & Donut Chart */}
-          <div className="w-full lg:w-[220px] shrink-0 flex flex-col items-center lg:items-start gap-4 lg:border-r border-slate-100 pr-0 lg:pr-8">
-            <div>
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest text-center lg:text-left">Clientes Registrados</p>
-              <div className="flex items-baseline gap-2 mt-1 justify-center lg:justify-start">
-                <span className="text-4xl font-extrabold text-slate-800 tracking-tight">{stats.totalLeads}</span>
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center shrink-0">
-                  <ArrowUpRight size={12} className="mr-0.5" /> +12%
-                </span>
+          {/* 3 Columns Flex Layout */}
+          <div className="flex flex-col lg:flex-row gap-8 lg:items-center">
+            {/* COLUMNA 1: Total Clientes & Donut Chart */}
+            <div className="w-full lg:w-[220px] shrink-0 flex flex-col items-center lg:items-start gap-4 lg:border-r border-slate-100 pr-0 lg:pr-8">
+              <div>
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest text-center lg:text-left">Clientes Registrados</p>
+                <div className="flex items-baseline gap-2 mt-1 justify-center lg:justify-start">
+                  <span className="text-4xl font-extrabold text-slate-800 tracking-tight">{stats.totalLeads}</span>
+                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center shrink-0">
+                    <ArrowUpRight size={12} className="mr-0.5" /> +12%
+                  </span>
+                </div>
               </div>
-            </div>
 
-            {/* Donut Chart */}
-            <div className="relative w-[130px] h-[130px] shrink-0 mx-auto lg:mx-0 mt-2">
-              <svg width="130" height="130" viewBox="0 0 100 100" className="transform -rotate-90">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="36"
-                  fill="transparent"
-                  stroke="#f8fafc"
-                  strokeWidth="10"
-                />
-                {donutSegments.map((segment, index) => (
+              {/* Donut Chart */}
+              <div className="relative w-[130px] h-[130px] shrink-0 mx-auto lg:mx-0 mt-2">
+                <svg width="130" height="130" viewBox="0 0 100 100" className="transform -rotate-90">
                   <circle
-                    key={index}
                     cx="50"
                     cy="50"
                     r="36"
                     fill="transparent"
-                    stroke={segment.hex}
+                    stroke="#f8fafc"
                     strokeWidth="10"
-                    strokeDasharray={`${segment.strokeLength} ${2 * Math.PI * 36 - segment.strokeLength}`}
-                    strokeDashoffset={-segment.strokeOffset}
-                    strokeLinecap={segment.percentage === 100 ? 'butt' : 'round'}
-                    className="transition-all duration-500 ease-out"
                   />
-                ))}
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-2xl font-black text-slate-800 leading-none">{stats.totalLeads}</span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">leads</span>
+                  {donutSegments.map((segment, index) => (
+                    <circle
+                      key={index}
+                      cx="50"
+                      cy="50"
+                      r="36"
+                      fill="transparent"
+                      stroke={segment.hex}
+                      strokeWidth="10"
+                      strokeDasharray={`${segment.strokeLength} ${2 * Math.PI * 36 - segment.strokeLength}`}
+                      strokeDashoffset={-segment.strokeOffset}
+                      strokeLinecap={segment.percentage === 100 ? 'butt' : 'round'}
+                      className="transition-all duration-500 ease-out"
+                    />
+                  ))}
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-2xl font-black text-slate-800 leading-none">{stats.totalLeads}</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">leads</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* COLUMNA 2: Fuentes Principales (1 a 4) */}
-          <div className="flex-1 space-y-4 w-full">
-            {mergedSources.slice(0, 4).map((source) => {
-              const iconConfig = getSourceIconConfig(source.name);
-              return (
-                <div key={source.name} className="flex items-center gap-3 p-2 hover:bg-slate-50/50 rounded-xl transition-all duration-200">
-                  <div className={`p-2 rounded-lg shrink-0 ${iconConfig.bg} ${iconConfig.color}`}>
-                    {iconConfig.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-1">
-                      <span className="text-xs font-bold text-slate-700 truncate">{source.name}</span>
-                      <span className="text-xs font-black text-slate-800 ml-2">{source.percentage}% <span className="text-[10px] text-slate-400 font-medium">({source.count})</span></span>
+            {/* COLUMNA 2: Fuentes Principales (1 a 4) */}
+            <div className="flex-1 space-y-4 w-full">
+              {mergedSources.slice(0, 4).map((source) => {
+                const iconConfig = getSourceIconConfig(source.name);
+                return (
+                  <div key={source.name} className="flex items-center gap-3 p-2 hover:bg-slate-50/50 rounded-xl transition-all duration-200">
+                    <div className={`p-2 rounded-lg shrink-0 ${iconConfig.bg} ${iconConfig.color}`}>
+                      {iconConfig.icon}
                     </div>
-                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${iconConfig.barColor}`}
-                        style={{ width: `${source.percentage}%` }}
-                      />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-xs font-bold text-slate-700 truncate">{source.name}</span>
+                        <span className="text-xs font-black text-slate-800 ml-2">{source.percentage}% <span className="text-[10px] text-slate-400 font-medium">({source.count})</span></span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${iconConfig.barColor}`}
+                          style={{ width: `${source.percentage}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
 
-          {/* COLUMNA 3: Fuentes Secundarias (5 a 8+) */}
-          <div className="flex-1 space-y-4 w-full">
-            {mergedSources.slice(4).map((source) => {
-              const iconConfig = getSourceIconConfig(source.name);
-              return (
-                <div key={source.name} className="flex items-center gap-3 p-2 hover:bg-slate-50/50 rounded-xl transition-all duration-200">
-                  <div className={`p-2 rounded-lg shrink-0 ${iconConfig.bg} ${iconConfig.color}`}>
-                    {iconConfig.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-1">
-                      <span className="text-xs font-bold text-slate-700 truncate">{source.name}</span>
-                      <span className="text-xs font-black text-slate-800 ml-2">{source.percentage}% <span className="text-[10px] text-slate-400 font-medium">({source.count})</span></span>
+            {/* COLUMNA 3: Fuentes Secundarias (5 a 8+) */}
+            <div className="flex-1 space-y-4 w-full">
+              {mergedSources.slice(4).map((source) => {
+                const iconConfig = getSourceIconConfig(source.name);
+                return (
+                  <div key={source.name} className="flex items-center gap-3 p-2 hover:bg-slate-50/50 rounded-xl transition-all duration-200">
+                    <div className={`p-2 rounded-lg shrink-0 ${iconConfig.bg} ${iconConfig.color}`}>
+                      {iconConfig.icon}
                     </div>
-                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${iconConfig.barColor}`}
-                        style={{ width: `${source.percentage}%` }}
-                      />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-xs font-bold text-slate-700 truncate">{source.name}</span>
+                        <span className="text-xs font-black text-slate-800 ml-2">{source.percentage}% <span className="text-[10px] text-slate-400 font-medium">({source.count})</span></span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${iconConfig.barColor}`}
+                          style={{ width: `${source.percentage}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* WIDGET: ACCESOS RÁPIDOS */}
+        <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
+          <div className="p-4 border-b border-slate-150 bg-white">
+            <h3 className="font-bold text-slate-900 text-sm tracking-tight">Accesos Rápidos</h3>
+          </div>
+          <div className="p-4 grid grid-cols-2 gap-3 flex-1 items-center">
+            <button
+              onClick={() => navigate('/leads?create=true')}
+              className="flex flex-col items-center justify-center p-3 bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 hover:border-emerald-200 rounded-xl transition-all duration-200 group text-center gap-2 active:scale-95 h-full min-h-[90px]"
+            >
+              <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-lg group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                <Users size={18} />
+              </div>
+              <span className="text-[11px] font-bold text-slate-700">Nuevo Cliente</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/agenda?create=true')}
+              className="flex flex-col items-center justify-center p-3 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 hover:border-blue-200 rounded-xl transition-all duration-200 group text-center gap-2 active:scale-95 h-full min-h-[90px]"
+            >
+              <div className="p-2 bg-blue-500/10 text-blue-600 rounded-lg group-hover:bg-blue-500 group-hover:text-white transition-all">
+                <Calendar size={18} />
+              </div>
+              <span className="text-[11px] font-bold text-slate-700">Nueva Tarea</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/inventory')}
+              className="flex flex-col items-center justify-center p-3 bg-purple-50/50 hover:bg-purple-50 border border-purple-100 hover:border-purple-200 rounded-xl transition-all duration-200 group text-center gap-2 active:scale-95 h-full min-h-[90px]"
+            >
+              <div className="p-2 bg-purple-500/10 text-purple-600 rounded-lg group-hover:bg-purple-500 group-hover:text-white transition-all">
+                <Globe size={18} />
+              </div>
+              <span className="text-[11px] font-bold text-slate-700">Ver Catálogo</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/stats')}
+              className="flex flex-col items-center justify-center p-3 bg-amber-50/50 hover:bg-amber-50 border border-amber-100 hover:border-amber-200 rounded-xl transition-all duration-200 group text-center gap-2 active:scale-95 h-full min-h-[90px]"
+            >
+              <div className="p-2 bg-amber-500/10 text-amber-600 rounded-lg group-hover:bg-amber-500 group-hover:text-white transition-all">
+                <ArrowUpRight size={18} />
+              </div>
+              <span className="text-[11px] font-bold text-slate-700">Estadísticas</span>
+            </button>
           </div>
         </div>
       </div>
@@ -592,56 +643,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* BARRA LATERAL: LEADS Y ACCESOS */}
+        {/* BARRA LATERAL: LEADS */}
         <div className="space-y-6">
-          {/* WIDGET: ACCESOS RÁPIDOS */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-4 border-b border-slate-150 bg-white">
-              <h3 className="font-bold text-slate-900 text-sm tracking-tight">Accesos Rápidos</h3>
-            </div>
-            <div className="p-4 grid grid-cols-2 gap-3">
-              <button
-                onClick={() => navigate('/leads?create=true')}
-                className="flex flex-col items-center justify-center p-4 bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 hover:border-emerald-200 rounded-xl transition-all duration-200 group text-center gap-2 active:scale-95"
-              >
-                <div className="p-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                  <Users size={20} />
-                </div>
-                <span className="text-[11px] font-bold text-slate-700">Nuevo Cliente</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/agenda?create=true')}
-                className="flex flex-col items-center justify-center p-4 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 hover:border-blue-200 rounded-xl transition-all duration-200 group text-center gap-2 active:scale-95"
-              >
-                <div className="p-2.5 bg-blue-500/10 text-blue-600 rounded-lg group-hover:bg-blue-500 group-hover:text-white transition-all">
-                  <Calendar size={20} />
-                </div>
-                <span className="text-[11px] font-bold text-slate-700">Nueva Tarea</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/inventory')}
-                className="flex flex-col items-center justify-center p-4 bg-purple-50/50 hover:bg-purple-50 border border-purple-100 hover:border-purple-200 rounded-xl transition-all duration-200 group text-center gap-2 active:scale-95"
-              >
-                <div className="p-2.5 bg-purple-500/10 text-purple-600 rounded-lg group-hover:bg-purple-500 group-hover:text-white transition-all">
-                  <Globe size={20} />
-                </div>
-                <span className="text-[11px] font-bold text-slate-700">Ver Catálogo</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/stats')}
-                className="flex flex-col items-center justify-center p-4 bg-amber-50/50 hover:bg-amber-50 border border-amber-100 hover:border-amber-200 rounded-xl transition-all duration-200 group text-center gap-2 active:scale-95"
-              >
-                <div className="p-2.5 bg-amber-500/10 text-amber-600 rounded-lg group-hover:bg-amber-500 group-hover:text-white transition-all">
-                  <ArrowUpRight size={20} />
-                </div>
-                <span className="text-[11px] font-bold text-slate-700">Estadísticas</span>
-              </button>
-            </div>
-          </div>
-
           <div className="bg-white rounded-xl shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)] border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-150 flex justify-between items-center bg-white">
               <h3 className="font-bold text-slate-955 text-sm tracking-tight">Clientes Recientes</h3>
@@ -670,8 +673,6 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-
-
         </div>
       </div>
     </div>
