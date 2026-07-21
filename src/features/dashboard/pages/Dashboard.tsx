@@ -1,5 +1,5 @@
 // src/pages/Dashboard.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -18,6 +18,7 @@ import DashboardStats from '../components/DashboardStats';
 import DashboardAgenda from '../components/DashboardAgenda';
 import DashboardNoActivity from '../components/DashboardNoActivity';
 import DashboardEmailTracking from '../components/DashboardEmailTracking';
+import { TabButton } from '../components/TabButton';
 import FeedbackEmailModal from '../../surveys/components/FeedbackEmailModal';
 import { FeedbackListItem } from '../../surveys/components/FeedbackListItem';
 
@@ -67,13 +68,32 @@ export default function Dashboard() {
 
   // Estado para la búsqueda del cliente y el tab activo
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'futuras' | 'caducadas' | 'sinActividad' | 'correos' | 'feedback'>('futuras');
+  const [activeTab, setActiveTab] = useState<'hoy' | 'caducadas' | 'semana' | 'correos' | 'feedback'>('hoy');
   const [noActivityLeads, setNoActivityLeads] = useState<RecentLead[]>([]);
   const [emails, setEmails] = useState<EmailTrackingItem[]>([]);
   const [emailFilter, setEmailFilter] = useState<'all' | 'unopened'>('all');
   const [feedbackLeads, setFeedbackLeads] = useState<any[]>([]);
   const [selectedLeadForFeedback, setSelectedLeadForFeedback] = useState<any | null>(null);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+
+  const dateBoundaries = useMemo(() => {
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    const dayOfWeek = now.getDay();
+    const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+    const endSunday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilSunday, 23, 59, 59, 999);
+
+    const next7Days = new Date(startToday.getTime() + 7 * 24 * 60 * 60 * 1000 - 1);
+    const endW = endSunday.getTime() > next7Days.getTime() ? endSunday : next7Days;
+
+    return {
+      startTodayTime: startToday.getTime(),
+      endTodayTime: endToday.getTime(),
+      endWeekTime: endW.getTime(),
+    };
+  }, []);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -123,12 +143,18 @@ export default function Dashboard() {
 
     if (!matchesSearch) return false;
 
-    // 2. Filtro por Tab (Caducadas vs Futuras)
+    // 2. Filtro por Tab (Hoy vs Caducadas vs Semana)
     const taskDate = new Date(task.due_date).getTime();
-    const isOverdue = taskDate < new Date().getTime();
 
-    if (activeTab === 'caducadas' && !isOverdue) return false;
-    if (activeTab === 'futuras' && isOverdue) return false;
+    if (activeTab === 'hoy') {
+      return taskDate >= dateBoundaries.startTodayTime && taskDate <= dateBoundaries.endTodayTime;
+    }
+    if (activeTab === 'caducadas') {
+      return taskDate < dateBoundaries.startTodayTime;
+    }
+    if (activeTab === 'semana') {
+      return taskDate >= dateBoundaries.startTodayTime && taskDate <= dateBoundaries.endWeekTime;
+    }
 
     return true;
   });
@@ -150,11 +176,30 @@ export default function Dashboard() {
     })
     .sort((a, b) => b.opens_count - a.opens_count);
 
-  // Contador para el badge de tareas caducadas
-  const overdueCount = agenda.filter(task => {
+  const todayCount = useMemo(() => agenda.filter(task => {
+    if (task.completed) return false;
     const taskDate = new Date(task.due_date).getTime();
-    return taskDate < new Date().getTime();
-  }).length;
+    return taskDate >= dateBoundaries.startTodayTime && taskDate <= dateBoundaries.endTodayTime;
+  }).length, [agenda, dateBoundaries]);
+
+  const overdueCount = useMemo(() => agenda.filter(task => {
+    if (task.completed) return false;
+    const taskDate = new Date(task.due_date).getTime();
+    return taskDate < dateBoundaries.startTodayTime;
+  }).length, [agenda, dateBoundaries]);
+
+  const weekCount = useMemo(() => agenda.filter(task => {
+    if (task.completed) return false;
+    const taskDate = new Date(task.due_date).getTime();
+    return taskDate >= dateBoundaries.startTodayTime && taskDate <= dateBoundaries.endWeekTime;
+  }).length, [agenda, dateBoundaries]);
+
+  const unopenedEmailsCount = useMemo(() => {
+    return emails.filter(email => {
+      const isOpened = email.status === 'opened' || email.opens_count > 0;
+      return !isOpened;
+    }).length;
+  }, [emails]);
 
   // --- ACCIONES DE LA AGENDA ---
   const toggleTask = async (task: AgendaItem) => {
@@ -245,81 +290,39 @@ export default function Dashboard() {
             {/* PESTAÑAS (TABS) */}
             <div className="p-1.5 bg-slate-50 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-100">
               <div className="flex bg-white p-1 rounded-lg border border-slate-200 w-fit">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('futuras')}
-                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
-                    activeTab === 'futuras'
-                      ? 'bg-[#006c4a] text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Próximas
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('caducadas')}
-                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
-                    activeTab === 'caducadas'
-                      ? 'bg-[#006c4a] text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Caducadas
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                    activeTab === 'caducadas' ? 'bg-white text-[#006c4a]' : 'bg-red-50 text-red-600 font-bold'
-                  }`}>
-                    {overdueCount}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('sinActividad')}
-                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
-                    activeTab === 'sinActividad'
-                      ? 'bg-[#006c4a] text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Sin Actividad
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                    activeTab === 'sinActividad' ? 'bg-white text-[#006c4a]' : 'bg-slate-100 text-slate-600 font-bold'
-                  }`}>
-                    {noActivityLeads.length}
-                  </span>
-                </button>
-                 <button
-                  type="button"
-                  onClick={() => setActiveTab('correos')}
-                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
-                    activeTab === 'correos'
-                      ? 'bg-[#006c4a] text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Correos
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                    activeTab === 'correos' ? 'bg-white text-[#006c4a]' : 'bg-indigo-100 text-indigo-700 font-bold'
-                  }`}>
-                    {emails.length}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('feedback')}
-                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
-                    activeTab === 'feedback'
-                      ? 'bg-[#006c4a] text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Opinión
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                    activeTab === 'feedback' ? 'bg-white text-[#006c4a]' : 'bg-emerald-50 text-emerald-700 font-bold'
-                  }`}>
-                    {feedbackLeads.length}
-                  </span>
-                </button>
+                <TabButton 
+                  label="Hoy" 
+                  count={todayCount > 0 ? todayCount : undefined} 
+                  active={activeTab === 'hoy'} 
+                  onClick={() => setActiveTab('hoy')} 
+                />
+                <TabButton 
+                  label="Caducadas" 
+                  count={overdueCount} 
+                  active={activeTab === 'caducadas'} 
+                  onClick={() => setActiveTab('caducadas')} 
+                  variant="overdue" 
+                />
+                <TabButton 
+                  label="Esta semana" 
+                  count={weekCount > 0 ? weekCount : undefined} 
+                  active={activeTab === 'semana'} 
+                  onClick={() => setActiveTab('semana')} 
+                />
+                <TabButton 
+                  label="Correos" 
+                  count={unopenedEmailsCount} 
+                  active={activeTab === 'correos'} 
+                  onClick={() => setActiveTab('correos')} 
+                  variant="primary" 
+                />
+                <TabButton 
+                  label="Opinión" 
+                  count={feedbackLeads.length} 
+                  active={activeTab === 'feedback'} 
+                  onClick={() => setActiveTab('feedback')} 
+                  variant="primary" 
+                />
               </div>
               <div className="flex items-center gap-2 w-full md:w-auto">
                 {activeTab === 'correos' && (
@@ -347,13 +350,7 @@ export default function Dashboard() {
           </div>
 
           <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[500px]">
-            {activeTab === 'sinActividad' ? (
-              <DashboardNoActivity
-                noActivityLeads={noActivityLeads}
-                searchQuery={searchQuery}
-                loading={loading}
-              />
-            ) : activeTab === 'correos' ? (
+            {activeTab === 'correos' ? (
               <DashboardEmailTracking
                 filteredEmails={filteredEmails}
                 searchQuery={searchQuery}
@@ -387,7 +384,7 @@ export default function Dashboard() {
                 filteredAgenda={filteredAgenda}
                 searchQuery={searchQuery}
                 loading={loading}
-                activeTab={activeTab}
+                activeTab={activeTab as 'hoy' | 'caducadas' | 'semana'}
                 onToggleTask={toggleTask}
                 onDeleteTask={deleteTask}
               />
