@@ -1,7 +1,7 @@
 // src/pages/Pipeline.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader as Loader2, Globe, Smartphone, Users, Circle as HelpCircle } from 'lucide-react';
+import { Loader as Loader2, Globe, Smartphone, Users, Circle as HelpCircle, TrendingUp } from 'lucide-react';
 import { useLeads, useUpdateLead } from '../hooks/useLeads';
 import type { Database } from '../types/supabase';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
@@ -95,12 +95,18 @@ export default function Pipeline() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] animate-in fade-in duration-500 overflow-hidden">
-      <div className="flex justify-between items-end mb-6 shrink-0">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Fases de Venta</h1>
-          <p className="text-slate-500 text-sm mt-1">Arrastra las tarjetas para avanzar de fase.</p>
+      {/* CABECERA DE PÁGINA */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+            <TrendingUp size={36} className="text-[#006c4a]" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Embudo de Ventas</h2>
+            <p className="text-slate-500 text-xs font-semibold mt-1">Arrastra las tarjetas para avanzar de fase e impulsar tus conversiones.</p>
+          </div>
         </div>
-        <div className="text-sm font-bold text-slate-500 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <div className="text-xs font-bold text-slate-500 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm self-start md:self-auto">
           Total Activos: <span className="text-slate-900">{leads.length}</span>
         </div>
       </div>

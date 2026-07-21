@@ -110,17 +110,22 @@ export default function Agenda() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
-      {/* Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <p className="text-emerald-600 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">Organización</p>
-          <h1 className="text-3xl font-display font-bold text-slate-900">Agenda Global</h1>
+      {/* CABECERA DE PÁGINA */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+            <CalendarIcon size={36} className="text-[#006c4a]" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Agenda Global</h2>
+            <p className="text-slate-500 text-xs font-semibold mt-1">Planificación y seguimiento de visitas, llamadas y tareas comerciales.</p>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <div className="flex bg-white rounded-xl border border-slate-200 overflow-hidden p-1">
+        <div className="flex gap-3 w-full md:w-auto self-start md:self-auto justify-end">
+          <div className="flex bg-white rounded-xl border border-slate-200 overflow-hidden p-1 shadow-sm">
             <button
               onClick={() => { setFilterStatus('pending'); setPage(1); }}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${filterStatus === 'pending' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${filterStatus === 'pending' ? 'bg-[#006c4a] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
             >
               Pendientes
             </button>
@@ -140,12 +145,12 @@ export default function Agenda() {
 
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="px-6 py-3 bg-slate-900 text-white font-bold rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95"
+            className="px-6 py-3 bg-[#006c4a] text-white font-bold rounded-xl shadow-lg hover:bg-[#005137] transition-all flex items-center gap-2 active:scale-95"
           >
             <Plus size={20} /> <span className="hidden sm:inline">Nueva Tarea</span>
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Lista */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[400px]">

@@ -18,7 +18,8 @@ import {
   Upload,
   ArrowUp,
   ArrowDown,
-  ArrowUpDown
+  ArrowUpDown,
+  Users
 } from 'lucide-react';
 import CreateLeadModal from '../components/leads/CreateLeadModal';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
@@ -191,43 +192,49 @@ export default function Leads() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
 
-      <div className="flex flex-col gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky top-0 z-30">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* CABECERA DE PÁGINA */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+            <Users size={36} className="text-[#006c4a]" />
+          </div>
           <div>
-            <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Mis Clientes</h1>
-            <p className="text-slate-500 text-xs font-medium">
-              {totalLeads} prospectos {hasActiveFilters && `(filtrados)`}
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Mis Clientes</h2>
+            <p className="text-slate-500 text-xs font-semibold mt-1">
+              {totalLeads} prospectos {hasActiveFilters && `(filtrados)`} en el embudo de conversión.
             </p>
           </div>
-
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <button
-              onClick={() => setIsImportModalOpen(true)}
-              className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-emerald-600 transition-colors shadow-sm hidden sm:flex items-center gap-2"
-              title="Importar CSV"
-            >
-              <Upload size={18} />
-              <span className="hidden lg:inline text-xs font-bold">Importar</span>
-            </button>
-
-            <button
-              onClick={() => setIsExportModalOpen(true)}
-              className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-emerald-600 transition-colors shadow-sm hidden sm:flex items-center gap-2"
-              title="Exportar Listado"
-            >
-              <Download size={18} />
-              <span className="hidden lg:inline text-xs font-bold">Exportar</span>
-            </button>
-
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="px-5 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95 shrink-0 flex-1 md:flex-none justify-center"
-            >
-              <UserPlus size={18} /> <span className="inline">Nuevo Cliente</span>
-            </button>
-          </div>
         </div>
+        <div className="flex gap-3 w-full md:w-auto self-start md:self-auto">
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-emerald-600 transition-colors shadow-sm hidden sm:flex items-center gap-2"
+            title="Importar CSV"
+          >
+            <Upload size={18} />
+            <span className="hidden lg:inline text-xs font-bold">Importar</span>
+          </button>
 
+          <button
+            onClick={() => setIsExportModalOpen(true)}
+            className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-emerald-600 transition-colors shadow-sm hidden sm:flex items-center gap-2"
+            title="Exportar Listado"
+          >
+            <Download size={18} />
+            <span className="hidden lg:inline text-xs font-bold">Exportar</span>
+          </button>
+
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="px-5 py-3 bg-[#006c4a] text-white font-bold text-sm rounded-xl shadow-lg hover:bg-[#005137] transition-all flex items-center gap-2 active:scale-95 shrink-0 flex-1 md:flex-none justify-center"
+          >
+            <UserPlus size={18} /> <span className="inline">Nuevo Cliente</span>
+          </button>
+        </div>
+      </div>
+
+      {/* BARRA DE FILTROS */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex flex-col lg:flex-row gap-3 items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
           <div className="relative flex-1 w-full group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={18} />

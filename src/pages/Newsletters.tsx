@@ -106,18 +106,24 @@ export default function Newsletters() {
 
     return (
         <div className="animate-in fade-in duration-500">
-            <div className="flex justify-between items-end mb-8">
-                <div>
-                    <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Campañas de Email</h1>
-                    <p className="text-slate-500 text-sm mt-1">Crea y envía newsletters a tus clientes suscritos.</p>
+            {/* CABECERA DE PÁGINA */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+                  <Mail size={36} className="text-[#006c4a]" />
                 </div>
-                <button
-                    onClick={handleCreate}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm shadow-emerald-900/20 transition-all flex items-center gap-2"
-                >
-                    <Plus size={18} />
-                    <span>Nueva Campaña</span>
-                </button>
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Campañas de Email</h2>
+                  <p className="text-slate-500 text-xs font-semibold mt-1">Crea, duplica y envía boletines informativos (newsletters) de aspecto profesional.</p>
+                </div>
+              </div>
+              <button
+                onClick={handleCreate}
+                className="bg-[#006c4a] hover:bg-[#005137] text-white font-bold py-3 px-5 rounded-xl shadow-lg transition-all flex items-center gap-2 self-start md:self-auto"
+              >
+                <Plus size={18} />
+                <span>Nueva Campaña</span>
+              </button>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">

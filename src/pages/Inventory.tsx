@@ -272,11 +272,16 @@ export default function Inventory() {
 
   return (
     <div className="p-6 md:p-8 space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventario de Viviendas</h1>
-          <p className="text-slate-500 mt-1 font-medium">Gestión profesional del catálogo de activos.</p>
+      {/* CABECERA DE PÁGINA */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+            <Home size={36} className="text-[#006c4a]" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Inventario de Viviendas</h2>
+            <p className="text-slate-500 text-xs font-semibold mt-1">Gestión profesional del catálogo de activos, modelos y planos.</p>
+          </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto">
           <button
@@ -293,7 +298,7 @@ export default function Inventory() {
               setEditingProperty(null);
               setIsModalOpen(true);
             }}
-            className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all active:scale-95"
+            className="flex items-center justify-center gap-2 bg-[#006c4a] hover:bg-[#005137] text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all active:scale-95"
           >
             <Plus size={20} />
             Añadir Propiedad

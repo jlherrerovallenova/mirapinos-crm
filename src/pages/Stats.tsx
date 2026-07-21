@@ -21,7 +21,8 @@ import {
   Download,
   ArrowUpRight,
   Target,
-  FileText
+  FileText,
+  BarChart3
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -219,17 +220,23 @@ export default function Stats() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Estadísticas y Análisis</h1>
-          <p className="text-slate-500 text-sm font-medium">Análisis de rendimiento y adquisición de clientes.</p>
+      {/* CABECERA DE PÁGINA */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+            <BarChart3 size={36} className="text-[#006c4a]" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Estadísticas y Análisis</h2>
+            <p className="text-slate-500 text-xs font-semibold mt-1">Análisis de rendimiento, conversión de ventas y canales de adquisición.</p>
+          </div>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full md:w-auto self-start md:self-auto justify-end">
           <select 
             value={timeRange} 
             onChange={(e) => setTimeRange(e.target.value as any)}
-            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-sm cursor-pointer"
           >
             <option value="6m">Últimos 6 meses</option>
             <option value="12m">Últimos 12 meses</option>
@@ -238,7 +245,7 @@ export default function Stats() {
           <button 
             onClick={handleDownloadPDF}
             disabled={loading || rawLeads.length === 0}
-            className="bg-white border border-slate-200 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-bold"
+            className="bg-white border border-slate-200 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-bold shadow-sm"
             title="Descargar Informe PDF (Horizontal)"
           >
             <FileText size={18} className="text-red-500" />
@@ -247,7 +254,7 @@ export default function Stats() {
           <button 
             onClick={handleDownload}
             disabled={loading || rawLeads.length === 0}
-            className="bg-white border border-slate-200 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-bold"
+            className="bg-white border border-slate-200 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-bold shadow-sm"
             title="Descargar CSV"
           >
             <Download size={18} className="text-emerald-500" />
