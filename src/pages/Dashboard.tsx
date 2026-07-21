@@ -8,9 +8,10 @@ import {
   ChevronRight,
   LayoutDashboard,
   ArrowUpRight,
-  ArrowDownRight,
   Globe,
-  Smartphone
+  Smartphone,
+  Phone,
+  Building
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
@@ -221,6 +222,112 @@ export default function Dashboard() {
     }
   };
 
+  const getSourceIconConfig = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes('idealista')) {
+      return {
+        icon: <Building size={14} />,
+        bg: 'bg-indigo-50 text-indigo-600',
+        color: 'text-indigo-600',
+        barColor: 'bg-indigo-500'
+      };
+    }
+    if (n.includes('web')) {
+      return {
+        icon: <Globe size={14} />,
+        bg: 'bg-sky-50 text-sky-600',
+        color: 'text-sky-600',
+        barColor: 'bg-sky-500'
+      };
+    }
+    if (n.includes('google')) {
+      return {
+        icon: <Search size={14} />,
+        bg: 'bg-amber-50 text-amber-600',
+        color: 'text-amber-600',
+        barColor: 'bg-amber-500'
+      };
+    }
+    if (n.includes('instagram')) {
+      return {
+        icon: <Smartphone size={14} />,
+        bg: 'bg-pink-50 text-pink-600',
+        color: 'text-pink-600',
+        barColor: 'bg-pink-500'
+      };
+    }
+    if (n.includes('facebook')) {
+      return {
+        icon: <Users size={14} />,
+        bg: 'bg-blue-50 text-blue-600',
+        color: 'text-blue-600',
+        barColor: 'bg-blue-500'
+      };
+    }
+    if (n.includes('referido')) {
+      return {
+        icon: <Users size={14} />,
+        bg: 'bg-purple-50 text-purple-600',
+        color: 'text-purple-600',
+        barColor: 'bg-purple-500'
+      };
+    }
+    if (n.includes('llamada')) {
+      return {
+        icon: <Phone size={14} />,
+        bg: 'bg-emerald-50 text-emerald-600',
+        color: 'text-emerald-600',
+        barColor: 'bg-emerald-500'
+      };
+    }
+    return {
+      icon: <Globe size={14} />,
+      bg: 'bg-slate-100 text-slate-600',
+      color: 'text-slate-600',
+      barColor: 'bg-slate-500'
+    };
+  };
+
+  const mergedSources = useMemo(() => {
+    const standardSources = [
+      'Idealista',
+      'Web',
+      'Google',
+      'Instagram',
+      'Facebook',
+      'Referido',
+      'Llamada',
+      'Otro'
+    ];
+
+    const sourceMap = new Map<string, { count: number; percentage: number }>();
+    stats.topSources.forEach(src => {
+      sourceMap.set(src.name.toLowerCase(), { count: src.count, percentage: src.percentage });
+    });
+
+    const list = standardSources.map(name => {
+      const match = sourceMap.get(name.toLowerCase());
+      return {
+        name,
+        count: match ? match.count : 0,
+        percentage: match ? match.percentage : 0
+      };
+    });
+
+    stats.topSources.forEach(src => {
+      const isStandard = standardSources.some(s => s.toLowerCase() === src.name.toLowerCase());
+      if (!isStandard) {
+        list.push({
+          name: src.name,
+          count: src.count,
+          percentage: src.percentage
+        });
+      }
+    });
+
+    return list;
+  }, [stats.topSources]);
+
   return (
     <div className="flex flex-col animate-in fade-in duration-500 w-full gap-6 pb-10">
 
@@ -237,26 +344,65 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* TARJETAS DE MÉTRICAS COMPACTAS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard
-          title="Total Clientes"
-          value={stats.totalLeads}
-          change="+12%"
-          isPositive={true}
-          icon={<Users size={20} className="text-[#006c4a]" />}
-        />
-        {stats.topSources.map((source, i) => (
-          <StatCard
-            key={source.name}
-            title={`Origen: ${source.name}`}
-            value={`${source.percentage}%`}
-            change={`${source.count} leads`}
-            isPositive={true}
-            trendIcon={false}
-            icon={i === 0 ? <Globe size={20} className="text-blue-600" /> : <Smartphone size={20} className="text-purple-600" />}
-          />
-        ))}
+      {/* TARJETAS DE MÉTRICAS COMPACTAS Y ORIGENES */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        {/* TOTAL CLIENTES CARD */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-all duration-300 min-h-[160px]">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:bg-emerald-500/10" />
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-3 bg-emerald-500/10 text-emerald-600 rounded-xl">
+              <Users size={24} className="text-[#006c4a]" />
+            </div>
+            <span className="flex items-center text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+              <ArrowUpRight size={12} className="mr-0.5" /> +12%
+            </span>
+          </div>
+          <div>
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Total Clientes</p>
+            <h4 className="text-3xl font-extrabold text-slate-900 mt-1">{stats.totalLeads}</h4>
+          </div>
+        </div>
+
+        {/* ORÍGENES DE CONTACTO CARD */}
+        <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Orígenes del Contacto</p>
+              <h3 className="text-xs font-bold text-slate-800 mt-0.5">Distribución de prospectos por canal de entrada</h3>
+            </div>
+            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+              {stats.topSources.length} Canales Activos
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {mergedSources.map((source) => {
+              const iconConfig = getSourceIconConfig(source.name);
+              return (
+                <div key={source.name} className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 hover:bg-slate-50 hover:border-slate-200 transition-all duration-200 flex flex-col justify-between min-h-[90px]">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className={`p-1.5 rounded-lg ${iconConfig.bg} ${iconConfig.color}`}>
+                      {iconConfig.icon}
+                    </div>
+                    <span className="text-xs font-black text-slate-800">{source.percentage}%</span>
+                  </div>
+                  <div>
+                    <div className="flex justify-between items-baseline text-[10px] font-bold text-slate-500 mb-1">
+                      <span className="truncate mr-1">{source.name}</span>
+                      <span className="shrink-0">{source.count} leads</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${iconConfig.barColor}`}
+                        style={{ width: `${source.percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -438,29 +584,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-}
-
-function StatCard({ title, value, change, isPositive, icon, trendIcon = true, onClick }: any) {
-  return (
-    <div
-      onClick={onClick}
-      className={`bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all duration-200 flex flex-col justify-between ${
-        onClick ? 'cursor-pointer hover:shadow-md hover:border-emerald-200 hover:-translate-y-0.5' : ''
-      }`}
-    >
-      <div className="flex justify-between items-start mb-2">
-        <div className="p-1.5 bg-slate-50 rounded-lg">{icon}</div>
-        {trendIcon && (
-          <div className={`flex items-center text-[10px] font-bold ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
-            {isPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-            <span className="ml-1">{change}</span>
-          </div>
-        )}
-      </div>
-      <div>
-        <p className="text-slate-500 text-xs font-medium">{title}</p>
-        <h4 className="text-xl font-bold text-slate-900 mt-0.5">{value}</h4>
-      </div>
-    </div>
-  );
-}
+}
