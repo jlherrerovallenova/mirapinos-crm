@@ -46,6 +46,12 @@ interface Props {
 
 import { useUpdateLead } from '../hooks/useLeads';
 
+const INTERESTED_OPTIONS = [
+  { value: "Chalet Olivo", label: "OLIVO" },
+  { value: "Chalet Arce", label: "ARCE" },
+  { value: "Parcelas", label: "PARCELAS" }
+];
+
 export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   const { session, profile } = useAuth();
   const { showAlert, showConfirm } = useDialog();
@@ -118,11 +124,7 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
     interested_in: lead.interested_in || ''
   });
   
-  const INTERESTED_OPTIONS = [
-    { value: "Chalet Olivo", label: "OLIVO" },
-    { value: "Chalet Arce", label: "ARCE" },
-    { value: "Parcelas", label: "PARCELAS" }
-  ];
+
 
   const [expandedTasks, setExpandedTasks] = useState<Record<number, boolean>>({});
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});

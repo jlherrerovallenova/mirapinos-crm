@@ -8,6 +8,20 @@ type Installment = Database['public']['Tables']['installments']['Row'];
 type SaleDocument = Database['public']['Tables']['sale_documents']['Row'];
 type Inventory = Database['public']['Tables']['inventory']['Row'];
 
+const CURRENCY_FORMATTER = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
+const formatCurrency = (val: number) => CURRENCY_FORMATTER.format(val);
+
+const CLIENT_PORTAL_PHASES = ['reserva', 'contrato', 'mensualidades', 'escrituracion', 'completada'];
+
+const PHASE_NAMES: Record<string, string> = {
+  'reserva': 'Reserva',
+  'contrato': 'Contrato',
+  'mensualidades': 'Mensualidades',
+  'escrituracion': 'Escrituración',
+  'completada': 'Completada'
+};
+const getPhaseName = (phase: string) => PHASE_NAMES[phase] || phase;
+
 export default function ClientPortal() {
   const [loading, setLoading] = useState(true);
   const [sale, setSale] = useState<Sale | null>(null);
@@ -131,8 +145,6 @@ export default function ClientPortal() {
   }
 
   // Cálculos económicos
-  const formatCurrency = (val: number) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(val);
-  
   const totalConIva = sale.sale_price;
   const ivaMultiplier = 1 + (sale.iva_percentage / 100);
   const baseImponible = totalConIva / ivaMultiplier;
@@ -144,19 +156,7 @@ export default function ClientPortal() {
   const totalPendiente = totalConIva - totalPagado;
 
   // Fases
-  const phases = ['reserva', 'contrato', 'mensualidades', 'escrituracion', 'completada'];
-  const currentPhaseIndex = phases.indexOf(sale.sale_status || 'reserva');
-
-  const getPhaseName = (phase: string) => {
-    const names: Record<string, string> = {
-      'reserva': 'Reserva',
-      'contrato': 'Contrato',
-      'mensualidades': 'Mensualidades',
-      'escrituracion': 'Escrituración',
-      'completada': 'Completada'
-    };
-    return names[phase] || phase;
-  };
+  const currentPhaseIndex = CLIENT_PORTAL_PHASES.indexOf(sale.sale_status || 'reserva');
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

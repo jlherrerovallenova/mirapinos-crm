@@ -13,6 +13,13 @@ interface SurveyLead {
   survey_data: any;
 }
 
+const RATING_INFO: Record<string, { label: string, color: string, bg: string }> = {
+  mas_info: { label: 'Quieren más info', color: 'text-emerald-600', bg: 'bg-emerald-500' },
+  pensarlo: { label: 'Tienen que pensarlo', color: 'text-blue-600', bg: 'bg-blue-500' },
+  no_encaja: { label: 'No les encaja', color: 'text-orange-600', bg: 'bg-orange-500' },
+  encontrado: { label: 'Ya han comprado', color: 'text-red-600', bg: 'bg-red-500' },
+};
+
 export default function SurveyResults() {
   const [leads, setLeads] = useState<SurveyLead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,12 +83,7 @@ export default function SurveyResults() {
 
   const getPercentage = (count: number) => totalResponded > 0 ? Math.round((count / totalResponded) * 100) : 0;
 
-  const RATING_INFO: Record<string, { label: string, color: string, bg: string }> = {
-    mas_info: { label: 'Quieren más info', color: 'text-emerald-600', bg: 'bg-emerald-500' },
-    pensarlo: { label: 'Tienen que pensarlo', color: 'text-blue-600', bg: 'bg-blue-500' },
-    no_encaja: { label: 'No les encaja', color: 'text-orange-600', bg: 'bg-orange-500' },
-    encontrado: { label: 'Ya han comprado', color: 'text-red-600', bg: 'bg-red-500' },
-  };
+
 
   return (
     <div className="flex flex-col animate-in fade-in duration-500 max-w-[1600px] mx-auto w-full gap-6 pb-10">

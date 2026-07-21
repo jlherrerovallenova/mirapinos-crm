@@ -7,29 +7,29 @@ interface AppMessageProps {
   onClose?: () => void;
 }
 
-export function AppMessage({ title, message, type = 'info', onClose }: AppMessageProps) {
-  const styles = {
-    info: {
-      bg: 'bg-white',
-      border: 'border-pine-100',
-      icon: <Info className="text-pine-600" size={20} />,
-      accent: 'bg-pine-600'
-    },
-    success: {
-      bg: 'bg-emerald-50',
-      border: 'border-emerald-100',
-      icon: <CheckCircle className="text-emerald-600" size={20} />,
-      accent: 'bg-emerald-600'
-    },
-    warning: {
-      bg: 'bg-amber-50',
-      border: 'border-amber-100',
-      icon: <AlertTriangle className="text-amber-500" size={20} />,
-      accent: 'bg-amber-500'
-    }
-  };
+const MESSAGE_STYLES = {
+  info: {
+    bg: 'bg-white',
+    border: 'border-pine-100',
+    icon: <Info className="text-pine-600" size={20} />,
+    accent: 'bg-pine-600'
+  },
+  success: {
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-100',
+    icon: <CheckCircle className="text-emerald-600" size={20} />,
+    accent: 'bg-emerald-600'
+  },
+  warning: {
+    bg: 'bg-amber-50',
+    border: 'border-amber-100',
+    icon: <AlertTriangle className="text-amber-500" size={20} />,
+    accent: 'bg-amber-500'
+  }
+};
 
-  const currentStyle = styles[type];
+export function AppMessage({ title, message, type = 'info', onClose }: AppMessageProps) {
+  const currentStyle = MESSAGE_STYLES[type];
 
   return (
     <div className={`${currentStyle.bg} border ${currentStyle.border} p-5 rounded-4xl shadow-xl shadow-pine-900/5 flex items-start gap-4 relative overflow-hidden animate-in slide-in-from-right-8 duration-500`}>
@@ -51,6 +51,8 @@ export function AppMessage({ title, message, type = 'info', onClose }: AppMessag
 
       {onClose && (
         <button
+          type="button"
+          aria-label="Cerrar"
           onClick={onClose}
           className="p-2 hover:bg-pine-50 rounded-xl transition-colors text-slate-300 hover:text-slate-600"
         >

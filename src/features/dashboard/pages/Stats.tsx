@@ -31,6 +31,17 @@ import { StatCard } from '../../../components/ui/Shared';
 
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
 
+const STATUS_MAP: Record<string, string> = {
+  new: 'Nuevo',
+  contacted: 'Contactado',
+  qualified: 'Cualificado',
+  visiting: 'Visitando',
+  proposal: 'Propuesta',
+  negotiation: 'Negociación',
+  closed: 'Ganado',
+  lost: 'Perdido'
+};
+
 export default function Stats() {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'6m' | '12m' | 'all'>('6m');
@@ -117,16 +128,7 @@ export default function Stats() {
     );
   };
 
-  const STATUS_MAP: Record<string, string> = {
-    new: 'Nuevo',
-    contacted: 'Contactado',
-    qualified: 'Cualificado',
-    visiting: 'Visitando',
-    proposal: 'Propuesta',
-    negotiation: 'Negociación',
-    closed: 'Ganado',
-    lost: 'Perdido'
-  };
+
 
   const handleDownload = () => {
     if (rawLeads.length === 0) return;

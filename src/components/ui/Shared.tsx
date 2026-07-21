@@ -1,6 +1,7 @@
 // src/components/Shared.tsx
 import React from 'react';
 import { CheckCircle2, AlertCircle, X, Info } from 'lucide-react';
+import { LEAD_STATUS_STAGE_BADGES } from '../../config/constants';
 
 interface StatCardProps {
   title: string;
@@ -10,18 +11,18 @@ interface StatCardProps {
   type?: 'primary' | 'warning' | 'success' | 'neutral' | 'error';
 }
 
+const STAT_CARD_COLORS = {
+  primary: 'bg-blue-500',
+  warning: 'bg-amber-500',
+  success: 'bg-emerald-500',
+  neutral: 'bg-slate-400',
+  error: 'bg-rose-500'
+};
+
 // 1. Tarjeta de Estadísticas
 export function StatCard({ title, value, subtext, icon, type = 'neutral' }: StatCardProps) {
-  const colors = {
-    primary: 'bg-blue-500',
-    warning: 'bg-amber-500',
-    success: 'bg-emerald-500',
-    neutral: 'bg-slate-400',
-    error: 'bg-rose-500'
-  };
+  const activeColor = STAT_CARD_COLORS[type] || STAT_CARD_COLORS.neutral;
   
-  const activeColor = colors[type] || colors.neutral;
-
   return (
     <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group hover:border-slate-300 transition-all">
       <div className="flex justify-between items-start z-10">
@@ -43,8 +44,6 @@ export function StatCard({ title, value, subtext, icon, type = 'neutral' }: Stat
   );
 }
 
-import { LEAD_STATUS_STAGE_BADGES } from '../../config/constants';
-
 // 2. Badge de Estado (CONECTADO A DB)
 export function StageBadge({ stage }: { stage: string }) {
   const active = LEAD_STATUS_STAGE_BADGES[stage] || { label: stage, class: 'bg-slate-50 text-slate-600 border-slate-200' };
@@ -65,6 +64,12 @@ interface AppNotificationProps {
   duration?: number;
 }
 
+const NOTIFICATION_THEMES = {
+  success: { icon: <CheckCircle2 size={20} />, style: 'bg-emerald-600 text-white' },
+  error: { icon: <AlertCircle size={20} />, style: 'bg-rose-600 text-white' },
+  info: { icon: <Info size={20} />, style: 'bg-slate-800 text-white' },
+};
+
 export const AppNotification: React.FC<AppNotificationProps> = ({
   title,
   message,
@@ -77,13 +82,7 @@ export const AppNotification: React.FC<AppNotificationProps> = ({
     return () => clearTimeout(timer);
   }, [duration, onClose]);
 
-  const themes = {
-    success: { icon: <CheckCircle2 size={20} />, style: 'bg-emerald-600 text-white' },
-    error: { icon: <AlertCircle size={20} />, style: 'bg-rose-600 text-white' },
-    info: { icon: <Info size={20} />, style: 'bg-slate-800 text-white' },
-  };
-
-  const theme = themes[type];
+  const theme = NOTIFICATION_THEMES[type];
 
   return (
     <div className={`
@@ -98,7 +97,12 @@ export const AppNotification: React.FC<AppNotificationProps> = ({
         <h4 className="text-sm font-bold uppercase tracking-wide">{title}</h4>
         <p className="text-sm opacity-90 leading-snug mt-1">{message}</p>
       </div>
-      <button onClick={onClose} className="opacity-50 hover:opacity-100 transition-opacity">
+      <button 
+        type="button" 
+        aria-label="Cerrar notificación" 
+        onClick={onClose} 
+        className="opacity-50 hover:opacity-100 transition-opacity"
+      >
         <X size={16} />
       </button>
     </div>
