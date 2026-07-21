@@ -5,7 +5,6 @@ import {
   Users,
   Calendar,
   Search,
-  Plus,
   ChevronRight,
   LayoutDashboard,
   ArrowUpRight,
@@ -225,8 +224,8 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col animate-in fade-in duration-500 w-full gap-6 pb-10">
 
-      {/* CABECERA CON CTAs RÁPIDOS */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      {/* CABECERA */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
         <div className="flex items-center gap-4">
           <div className="p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
             <LayoutDashboard size={36} className="text-[#006c4a]" />
@@ -235,22 +234,6 @@ export default function Dashboard() {
             <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Panel de Control</h2>
             <p className="text-slate-500 text-xs font-semibold mt-1">Hola {session?.user.email?.split('@')[0]}, bienvenido de nuevo. Aquí tienes un resumen de la actividad hoy.</p>
           </div>
-        </div>
-        <div className="flex gap-3 w-full md:w-auto self-start md:self-auto">
-          <button
-            type="button"
-            onClick={() => navigate('/agenda?create=true')}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-          >
-            <Calendar size={16} className="text-slate-500" /> Nueva Tarea
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/leads?create=true')}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#006c4a] text-white font-bold text-xs rounded-lg shadow-md hover:bg-[#005137] transition-all"
-          >
-            <Plus size={16} /> Nuevo Cliente
-          </button>
         </div>
       </div>
 
@@ -372,10 +355,58 @@ export default function Dashboard() {
         </div>
 
         {/* BARRA LATERAL: LEADS Y ACCESOS */}
-        <div className="space-y-8">
+        <div className="space-y-6">
+          {/* WIDGET: ACCESOS RÁPIDOS */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-4 border-b border-slate-150 bg-white">
+              <h3 className="font-bold text-slate-900 text-sm tracking-tight">Accesos Rápidos</h3>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-3">
+              <button
+                onClick={() => navigate('/leads?create=true')}
+                className="flex flex-col items-center justify-center p-4 bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 hover:border-emerald-200 rounded-xl transition-all duration-200 group text-center gap-2 active:scale-95"
+              >
+                <div className="p-2.5 bg-emerald-500/10 text-emerald-600 rounded-lg group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                  <Users size={20} />
+                </div>
+                <span className="text-[11px] font-bold text-slate-700">Nuevo Cliente</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/agenda?create=true')}
+                className="flex flex-col items-center justify-center p-4 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 hover:border-blue-200 rounded-xl transition-all duration-200 group text-center gap-2 active:scale-95"
+              >
+                <div className="p-2.5 bg-blue-500/10 text-blue-600 rounded-lg group-hover:bg-blue-500 group-hover:text-white transition-all">
+                  <Calendar size={20} />
+                </div>
+                <span className="text-[11px] font-bold text-slate-700">Nueva Tarea</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/inventory')}
+                className="flex flex-col items-center justify-center p-4 bg-purple-50/50 hover:bg-purple-50 border border-purple-100 hover:border-purple-200 rounded-xl transition-all duration-200 group text-center gap-2 active:scale-95"
+              >
+                <div className="p-2.5 bg-purple-500/10 text-purple-600 rounded-lg group-hover:bg-purple-500 group-hover:text-white transition-all">
+                  <Globe size={20} />
+                </div>
+                <span className="text-[11px] font-bold text-slate-700">Ver Catálogo</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/stats')}
+                className="flex flex-col items-center justify-center p-4 bg-amber-50/50 hover:bg-amber-50 border border-amber-100 hover:border-amber-200 rounded-xl transition-all duration-200 group text-center gap-2 active:scale-95"
+              >
+                <div className="p-2.5 bg-amber-500/10 text-amber-600 rounded-lg group-hover:bg-amber-500 group-hover:text-white transition-all">
+                  <ArrowUpRight size={20} />
+                </div>
+                <span className="text-[11px] font-bold text-slate-700">Estadísticas</span>
+              </button>
+            </div>
+          </div>
+
           <div className="bg-white rounded-xl shadow-[0_4px_6px_-1px_rgb(0,0,0,0.05)] border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-150 flex justify-between items-center bg-white">
-              <h3 className="font-bold text-slate-950 text-sm tracking-tight">Clientes Recientes</h3>
+              <h3 className="font-bold text-slate-955 text-sm tracking-tight">Clientes Recientes</h3>
               <button type="button" onClick={() => navigate('/leads')} className="text-[10px] font-bold text-slate-500 hover:text-slate-900 uppercase tracking-wider">
                 VER TODOS
               </button>
