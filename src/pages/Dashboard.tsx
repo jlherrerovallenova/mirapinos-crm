@@ -395,13 +395,13 @@ export default function Dashboard() {
           <p className="text-slate-500 text-xs font-semibold mt-0.5">Distribución general de prospectos y rendimiento de canales de entrada.</p>
         </div>
 
-        {/* 3 Columns Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+        {/* 3 Columns Flex Layout */}
+        <div className="flex flex-col lg:flex-row gap-8 lg:items-center">
           {/* COLUMNA 1: Total Clientes & Donut Chart */}
-          <div className="flex flex-col items-center md:items-start gap-4 md:border-r border-slate-100 pr-0 md:pr-8">
+          <div className="w-full lg:w-[220px] shrink-0 flex flex-col items-center lg:items-start gap-4 lg:border-r border-slate-100 pr-0 lg:pr-8">
             <div>
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest text-center md:text-left">Clientes Registrados</p>
-              <div className="flex items-baseline gap-2 mt-1 justify-center md:justify-start">
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest text-center lg:text-left">Clientes Registrados</p>
+              <div className="flex items-baseline gap-2 mt-1 justify-center lg:justify-start">
                 <span className="text-4xl font-extrabold text-slate-800 tracking-tight">{stats.totalLeads}</span>
                 <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center shrink-0">
                   <ArrowUpRight size={12} className="mr-0.5" /> +12%
@@ -410,7 +410,7 @@ export default function Dashboard() {
             </div>
 
             {/* Donut Chart */}
-            <div className="relative w-[130px] h-[130px] shrink-0 mx-auto md:mx-0 mt-2">
+            <div className="relative w-[130px] h-[130px] shrink-0 mx-auto lg:mx-0 mt-2">
               <svg width="130" height="130" viewBox="0 0 100 100" className="transform -rotate-90">
                 <circle
                   cx="50"
@@ -444,7 +444,7 @@ export default function Dashboard() {
           </div>
 
           {/* COLUMNA 2: Fuentes Principales (1 a 4) */}
-          <div className="space-y-4">
+          <div className="flex-1 space-y-4 w-full">
             {mergedSources.slice(0, 4).map((source) => {
               const iconConfig = getSourceIconConfig(source.name);
               return (
@@ -470,7 +470,7 @@ export default function Dashboard() {
           </div>
 
           {/* COLUMNA 3: Fuentes Secundarias (5 a 8+) */}
-          <div className="space-y-4">
+          <div className="flex-1 space-y-4 w-full">
             {mergedSources.slice(4).map((source) => {
               const iconConfig = getSourceIconConfig(source.name);
               return (
