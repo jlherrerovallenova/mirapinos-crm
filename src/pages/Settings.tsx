@@ -238,7 +238,7 @@ const Settings: React.FC = () => {
   );
 
   return (
-    <div className="p-4 max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       {/* CABECERA DE PÁGINA */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div className="flex items-center gap-4">

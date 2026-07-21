@@ -223,7 +223,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col animate-in fade-in duration-500 max-w-[1600px] mx-auto w-full gap-6 pb-10">
+    <div className="flex flex-col animate-in fade-in duration-500 w-full gap-6 pb-10">
 
       {/* CABECERA CON CTAs RÁPIDOS */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
