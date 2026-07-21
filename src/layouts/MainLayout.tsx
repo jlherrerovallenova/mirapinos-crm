@@ -280,7 +280,7 @@ export default function MainLayout() {
         </header>
 
         <div className="flex-1 overflow-auto bg-slate-100/50 relative">
-          <div className="max-w-7xl mx-auto p-4 md:p-8 pb-10">
+          <div className="w-full p-4 md:p-8 pb-10">
             {/* Pasamos el término de búsqueda a las rutas hijas si fuera necesario */}
             <Outlet context={{ searchTerm }} />
           </div>
