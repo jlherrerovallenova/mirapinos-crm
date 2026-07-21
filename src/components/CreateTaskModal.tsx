@@ -1,6 +1,6 @@
 // src/components/CreateTaskModal.tsx
 import React, { useState, useEffect } from 'react';
-import { X, Clock, User, Save, Loader2, Search } from 'lucide-react';
+import { X, Clock, User, Save, Loader as Loader2, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
@@ -70,7 +70,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
       const parsedDate = new Date(`${formData.date}T${formData.time}:00`);
       const dateTime = parsedDate.toISOString();
 
-      const { error } = await supabase.from('agenda').insert([
+      const { error } = await (supabase as any).from('agenda').insert([
         {
           title: formData.title,
           type: formData.type,

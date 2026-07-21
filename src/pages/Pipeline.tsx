@@ -1,14 +1,7 @@
 // src/pages/Pipeline.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Loader2,
-  Globe,
-  Smartphone,
-  Users,
-  HelpCircle,
-  MoreHorizontal
-} from 'lucide-react';
+import { Loader as Loader2, Globe, Smartphone, Users, Circle as HelpCircle } from 'lucide-react';
 import { useLeads, useUpdateLead } from '../hooks/useLeads';
 import type { Database } from '../types/supabase';
 import LeadDetailModal from '../components/leads/LeadDetailModal';
