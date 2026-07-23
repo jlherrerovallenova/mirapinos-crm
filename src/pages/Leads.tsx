@@ -124,9 +124,12 @@ export default function Leads() {
 
   // Sincronizar el estado interno si la URL cambia
   useEffect(() => {
-    setSearchTerm(searchParams.get('search') || '');
-    setStatusFilter(searchParams.get('status') || '');
-    setSourceFilter(searchParams.get('source') || '');
+    const s = searchParams.get('search') || '';
+    const st = searchParams.get('status') || '';
+    const src = searchParams.get('source') || '';
+    setSearchTerm(prev => (prev !== s ? s : prev));
+    setStatusFilter(prev => (prev !== st ? st : prev));
+    setSourceFilter(prev => (prev !== src ? src : prev));
   }, [searchParams]);
 
   const handleSort = (field: 'name' | 'created_at') => {

@@ -1,5 +1,5 @@
 // src/components/leads/EmailComposerModal.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Mail,
   MessageCircle,
@@ -9,7 +9,8 @@ import {
   AlertCircle,
   Upload,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  X
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useDialog } from '../../context/DialogContext';
@@ -64,6 +65,30 @@ export default function EmailComposerModal({
   const [message, setMessage] = useState(
     initialMessage || `${greeting}, ${leadName.split(' ')[0]}:\n\nTal como comentamos en nuestra última conversación, le envío la documentación comercial actualizada sobre la promoción Finca Mirapinos.\n\nLe agradecería que me confirmara la recepción de los archivos. Asimismo, me pongo a su disposición para coordinar una reunión o llamada si precisa cualquier aclaración adicional sobre el proyecto.\n\nAtentamente,`
   );
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialMethod) {
+        setMethod(initialMethod);
+      } else if (leadEmail) {
+        setMethod('email');
+      } else {
+        setMethod('whatsapp');
+      }
+      if (initialSubject !== undefined) {
+        setSubject(initialSubject);
+      } else {
+        setSubject(`Documentación de interés - Finca Mirapinos`);
+      }
+      if (initialMessage !== undefined) {
+        setMessage(initialMessage);
+      } else {
+        const currentGreeting = new Date().getHours() < 14 ? 'Buenos días' : 'Buenas tardes';
+        setMessage(`${currentGreeting}, ${leadName.split(' ')[0]}:\n\nTal como comentamos en nuestra última conversación, le envío la documentación comercial actualizada sobre la promoción Finca Mirapinos.\n\nLe agradecería que me confirmara la recepción de los archivos. Asimismo, me pongo a su disposición para coordinar una reunión o llamada si precisa cualquier aclaración adicional sobre el proyecto.\n\nAtentamente,`);
+      }
+      setStatus('idle');
+    }
+  }, [isOpen, initialMethod, initialSubject, initialMessage, leadEmail, leadName]);
 
   const [selectedDocs, setSelectedDocs] = useState<{ name: string; url: string; category?: string; metadata?: { size?: number; mimetype?: string } }[]>([]);
 
@@ -445,45 +470,33 @@ export default function EmailComposerModal({
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200">
 
-        {/* HEADER */}
-        <div className="bg-emerald-600 px-6 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold text-emerald-200 uppercase tracking-widest">Enviar a</p>
-            <h2 className="text-white font-bold text-base leading-tight">{leadName}</h2>
+        {/* HEADER OSCURO ESTILO FICHA CLIENTE */}
+        <div className="bg-[#131b2e] px-6 py-4 flex items-center justify-between gap-4 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs text-white ${
+              method === 'email' ? 'bg-blue-600/80 border border-blue-500/30' : 'bg-emerald-600/80 border border-emerald-500/30'
+            }`}>
+              {method === 'email' ? <Mail size={18} /> : <MessageCircle size={18} />}
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                {method === 'email' ? 'Envío por Email' : 'Envío por WhatsApp'}
+              </p>
+              <h2 className="text-white font-bold text-base leading-tight">
+                Enviar a <span className="text-emerald-400 font-extrabold">{leadName}</span> mensaje por {method === 'email' ? 'email' : 'whatsapp'}
+              </h2>
+            </div>
           </div>
-          {/* TABS como píldoras en el header */}
-          <div className="flex items-center gap-1 bg-emerald-700/60 p-1 rounded-lg">
-            <button
-              type="button"
-              onClick={() => leadEmail && setMethod('email')}
-              disabled={!leadEmail}
-              title={!leadEmail ? 'El cliente no tiene email registrado' : undefined}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                !leadEmail
-                  ? 'opacity-40 cursor-not-allowed text-emerald-300'
-                  : method === 'email'
-                  ? 'bg-white text-emerald-700 shadow-sm'
-                  : 'text-emerald-100 hover:text-white'
-              }`}
-            >
-              <Mail size={13} /> Email
-            </button>
-            <button
-              type="button"
-              onClick={() => leadPhone && setMethod('whatsapp')}
-              disabled={!leadPhone}
-              title={!leadPhone ? 'El cliente no tiene teléfono registrado' : undefined}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                !leadPhone
-                  ? 'opacity-40 cursor-not-allowed text-emerald-300'
-                  : method === 'whatsapp'
-                  ? 'bg-white text-emerald-700 shadow-sm'
-                  : 'text-emerald-100 hover:text-white'
-              }`}
-            >
-              <MessageCircle size={13} /> WhatsApp
-            </button>
-          </div>
+          
+          {/* BOTÓN CERRAR */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white shrink-0"
+            title="Cerrar"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         <form onSubmit={handleSend} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto custom-scrollbar">

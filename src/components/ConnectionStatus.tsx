@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Wifi, WifiOff } from 'lucide-react';
 
 export const ConnectionStatus = () => {
-  const [isOnline, setIsOnline] = useState(true);
-  const [showAlert, setShowAlert] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [showAlert, setShowAlert] = useState(() => typeof navigator !== 'undefined' ? !navigator.onLine : false);
 
   useEffect(() => {
     // Solo monitorizamos la conexión a nivel de hardware/navegador
@@ -22,10 +22,6 @@ export const ConnectionStatus = () => {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    // Estado inicial
-    setIsOnline(navigator.onLine);
-    setShowAlert(!navigator.onLine);
 
     return () => {
       window.removeEventListener('online', handleOnline);

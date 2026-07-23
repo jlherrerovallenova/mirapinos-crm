@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Send, CircleCheck as CheckCircle2, Loader as Loader2, MessageSquareQuote } from 'lucide-react';
+import { X, Send, Loader2, MessageSquare } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { getFeedbackEmailTemplate } from '../utils/feedbackTemplates';
 import { useDialog } from '../../../context/DialogContext';
@@ -102,79 +102,72 @@ export default function FeedbackEmailModal({ isOpen, onClose, lead, onSuccess }:
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-lg rounded-[32px] shadow-2xl overflow-hidden border border-slate-100 scale-in-center">
+    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200">
         
-        {/* Header con gradiente suave verde Finca Mirapinos */}
-        <div className="bg-gradient-to-r from-[#006c4a] to-emerald-600 px-8 py-10 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10">
-            <MessageSquareQuote size={120} />
+        {/* HEADER OSCURO ESTILO FICHA CLIENTE */}
+        <div className="bg-[#131b2e] px-6 py-4 flex items-center justify-between gap-4 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs text-white bg-blue-600/80 border border-blue-500/30">
+              <MessageSquare size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Encuesta de Satisfacción
+              </p>
+              <h2 className="text-white font-bold text-base leading-tight">
+                Enviar a <span className="text-emerald-400 font-extrabold">{lead.name}</span> encuesta por email
+              </h2>
+            </div>
           </div>
-          <button 
+          
+          {/* BOTÓN CERRAR */}
+          <button
+            type="button"
             onClick={onClose}
-            className="absolute top-6 right-6 p-2 hover:bg-white/20 rounded-full transition-colors"
+            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white shrink-0"
+            title="Cerrar"
           >
             <X size={20} />
           </button>
-          
-          <div className="relative z-10">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center mb-4">
-              <MessageSquareQuote size={24} />
-            </div>
-            <h2 className="text-2xl font-black tracking-tight">Solicitud de Opinión</h2>
-            <p className="text-emerald-50 opacity-90 text-sm mt-1">Envía una encuesta de satisfacción personalizada</p>
-          </div>
         </div>
 
-        <div className="p-8 space-y-8">
-          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[#006c4a] font-black text-sm shadow-sm">
-              {lead.name.substring(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Destinatario</p>
-              <h3 className="text-lg font-black text-slate-800 tracking-tight">{lead.name}</h3>
-              <p className="text-sm font-medium text-slate-500">{lead.email || '⚠️ Sin correo electrónico'}</p>
-            </div>
+        {/* CUERPO Y CONTENIDO */}
+        <div className="p-6 space-y-5">
+          {/* TEXTO DE DESTINATARIO Y PROMOCIÓN */}
+          <p className="text-slate-700 text-sm leading-relaxed">
+            Se va a enviar un correo electrónico a{' '}
+            <strong className="font-bold text-slate-900">{lead.name}</strong>{' '}
+            <span className="text-slate-500 font-medium">({lead.email || 'sin correo registrado'})</span> solicitando su opinión sobre{' '}
+            <strong className="font-bold text-slate-900 uppercase tracking-wide">FINCA MIRAPINOS</strong>.
+          </p>
+
+          {/* CAJA INFORMATIVA */}
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 text-slate-500 text-xs font-medium leading-relaxed">
+            El correo electrónico contiene el nuevo diseño corporativo e incluye un botón interactivo para comenzar la encuesta de satisfacción.
           </div>
 
-          <div className="space-y-4">
-            <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-[#006c4a]" />
-              ¿Qué incluye este envío?
-            </h4>
-            <ul className="grid grid-cols-1 gap-3">
-              {[
-                "Diseño corporativo premium Finca Mirapinos",
-                "Botón interactivo de inicio de encuesta",
-                "Registro automático de respuestas en el CRM",
-                "Medición de satisfacción del cliente"
-              ].map((item, i) => (
-                <li key={i} className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50/50 p-3 rounded-xl border border-slate-100/50">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="flex gap-4 pt-2">
+          {/* FOOTER CON BOTONES DE ACCIÓN */}
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
             <button
+              type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-4 rounded-2xl text-slate-500 font-bold hover:bg-slate-50 transition-all text-sm"
+              className="px-5 py-2.5 text-slate-500 font-semibold text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
               Cancelar
             </button>
             <button
+              type="button"
               onClick={handleSendFeedbackEmail}
               disabled={loading || !lead.email}
-              className="flex-[2] px-6 py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl shadow-slate-900/20 hover:bg-slate-800 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 bg-[#131b2e] hover:bg-slate-800 rounded-lg font-bold text-sm text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-60 shadow-sm"
             >
-              {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-              Enviar Invitación
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              <span>Enviar encuesta</span>
             </button>
           </div>
         </div>
+
       </div>
     </div>
   );
