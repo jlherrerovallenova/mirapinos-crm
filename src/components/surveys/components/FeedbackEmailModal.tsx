@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Send, Loader2, MessageSquare } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { getFeedbackEmailTemplate } from '../utils/feedbackTemplates';
@@ -101,7 +102,7 @@ export default function FeedbackEmailModal({ isOpen, onClose, lead, onSuccess }:
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200">
         
@@ -169,6 +170,7 @@ export default function FeedbackEmailModal({ isOpen, onClose, lead, onSuccess }:
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
