@@ -61,13 +61,15 @@ const Settings: React.FC = () => {
 
   // Sincronizar nombre de perfil cuando cargue el contexto
   useEffect(() => {
+    let ignore = false;
     if (profile?.full_name) {
       setFullName(profile.full_name);
     }
-    fetchIntegrations();
+    fetchIntegrations(ignore);
+    return () => { ignore = true; };
   }, [profile]);
 
-  const fetchIntegrations = async () => {
+  const fetchIntegrations = async (ignore = false) => {
     try {
       const { data, error } = await supabase
         .from('settings')
@@ -75,7 +77,7 @@ const Settings: React.FC = () => {
         .in('key', ['resend_api_key', 'unlayer_project_id']);
 
       if (error) throw error;
-      if (data) {
+      if (data && !ignore) {
         const resend = data.find((s: any) => s.key === 'resend_api_key') as any;
         const unlayer = data.find((s: any) => s.key === 'unlayer_project_id') as any;
         if (resend) setResendApiKey(resend.value || '');

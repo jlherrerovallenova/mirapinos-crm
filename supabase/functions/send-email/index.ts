@@ -36,12 +36,12 @@ serve(async (req) => {
       }),
     })
 
-    const data = await res.json()
-
     if (!res.ok) {
-      console.error("Resend error:", data)
-      throw new Error(data?.message || `Error Resend: ${res.statusText}`)
+      const errorText = await res.text()
+      throw new Error(`Resend API error (${res.status}): ${errorText}`)
     }
+
+    const data = await res.json()
 
     return new Response(JSON.stringify({ success: true, id: data.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

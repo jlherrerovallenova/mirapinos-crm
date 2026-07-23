@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { supabase, withRetry } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 import { Loader2, AlertCircle, XCircle } from 'lucide-react';
@@ -176,19 +176,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     setAuthError(null);
     return await supabase.auth.signInWithPassword({ email, password });
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     setProfile(null);
     return await supabase.auth.signOut();
-  };
+  }, []);
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     if (user?.id) await fetchProfile(user.id);
-  };
+  }, [user?.id]);
 
   const value = useMemo(
     () => ({ session, user, profile, loading, signIn, signOut, refreshProfile }),

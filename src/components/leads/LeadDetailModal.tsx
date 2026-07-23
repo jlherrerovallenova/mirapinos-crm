@@ -165,11 +165,12 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
   }, [lead.id]);
 
   useEffect(() => {
+    let ignore = false;
     fetchTasks();
 
-    // Suscribirse a cambios en tiempo real en email_tracking para este lead
-    const trackingChannel = supabase
-      .channel('email_tracking_changes')
+    const channel = supabase.channel(`email_tracking_changes_${lead.id}`);
+    
+    channel
       .on(
         'postgres_changes',
         {
@@ -179,13 +180,16 @@ export default function LeadDetailModal({ lead, onClose, onUpdate }: Props) {
           filter: `lead_id=eq.${lead.id}`
         },
         () => {
-          fetchTasks();
+          if (!ignore) fetchTasks();
         }
-      )
-      .subscribe();
+      );
+
+    const subscription = channel.subscribe();
 
     return () => {
-      supabase.removeChannel(trackingChannel);
+      ignore = true;
+      subscription.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [lead.id, fetchTasks]);
 

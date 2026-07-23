@@ -153,17 +153,19 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
               <span className="text-sm font-bold text-slate-700">Exportar todo el histórico</span>
             </label>
 
-            <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
-              <input
-                type="radio"
-                name="filter"
-                checked={filterType === 'month'}
-                onChange={() => setFilterType('month')}
-                className="text-emerald-600 focus:ring-emerald-500"
-              />
-              <div className="flex-1">
-                <span className="text-sm font-bold text-slate-700 block mb-1">Filtrar por mes</span>
-                <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="filter"
+                  checked={filterType === 'month'}
+                  onChange={() => setFilterType('month')}
+                  className="text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="text-sm font-bold text-slate-700">Filtrar por mes</span>
+              </label>
+              <div className="flex-1 flex justify-end">
+                <div className="flex items-center gap-2 bg-slate-50 px-2 py-1 rounded border border-slate-200">
                   <Calendar size={14} className="text-slate-400" />
                   <input
                     type="month"
@@ -174,7 +176,7 @@ export default function ExportLeadsModal({ isOpen, onClose }: Props) {
                   />
                 </div>
               </div>
-            </label>
+            </div>
           </div>
 
           <div className="pt-2 flex gap-3">
