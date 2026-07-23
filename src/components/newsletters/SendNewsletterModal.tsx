@@ -164,11 +164,11 @@ export function SendNewsletterModal({ isOpen, onClose, onSend, isSending }: Send
                                     <label className="text-sm font-bold text-slate-700 block">Selecciona la fase del cliente</label>
                                     <select
                                         className="w-full bg-white border border-slate-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-700 font-medium"
-                                        value={selectedPhase}
+                                        value={selectedPhase || ''}
                                         onChange={(e) => setSelectedPhase(e.target.value as PhaseType)}
                                     >
                                         {PHASES.map(p => (
-                                            <option key={p.value} value={p.value}>{p.label}</option>
+                                            <option key={p.value} value={p.value || ''}>{p.label}</option>
                                         ))}
                                     </select>
                                     <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex gap-3 text-blue-800 text-sm mt-4">

@@ -180,7 +180,7 @@ export default function Agenda() {
                     <CheckCircle2 size={14} />
                   </button>
 
-                  {getTypeIcon(item.type)}
+                  {getTypeIcon(item.type || '')}
 
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">

@@ -143,7 +143,7 @@ export default function DashboardAgenda({
                         {slotTasks.map(task => (
                           <AgendaListItem
                             key={task.id}
-                            task={task}
+                            task={task as any}
                             onToggle={() => onToggleTask(task)}
                             onDelete={() => onDeleteTask(task.id)}
                             formatDate={formatDateTime}
@@ -187,7 +187,7 @@ export default function DashboardAgenda({
                         {slotTasks.map(task => (
                           <AgendaListItem
                             key={task.id}
-                            task={task}
+                            task={task as any}
                             onToggle={() => onToggleTask(task)}
                             onDelete={() => onDeleteTask(task.id)}
                             formatDate={formatDateTime}
@@ -252,7 +252,7 @@ export default function DashboardAgenda({
                     {dayTasks.map(task => (
                       <AgendaListItem
                         key={task.id}
-                        task={task}
+                        task={task as any}
                         onToggle={() => onToggleTask(task)}
                         onDelete={() => onDeleteTask(task.id)}
                         formatDate={formatDateTime}
@@ -296,7 +296,7 @@ export default function DashboardAgenda({
       {filteredAgenda.map(task => (
         <AgendaListItem 
           key={task.id} 
-          task={task} 
+          task={task as any} 
           onToggle={() => onToggleTask(task)} 
           onDelete={() => onDeleteTask(task.id)} 
           formatDate={formatDateTime}

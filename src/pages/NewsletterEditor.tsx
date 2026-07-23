@@ -96,7 +96,7 @@ export default function NewsletterEditor() {
         setIsSendModalOpen(true);
     };
 
-    const handleConfirmSend = async (config: { audience: 'all' | 'phase' | 'manual'; phase?: string; leadIds?: string[] }) => {
+    const handleConfirmSend = async (config: any) => {
         if (status === 'sent') return;
 
         setSending(true);

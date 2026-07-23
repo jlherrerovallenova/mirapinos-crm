@@ -93,7 +93,6 @@ const Settings: React.FC = () => {
     try {
       const { error } = await supabase
         .from('profiles')
-        // @ts-expect-error
         .update({ full_name: fullName })
         .eq('id', profile.id);
 

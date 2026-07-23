@@ -76,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       console.log(`[AuthDebug] ✅ Perfil cargado:`, data);
-      setProfile(data);
+      setProfile(data ? { ...data, role: (data.role as any) || 'viewer' } : null);
     } catch (error: any) {
       if (error.message?.includes('AbortError') && retries > 0) {
         console.warn(`⏳ Catch AbortError detectado. Reintentando en 1s... (Quedan ${retries})`);

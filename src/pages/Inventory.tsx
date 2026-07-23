@@ -21,16 +21,16 @@ import CreatePropertyModal from '../components/inventory/CreatePropertyModal';
 import { useDialog } from '../context/DialogContext';
 
 interface Property {
-  id: string;
+  id: number;
   modelo: string;
   numero_vivienda: string;
-  superficie_parcela: number;
-  superficie_util: number;
-  superficie_construida: number;
-  habitaciones: number;
-  banos: number;
-  precio: number;
-  estado_vivienda?: string;
+  superficie_parcela: number | null;
+  superficie_util: number | null;
+  superficie_construida: number | null;
+  habitaciones: number | null;
+  banos: number | null;
+  precio: number | null;
+  estado_vivienda?: string | null;
   created_at: string;
 }
 
@@ -202,7 +202,7 @@ export default function Inventory() {
       `${p.superficie_util} m²`,
       `${p.superficie_construida} m²`,
       `${p.habitaciones} / ${p.banos}`,
-      new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(p.precio),
+      new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(p.precio || 0),
       (p.estado_vivienda || 'DISPONIBLE').toUpperCase()
     ]);
 
@@ -382,7 +382,7 @@ export default function Inventory() {
                     </td>
                     <td className="px-6 py-5">
                       <span className="inline-flex px-3 py-1 rounded-lg bg-slate-900 text-white font-bold text-sm">
-                        {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(property.precio)}
+                        {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(property.precio || 0)}
                       </span>
                     </td>
                     <td className="px-6 py-5">

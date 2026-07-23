@@ -53,7 +53,7 @@ export function useLeads(params: FetchLeadsParams) {
       if (error) throw error;
 
       return {
-        leads: (data || []) as Lead[],
+        leads: (data || []) as unknown as Lead[],
         totalCount: count || 0
       };
     }

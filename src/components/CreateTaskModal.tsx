@@ -204,7 +204,7 @@ export default function CreateTaskModal({ isOpen, onClose, onSuccess }: Props) {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo</label>
                 <select
                   className="w-full mt-1 px-4 py-3 bg-slate-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-emerald-500 transition-all text-sm font-bold text-slate-700"
-                  value={formData.type}
+                  value={formData.type || ''}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                 >
                   <option value="Llamada">📞 Llamada</option>
