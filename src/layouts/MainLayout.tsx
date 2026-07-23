@@ -3,9 +3,9 @@ import { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext';
-import { AppNotification } from '../components/ui/AppNotification';
-import { ConnectionStatus } from '../components/ui/ConnectionStatus';
-import DebugPanel from '../components/ui/DebugPanel';
+import { AppNotification } from '../components/AppNotification';
+import { ConnectionStatus } from '../components/ConnectionStatus';
+import DebugPanel from '../components/DebugPanel';
 import { 
   LayoutDashboard, 
   Users, 
@@ -21,12 +21,9 @@ import {
   Mail, 
   AlertTriangle, 
   Clock,
-  BarChart3,
-  BadgeDollarSign,
-  MessageSquareQuote
+  BarChart3
 } from 'lucide-react';
-import { useAgendaAlerts } from '../features/agenda/hooks/useAgendaAlerts';
-import { useEmailTrackingNotifications } from '../hooks/useEmailTrackingNotifications';
+import { useAgendaAlerts } from '../hooks/useAgendaAlerts';
 
 
 export default function MainLayout() {
@@ -46,12 +43,6 @@ export default function MainLayout() {
   const [showBellPopover, setShowBellPopover] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const { todayCount, overdueCount, total: alertTotal } = useAgendaAlerts();
-
-  // Escuchar aperturas de email en tiempo real
-  useEmailTrackingNotifications((data) => {
-    setNotificationData(data);
-    setShowNotification(true);
-  });
 
   // Cierra el popover al hacer clic fuera
   useEffect(() => {
@@ -150,16 +141,13 @@ export default function MainLayout() {
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 mt-2">Principal</p>
           <SidebarItem to="/" icon={<LayoutDashboard size={18} />} label="Panel de Control" active={location.pathname === '/'} onClick={closeSidebar} />
-          <SidebarItem to="/agenda" icon={<Clock size={18} />} label="Agenda" active={location.pathname === '/agenda'} onClick={closeSidebar} />
           <SidebarItem to="/leads" icon={<Users size={18} />} label="Clientes" active={location.pathname.startsWith('/leads')} onClick={closeSidebar} />
-          <SidebarItem to="/inventory" icon={<Map size={18} />} label="Viviendas" active={location.pathname === '/inventory'} onClick={closeSidebar} />
-          <SidebarItem to="/pipeline" icon={<Calendar size={18} />} label="Fases de Venta" active={location.pathname === '/pipeline'} onClick={closeSidebar} />
-          <SidebarItem to="/sales" icon={<BadgeDollarSign size={18} />} label="Operaciones" active={location.pathname === '/sales'} onClick={closeSidebar} />
+          <SidebarItem to="/pipeline" icon={<Calendar size={18} />} label="Ventas" active={location.pathname === '/pipeline'} onClick={closeSidebar} />
+          <SidebarItem to="/stats" icon={<BarChart3 size={18} />} label="Estadísticas" active={location.pathname === '/stats'} onClick={closeSidebar} />
 
           <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6">Gestión</p>
-          <SidebarItem to="/surveys" icon={<MessageSquareQuote size={18} />} label="Encuestas" active={location.pathname.startsWith('/surveys')} onClick={closeSidebar} />
           <SidebarItem to="/newsletters" icon={<Mail size={18} />} label="Newsletters" active={location.pathname.startsWith('/newsletters')} onClick={closeSidebar} />
-          <SidebarItem to="/stats" icon={<BarChart3 size={18} />} label="Estadísticas" active={location.pathname === '/stats'} onClick={closeSidebar} />
+          <SidebarItem to="/inventory" icon={<Map size={18} />} label="Inventario" active={location.pathname === '/inventory'} onClick={closeSidebar} />
           <SidebarItem to="/settings" icon={<Settings size={18} />} label="Configuración" active={location.pathname === '/settings'} onClick={closeSidebar} />
         </nav>
 
@@ -185,7 +173,7 @@ export default function MainLayout() {
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shadow-sm z-40 relative flex-shrink-0">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm z-40 relative flex-shrink-0">
           {/* IZQUIERDA: Menú móvil */}
           <div className="flex items-center w-1/3">
             <button
@@ -292,7 +280,7 @@ export default function MainLayout() {
         </header>
 
         <div className="flex-1 overflow-auto bg-slate-100/50 relative">
-          <div className="p-4 md:p-6 pb-10">
+          <div className="w-full p-4 md:p-8 pb-10">
             {/* Pasamos el término de búsqueda a las rutas hijas si fuera necesario */}
             <Outlet context={{ searchTerm }} />
           </div>
