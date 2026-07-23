@@ -9,6 +9,27 @@ interface AppNotificationProps {
   duration?: number;
 }
 
+const NOTIFICATION_THEMES = {
+  success: {
+    icon: <CheckCircle2 className="text-emerald-500" size={24} />,
+    bg: 'bg-emerald-50/90',
+    border: 'border-emerald-100',
+    accent: 'bg-emerald-500',
+  },
+  error: {
+    icon: <AlertCircle className="text-rose-500" size={24} />,
+    bg: 'bg-rose-50/90',
+    border: 'border-rose-100',
+    accent: 'bg-rose-500',
+  },
+  info: {
+    icon: <Info className="text-pine-500" size={24} />,
+    bg: 'bg-white/95',
+    border: 'border-pine-100',
+    accent: 'bg-pine-500',
+  },
+};
+
 export const AppNotification: React.FC<AppNotificationProps> = ({
   title,
   message,
@@ -23,28 +44,7 @@ export const AppNotification: React.FC<AppNotificationProps> = ({
     return () => clearTimeout(timer);
   }, [duration, onClose]);
 
-  const themes = {
-    success: {
-      icon: <CheckCircle2 className="text-emerald-500" size={24} />,
-      bg: 'bg-emerald-50/90',
-      border: 'border-emerald-100',
-      accent: 'bg-emerald-500',
-    },
-    error: {
-      icon: <AlertCircle className="text-rose-500" size={24} />,
-      bg: 'bg-rose-50/90',
-      border: 'border-rose-100',
-      accent: 'bg-rose-500',
-    },
-    info: {
-      icon: <Info className="text-pine-500" size={24} />,
-      bg: 'bg-white/95',
-      border: 'border-pine-100',
-      accent: 'bg-pine-500',
-    },
-  };
-
-  const theme = themes[type];
+  const theme = NOTIFICATION_THEMES[type];
 
   return (
     <div className={`
