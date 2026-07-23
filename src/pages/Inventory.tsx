@@ -70,7 +70,7 @@ export default function Inventory() {
   };
 
   const confirmDelete = async () => {
-    if (!propertyToDelete) return;
+    if (!propertyToDelete || isDeleting) return;
 
     try {
       setIsDeleting(true);
@@ -255,7 +255,7 @@ export default function Inventory() {
 
     // Generar el PDF y abrirlo en una nueva pestaña (más fiable para depuración y visualización)
     const pdfOutput = doc.output('bloburl');
-    window.open(pdfOutput, '_blank');
+    window.open(pdfOutput, '_blank', 'noopener,noreferrer');
     
     // También guardarlo por si el usuario lo prefiere
     doc.save(`listado_viviendas_${stateFilter || 'todas'}_${new Date().toISOString().split('T')[0]}.pdf`);

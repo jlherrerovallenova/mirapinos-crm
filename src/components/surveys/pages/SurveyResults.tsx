@@ -20,10 +20,12 @@ export default function SurveyResults() {
   const { session } = useAuth();
 
   useEffect(() => {
-    fetchSurveys();
+    let ignore = false;
+    fetchSurveys(ignore);
+    return () => { ignore = true; };
   }, [session]);
 
-  const fetchSurveys = async () => {
+  const fetchSurveys = async (ignore = false) => {
     setLoading(true);
     try {
       const { data, error: dbError } = await (supabase as any)
@@ -33,12 +35,12 @@ export default function SurveyResults() {
         .order('feedback_sent_at', { ascending: false });
 
       if (dbError) throw dbError;
-      setLeads(data || []);
+      if (!ignore) setLeads(data || []);
     } catch (err: any) {
       console.error('Error fetching surveys:', err);
-      setError('No se pudieron cargar los datos de las encuestas.');
+      if (!ignore) setError('No se pudieron cargar los datos de las encuestas.');
     } finally {
-      setLoading(false);
+      if (!ignore) setLoading(false);
     }
   };
 

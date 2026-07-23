@@ -92,34 +92,36 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (session?.user?.id) {
-      loadDashboardData();
+      let ignore = false;
+      loadDashboardData(ignore);
+      return () => { ignore = true; };
     }
   }, [session?.user?.id]);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (ignore = false) => {
     setLoading(true);
     try {
       // 1. CARGA DE LEADS Y ESTADÍSTICAS
       const statsData = await dashboardService.getLeadsStats();
-      setStats(statsData);
+      if (!ignore) setStats(statsData);
 
       const recentLeadsData = await dashboardService.getRecentLeads(5);
-      setRecentLeads(recentLeadsData);
+      if (!ignore) setRecentLeads(recentLeadsData);
 
       // 2. CARGA DE AGENDA
       const agendaData = await dashboardService.getPendingAgenda();
-      setAgenda(agendaData);
+      if (!ignore) setAgenda(agendaData);
 
 
 
       // 4. CARGA DE SEGUIMIENTO DE EMAILS
       const emailData = await dashboardService.getEmailTracking(50);
-      setEmails(emailData);
+      if (!ignore) setEmails(emailData);
 
     } catch (error) {
       console.error("Error general cargando dashboard:", error);
     } finally {
-      setLoading(false);
+      if (!ignore) setLoading(false);
     }
   };
 

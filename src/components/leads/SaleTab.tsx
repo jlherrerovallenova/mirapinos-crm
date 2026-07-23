@@ -274,15 +274,18 @@ export default function SaleTab({ lead, onLeadUpdate }: Props) {
 
   async function savePersonalData() {
     setSavingPersonal(true);
-    await onLeadUpdate({
-      ...personalForm,
-      property_id: personalForm.property_id ? Number(personalForm.property_id) : null,
-      joint_buyer_name: hasJointBuyer ? personalForm.joint_buyer_name : null,
-      joint_buyer_dni: hasJointBuyer ? personalForm.joint_buyer_dni : null,
-      joint_buyer_email: hasJointBuyer ? personalForm.joint_buyer_email : null,
-      joint_buyer_phone: hasJointBuyer ? personalForm.joint_buyer_phone : null,
-    });
-    setSavingPersonal(false);
+    try {
+      await onLeadUpdate({
+        ...personalForm,
+        property_id: personalForm.property_id ? Number(personalForm.property_id) : null,
+        joint_buyer_name: hasJointBuyer ? personalForm.joint_buyer_name : null,
+        joint_buyer_dni: hasJointBuyer ? personalForm.joint_buyer_dni : null,
+        joint_buyer_email: hasJointBuyer ? personalForm.joint_buyer_email : null,
+        joint_buyer_phone: hasJointBuyer ? personalForm.joint_buyer_phone : null,
+      });
+    } finally {
+      setSavingPersonal(false);
+    }
   }
 
   async function formalizarReserva() {
@@ -324,48 +327,50 @@ export default function SaleTab({ lead, onLeadUpdate }: Props) {
   async function advanceSaleStatus(newStatus: Sale['sale_status']) {
     if (!sale) return;
     setLoading(true);
+    try {
+      if (newStatus === 'mensualidades' && installments.length === 0) {
+        // Generar 24 recibos
+        const startDate = new Date();
+        startDate.setDate(1);
+        startDate.setMonth(startDate.getMonth() + 1);
+        const rows = Array.from({ length: 24 }, (_, i) => {
+          const d = new Date(startDate);
+          d.setMonth(d.getMonth() + i);
+          return {
+            sale_id: sale.id,
+            installment_number: i + 1,
+            due_date: d.toISOString().slice(0, 10),
+            amount: parseFloat(monthlyAmount.toFixed(2)),
+            paid: false,
+          };
+        });
+        await (supabase as any).from('installments').insert(rows);
+        fetchInstallments(sale.id);
+      }
 
-    if (newStatus === 'mensualidades' && installments.length === 0) {
-      // Generar 24 recibos
-      const startDate = new Date();
-      startDate.setDate(1);
-      startDate.setMonth(startDate.getMonth() + 1);
-      const rows = Array.from({ length: 24 }, (_, i) => {
-        const d = new Date(startDate);
-        d.setMonth(d.getMonth() + i);
-        return {
-          sale_id: sale.id,
-          installment_number: i + 1,
-          due_date: d.toISOString().slice(0, 10),
-          amount: parseFloat(monthlyAmount.toFixed(2)),
-          paid: false,
-        };
-      });
-      await (supabase as any).from('installments').insert(rows);
-      fetchInstallments(sale.id);
+      await (supabase as any).from('sales').update({ sale_status: newStatus }).eq('id', sale.id);
+      await onLeadUpdate({ sale_status: newStatus });
+      
+      // Actualizar el estado de la vivienda en el inventario según el nuevo estado de venta
+      const statusMapping: Record<string, string> = {
+        reserva: 'RESERVADA',
+        contrato: 'CONTRATO CV',
+        mensualidades: 'CONTRATO CV',
+        escrituracion: 'ESCRITURADA',
+        completada: 'ESCRITURADA'
+      };
+      const propertyStatus = statusMapping[newStatus];
+      if (propertyStatus && sale.property_id) {
+        await supabase
+          .from('inventory')
+          .update({ estado_vivienda: propertyStatus })
+          .eq('id', sale.property_id);
+      }
+      
+      setSale((prev: any) => prev ? { ...prev, sale_status: newStatus } : null);
+    } finally {
+      setLoading(false);
     }
-
-    await (supabase as any).from('sales').update({ sale_status: newStatus }).eq('id', sale.id);
-    await onLeadUpdate({ sale_status: newStatus });
-    
-    // Actualizar el estado de la vivienda en el inventario según el nuevo estado de venta
-    const statusMapping: Record<string, string> = {
-      reserva: 'RESERVADA',
-      contrato: 'CONTRATO CV',
-      mensualidades: 'CONTRATO CV',
-      escrituracion: 'ESCRITURADA',
-      completada: 'ESCRITURADA'
-    };
-    const propertyStatus = statusMapping[newStatus];
-    if (propertyStatus && sale.property_id) {
-      await supabase
-        .from('inventory')
-        .update({ estado_vivienda: propertyStatus })
-        .eq('id', sale.property_id);
-    }
-    
-    setSale((prev: any) => prev ? { ...prev, sale_status: newStatus } : null);
-    setLoading(false);
   }
 
   async function toggleInstallment(inst: Installment) {

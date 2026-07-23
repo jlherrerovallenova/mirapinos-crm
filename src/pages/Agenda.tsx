@@ -37,10 +37,12 @@ export default function Agenda() {
   const { showConfirm, showAlert } = useDialog();
 
   useEffect(() => {
-    fetchAgenda();
+    let ignore = false;
+    fetchAgenda(ignore);
+    return () => { ignore = true; };
   }, [page, filterStatus]);
 
-  const fetchAgenda = async () => {
+  const fetchAgenda = async (ignore = false) => {
     if (!session) return;
     setLoading(true);
     try {
@@ -67,12 +69,12 @@ export default function Agenda() {
       })) as AgendaItem[];
 
       setItems(formattedData);
-      if (count !== null) setTotalItems(count);
+      if (count !== null && !ignore) setTotalItems(count);
 
     } catch (error) {
       console.error('Error fetching agenda:', error);
     } finally {
-      setLoading(false);
+      if (!ignore) setLoading(false);
     }
   };
 

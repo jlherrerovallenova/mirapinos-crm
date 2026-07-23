@@ -23,11 +23,13 @@ export default function NewsletterEditor() {
 
     useEffect(() => {
         if (id) {
-            loadNewsletter(id);
+            let ignore = false;
+            loadNewsletter(id, ignore);
+            return () => { ignore = true; };
         }
     }, [id]);
 
-    const loadNewsletter = async (newsletterId: string) => {
+    const loadNewsletter = async (newsletterId: string, ignore = false) => {
         setLoading(true);
         try {
             const { data, error } = await supabase
@@ -37,7 +39,7 @@ export default function NewsletterEditor() {
                 .single();
 
             if (error) throw error;
-            if (data) {
+            if (data && !ignore) {
                 setSubject((data as any).subject || '');
                 setStatus((data as any).status);
 
@@ -53,9 +55,9 @@ export default function NewsletterEditor() {
             }
         } catch (error) {
             console.error('Error loading newsletter:', error);
-            showMsg('error', 'Error', 'No pudimos cargar la plantilla. Revisa tu conexión.');
+            if (!ignore) showMsg('error', 'Error', 'No pudimos cargar la plantilla. Revisa tu conexión.');
         } finally {
-            setLoading(false);
+            if (!ignore) setLoading(false);
         }
     };
 

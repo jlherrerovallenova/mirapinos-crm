@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useMemo } from 'react';
 import { supabase, withRetry } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 import { Loader2, AlertCircle, XCircle } from 'lucide-react';
@@ -190,7 +190,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user?.id) await fetchProfile(user.id);
   };
 
-  const value = { session, user, profile, loading, signIn, signOut, refreshProfile };
+  const value = useMemo(
+    () => ({ session, user, profile, loading, signIn, signOut, refreshProfile }),
+    [session, user, profile, loading, signIn, signOut, refreshProfile]
+  );
 
   if (loading) {
     return (

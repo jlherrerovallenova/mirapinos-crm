@@ -56,12 +56,14 @@ export default function LeadDetail() {
 
   useEffect(() => {
     if (id) {
-      fetchLeadData();
+      let ignore = false;
+      fetchLeadData(ignore);
+      return () => { ignore = true; };
     }
   }, [id]);
 
   // 1. CARGA DE DATOS DEL CLIENTE Y SUS TAREAS
-  const fetchLeadData = async () => {
+  const fetchLeadData = async (ignore = false) => {
     setLoading(true);
     try {
       // Promesas en paralelo para mayor velocidad
@@ -73,20 +75,21 @@ export default function LeadDetail() {
       if (leadResponse.error) throw leadResponse.error;
       if (agendaResponse.error) throw agendaResponse.error;
 
-      setLead(leadResponse.data);
-      setCurrentStatus(leadResponse.data.status || 'new');
-      setFormData({
-        name: leadResponse.data.name || '',
-        email: leadResponse.data.email || '',
-        phone: leadResponse.data.phone || '',
-        source: leadResponse.data.source || 'Web'
-      });
-      setTasks(agendaResponse.data || []);
-
+      if (!ignore) {
+        setLead(leadResponse.data);
+        setCurrentStatus(leadResponse.data.status || 'new');
+        setFormData({
+          name: leadResponse.data.name || '',
+          email: leadResponse.data.email || '',
+          phone: leadResponse.data.phone || '',
+          source: leadResponse.data.source || 'Web'
+        });
+        setTasks(agendaResponse.data || []);
+      }
     } catch (error) {
       console.error("Error cargando perfil del cliente:", error);
     } finally {
-      setLoading(false);
+      if (!ignore) setLoading(false);
     }
   };
 

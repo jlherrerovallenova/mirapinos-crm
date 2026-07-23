@@ -18,6 +18,7 @@ export function useAgendaAlerts(): AgendaAlerts {
 
   useEffect(() => {
     if (!session) return;
+    let ignore = false;
 
     const fetchAlerts = async () => {
       try {
@@ -44,12 +45,14 @@ export function useAgendaAlerts(): AgendaAlerts {
             .lt('due_date', startOfDay),
         ]);
 
-        setTodayCount(todayRes.count ?? 0);
-        setOverdueCount(overdueRes.count ?? 0);
+        if (!ignore) {
+          setTodayCount(todayRes.count ?? 0);
+          setOverdueCount(overdueRes.count ?? 0);
+        }
       } catch (err) {
         console.error('Error fetching agenda alerts:', err);
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     };
 
@@ -57,7 +60,10 @@ export function useAgendaAlerts(): AgendaAlerts {
 
     // Refresca cada 5 minutos
     const interval = setInterval(fetchAlerts, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    return () => {
+      ignore = true;
+      clearInterval(interval);
+    };
   }, [session]);
 
   return { todayCount, overdueCount, total: todayCount + overdueCount, loading };

@@ -45,10 +45,12 @@ export default function Stats() {
   const [rawLeads, setRawLeads] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchStats();
+    let ignore = false;
+    fetchStats(ignore);
+    return () => { ignore = true; };
   }, [timeRange]);
 
-  const fetchStats = async () => {
+  const fetchStats = async (ignore = false) => {
     setLoading(true);
     try {
       const { data: leads, error } = await supabase
@@ -57,14 +59,14 @@ export default function Stats() {
 
       if (error) throw error;
 
-      if (leads) {
+      if (leads && !ignore) {
         setRawLeads(leads);
         processLeadsData(leads);
       }
     } catch (err) {
       console.error('Error fetching stats:', err);
     } finally {
-      setLoading(false);
+      if (!ignore) setLoading(false);
     }
   };
 
@@ -160,6 +162,7 @@ export default function Stats() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleDownloadPDF = () => {
